@@ -1,4 +1,4 @@
-import warnings
+from warnings import warn
 import numpy as np
 
 from photutils import aperture_photometry as apphot
@@ -10,10 +10,15 @@ from astropy.nddata import CCDData, Cutout2D
 from astropy.stats import sigma_clipped_stats
 from astropy import units as u
 
-from . import background
+from .background import sky_fit
+
+__all__ = ["apphot_annulus", "find_centroid_com"]
+
+# TODO: Put centroiding into this apphot_annulus ?
 
 
-def apphot_annulus(ccd, aperture, annulus, t_exposure, error=None, mask=None,
+def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
+                   exposure_key="EXPTIME", error=None, mask=None,
                    sky_keys={}, t_exposure_unit=u.s, **kwargs):
     ''' Do aperture photometry using annulus.
     Parameters
@@ -22,6 +27,10 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure, error=None, mask=None,
         The data to be photometried. Preferably in ADU.
     aperture, annulus: photutils aperture and annulus object
         The aperture and annulus to be used for aperture photometry.
+    exposure_key: str
+        The key for exposure time. Together with ``t_exposure_unit``, the
+        function will normalize the signal to exposure time. If ``t_exposure``
+        is not None, this will be ignored.
     error: array-like or Quantity, optional
         See ``photutils.aperture_photometry`` documentation.
         The pixel-wise error map to be propagated to magnitued error.
@@ -43,21 +52,31 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure, error=None, mask=None,
     '''
     _ccd = ccd.copy()
 
+    if t_exposure is None:
+        t_exposure = ccd.header[exposure_key]
+
     if error is not None:
+        print("Ignore any uncertainty extension in the original CCD "
+              + "and use provided error.")
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
+
     else:
-        err = np.zeros_like(_ccd.data)
+        try:
+            err = ccd.uncertainty.array
+        except AttributeError:
+            warn("Couldn't find Uncertainty extension in ccd. Will not calculate errors.")
+            err = np.zeros_like(_ccd.data)
 
     if mask is not None:
         if _ccd.mask is not None:
-            warnings.warn("ccd contains mask, so given mask will be added to it.")
+            warn("ccd contains mask, so given mask will be added to it.")
             _ccd.mask += mask
         else:
             _ccd.mask = mask
 
-    skys = background.sky_fit(_ccd, annulus, **sky_keys)
+    skys = sky_fit(_ccd, annulus, **sky_keys)
     n_ap = aperture.area()
     phot = apphot(_ccd.data, aperture, mask=_ccd.mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
@@ -195,7 +214,7 @@ def find_centroid_com(ccd, position_xy, iters=5, cbox_size=5., csigma=3.,
         print(f"Final shift: dx={dx:+.2f}, dy={dy:+.2f}, total={total:.2f}")
 
     if total > max_shift:
-        warnings.warn(f"Shift is larger than {max_shift} ({total:.2f}).")
+        warn(f"Shift is larger than {max_shift} ({total:.2f}).")
 
     # if verbose:
     #     print('Found centroid after {} iterations'.format(i_iter))
@@ -217,4 +236,3 @@ def find_centroid_com(ccd, position_xy, iters=5, cbox_size=5., csigma=3.,
         return newpos, original_cut, final_cut
 
     return newpos
-
