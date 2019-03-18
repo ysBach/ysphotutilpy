@@ -88,7 +88,8 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
 
     phot_f["source_sum"] = phot_f["aperture_sum"] - n_ap * phot_f["msky"]
     phot_f["source_sum_err"] = (np.sqrt(phot_f["aperture_sum_err"]**2
-                                        + (n_ap * phot_f['ssky'])**2 / phot_f['nsky']))
+                                        + (n_ap * phot_f['ssky'])**2
+                                        / (phot_f['nsky'] - phot_f['nrej'])))
 
     phot_f["mag"] = -2.5 * np.log10(phot_f['source_sum'] / t_exposure)
     phot_f["merr"] = (2.5 / np.log(10)
