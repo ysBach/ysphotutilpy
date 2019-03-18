@@ -1,4 +1,4 @@
-import warnings
+from warnings import warn
 
 import numpy as np
 from astropy.stats import sigma_clip
@@ -85,7 +85,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
                 raise ValueError('nrej < 0: check the code')
 
             if nrej > nsky:  # rejected > survived
-                warnings.warn('More than half of the pixels rejected.')
+                warn('More than half of the pixels rejected.')
 
             if mode_option == 'IRAF':
                 if (mean < med):
