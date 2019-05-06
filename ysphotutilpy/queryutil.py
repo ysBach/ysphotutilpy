@@ -1,11 +1,42 @@
 import numpy as np
 import pandas as pd
+from astroquery.vizier import Vizier
 from astropy.table import Table
 from astropy.wcs import WCS
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-__all__ = ["group_stars", "get_xy", "xyinFOV"]
+__all__ = ["panstarrs_query", "group_stars", "get_xy", "xyinFOV"]
+
+
+def panstarrs_query(ra_deg, dec_deg, rad_deg, columns=None, column_filters={},
+                    maxsources=10000):
+    """
+    Query PanSTARRS @ VizieR using astroquery.vizier
+    :param ra_deg: RA in degrees
+    :param dec_deg: Declination in degrees
+    :param rad_deg: field radius in degrees
+    :param maxmag: upper limit G magnitude (optional)
+    :param maxsources: maximum number of sources
+    :return: astropy.table object
+    Note
+    ----
+    All columns: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=II/349
+    """
+    if columns is None:
+        columns = ['objID', 'RAJ2000', 'DEJ2000', 'e_RAJ2000', 'e_DEJ2000',
+                   'gmag', 'e_gmag', 'rmag', 'e_rmag', 'imag', 'e_imag',
+                   'zmag', 'e_zmag', 'ymag', 'e_ymag']
+    vquery = Vizier(columns=columns,
+                    column_filters=column_filters,
+                    row_limit=maxsources)
+
+    field = SkyCoord(ra=ra_deg, dec=dec_deg,
+                     unit=(u.deg, u.deg),
+                     frame='icrs')
+    return vquery.query_region(field,
+                               width=("{}d".format(rad_deg)),
+                               catalog="II/349/ps1")[0]
 
 
 def group_stars(table, crit_separation, xcol="x", ycol="y"):
