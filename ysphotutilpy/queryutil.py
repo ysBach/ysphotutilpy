@@ -11,14 +11,27 @@ __all__ = ["panstarrs_query", "group_stars", "get_xy", "xyinFOV"]
 
 def panstarrs_query(ra_deg, dec_deg, rad_deg, columns=None, column_filters={},
                     maxsources=10000):
-    """
-    Query PanSTARRS @ VizieR using astroquery.vizier
-    :param ra_deg: RA in degrees
-    :param dec_deg: Declination in degrees
-    :param rad_deg: field radius in degrees
-    :param maxmag: upper limit G magnitude (optional)
-    :param maxsources: maximum number of sources
-    :return: astropy.table object
+    """ Query PanSTARRS @ VizieR using astroquery.vizier
+    Almost direct excerpt from Michael Mommert:
+    https://michaelmommert.wordpress.com/2017/02/13/accessing-the-gaia-and-pan-starrs-catalogs-using-python/
+
+    Parameters
+    ----------
+    ra_deg, dec_deg, rad_deg : float
+        The central RA, DEC and the cone search radius in degrees unit.
+
+    column_filters : dict, optional
+        The column filters for astroquery.vizier.
+        Example can be ``{"gmag":"13.0..20.0", "e_gmag":"<0.10"}``.
+
+    maxsources : int
+        The maximum number of sources.
+
+    Return
+    ------
+    queried : astropy.table object
+        The queried result.
+
     Note
     ----
     All columns: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=II/349
@@ -34,9 +47,11 @@ def panstarrs_query(ra_deg, dec_deg, rad_deg, columns=None, column_filters={},
     field = SkyCoord(ra=ra_deg, dec=dec_deg,
                      unit=(u.deg, u.deg),
                      frame='icrs')
-    return vquery.query_region(field,
-                               width=("{}d".format(rad_deg)),
-                               catalog="II/349/ps1")[0]
+
+    queried = vquery.query_region(field,
+                                  width=("{}d".format(rad_deg)),
+                                  catalog="II/349/ps1")[0]
+    return queried
 
 
 def group_stars(table, crit_separation, xcol="x", ycol="y"):
@@ -136,7 +151,8 @@ def xyinFOV(header, table, ra_key='ra', dec_key='dec', bezel=0, origin=0,
     if isinstance(table, pd.DataFrame):
         _tab = Table.from_pandas(table)
     elif not isinstance(table, Table):
-        raise TypeError("table must be either astropy Table or pandas DataFrame.")
+        raise TypeError(
+            "table must be either astropy Table or pandas DataFrame.")
 
     w = WCS(header)
     coo = SkyCoord(_tab[ra_key], _tab[dec_key])
