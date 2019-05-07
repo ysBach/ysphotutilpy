@@ -9,10 +9,11 @@ from astropy import units as u
 __all__ = ["panstarrs_query", "group_stars", "get_xy", "xyinFOV"]
 
 
-def panstarrs_query(ra_deg, dec_deg, rad_deg, columns=None, column_filters={},
+def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
+                    width=None, height=None, columns=None, column_filters={},
                     maxsources=10000):
     """ Query PanSTARRS @ VizieR using astroquery.vizier
-    Almost direct excerpt from Michael Mommert:
+    Got ideas from Michael Mommert:
     https://michaelmommert.wordpress.com/2017/02/13/accessing-the-gaia-and-pan-starrs-catalogs-using-python/
 
     Parameters
@@ -20,12 +21,27 @@ def panstarrs_query(ra_deg, dec_deg, rad_deg, columns=None, column_filters={},
     ra_deg, dec_deg, rad_deg : float
         The central RA, DEC and the cone search radius in degrees unit.
 
+    radius : convertible to `~astropy.coordinates.Angle`
+        The radius of the circular region to query.
+
+    inner_radius : convertible to `~astropy.coordinates.Angle`
+        When set in addition to ``radius``, the queried region becomes
+        annular, with outer radius ``radius`` and inner radius
+        ``inner_radius``.
+
+    width : convertible to `~astropy.coordinates.Angle`
+        The width of the square region to query.
+
+    height : convertible to `~astropy.coordinates.Angle`
+        When set in addition to ``width``, the queried region becomes
+        rectangular, with the specified ``width`` and ``height``.
+
+    columns : list of str, optional
+        The columns to be retrieved.
+
     column_filters : dict, optional
         The column filters for astroquery.vizier.
         Example can be ``{"gmag":"13.0..20.0", "e_gmag":"<0.10"}``.
-
-    maxsources : int
-        The maximum number of sources.
 
     Return
     ------
@@ -42,14 +58,17 @@ def panstarrs_query(ra_deg, dec_deg, rad_deg, columns=None, column_filters={},
                    'zmag', 'e_zmag', 'ymag', 'e_ymag']
     vquery = Vizier(columns=columns,
                     column_filters=column_filters,
-                    row_limit=maxsources)
+                    row_limit=-1)
 
     field = SkyCoord(ra=ra_deg, dec=dec_deg,
                      unit=(u.deg, u.deg),
                      frame='icrs')
 
     queried = vquery.query_region(field,
-                                  width=("{}d".format(rad_deg)),
+                                  radius=radius,
+                                  inner_radius=inner_radius,
+                                  width=width,
+                                  height=height,
                                   catalog="II/349/ps1")[0]
     return queried
 
@@ -110,13 +129,17 @@ def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
     ----------
     header: astropy.io.fits.Header or pandas.DataFrame
         The header to extract WCS information.
+
     ra, dec: float or Quantity or array-like of such
         The coordinates to get XY position. If Quantity, ``unit`` will likely
         be ignored.
+
     unit: astropy Quantity
         Unit of the ``ra`` and ``dec`` given.
+
     origin: int, optional
        Whether to return 0 or 1-based pixel coordinates.
+
     mode: 'all' or 'wcs', optional
         Whether to do the transformation including distortions (``'all'``) or
         only including only the core WCS transformation (``'wcs'``).
