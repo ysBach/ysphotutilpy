@@ -68,7 +68,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
             skydict["nrej"] = 0
 
         elif method == 'mode':
-            sky_clip = sigma_clip(sky, sigma=sky_nsigma, maxiters=sky_iters)
+            sky_clip = sigma_clip(sky, sigma=sky_nsigma, maxiters=sky_maxiters)
 
             sky_clipped = sky[~sky_clip.mask]
             nsky = np.count_nonzero(~sky_clip.mask)
