@@ -8,7 +8,7 @@ __all__ = ['sky_fit']
 
 
 def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
-            sky_iters=5, mode_option='sex'):
+            sky_maxiters=5, mode_option='sex'):
     """ Estimate the sky value from image and annulus.
     Parameters
     ----------
@@ -25,7 +25,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
         "mode" is analogous to Mode Estimator Background of photutils.
     sky_nsigma : float, optinal
         The input parameter for sky sigma clipping.
-    sky_iters : float, optinal
+    sky_maxiters : float, optinal
         The input parameter for sky sigma clipping.
     mode_option : {"sex", "IRAF", "MMM"}, optional.
         sex  == (med_factor, mean_factor) = (2.5, 1.5)
@@ -68,7 +68,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
             skydict["nrej"] = 0
 
         elif method == 'mode':
-            sky_clip = sigma_clip(sky, sigma=sky_nsigma, iters=sky_iters)
+            sky_clip = sigma_clip(sky, sigma=sky_nsigma, maxiters=sky_iters)
 
             sky_clipped = sky[~sky_clip.mask]
             nsky = np.count_nonzero(~sky_clip.mask)

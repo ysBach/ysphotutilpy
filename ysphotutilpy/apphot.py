@@ -113,7 +113,7 @@ def centroiding_iteration(ccd, position_xy, cbox_size=5., csigma=3.):
 
     imgX, imgY = position_xy
     cutccd = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
-    avg, med, std = sigma_clipped_stats(cutccd.data, sigma=3, iters=5)
+    avg, med, std = sigma_clipped_stats(cutccd.data, sigma=3, maxiters=5)
     cthresh = med + csigma * std
     # using pixels only above med + 3*std for centroiding is recommended.
     # See Ma+2009, Optics Express, 17, 8525
@@ -134,10 +134,10 @@ def centroiding_iteration(ccd, position_xy, cbox_size=5., csigma=3.):
     return xc_img, yc_img, shift
 
 
-def find_centroid_com(ccd, position_xy, iters=5, cbox_size=5., csigma=3.,
+def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
                       tol_shift=1.e-4, max_shift=1, verbose=False, full=False):
     ''' Find the intensity-weighted centroid iteratively.
-    Simply run `centroiding_iteration` function iteratively for `iters` times.
+    Simply run `centroiding_iteration` function iteratively for `maxiters` times.
     Given the initial guess of centroid position in image xy coordinate, it
     finds the intensity-weighted centroid (center of mass) after rejecting
     pixels by sigma-clipping.
@@ -189,9 +189,9 @@ def find_centroid_com(ccd, position_xy, iters=5, cbox_size=5., csigma=3.,
     d = 0
     if verbose:
         print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]")
-        print(f"With max iteration {iters:d}, shift tolerance {tol_shift}")
+        print(f"With max iteration {maxiters:d}, shift tolerance {tol_shift}")
 
-    while (i_iter < iters) and (d < tol_shift):
+    while (i_iter < maxiters) and (d < tol_shift):
         xy_old = [xc_iter[-1], yc_iter[-1]]
 
         x, y, d = centroiding_iteration(ccd=ccd,
@@ -203,7 +203,7 @@ def find_centroid_com(ccd, position_xy, iters=5, cbox_size=5., csigma=3.,
         shift.append(d)
         i_iter += 1
         if verbose:
-            print(f"Iteration {i_iter:d} / {iters:d}: "
+            print(f"Iteration {i_iter:d} / {maxiters:d}: "
                   + f"({x:.2f}, {y:.2f}), shifted {d:.2f}")
 
     newpos = [xc_iter[-1], yc_iter[-1]]
