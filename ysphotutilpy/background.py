@@ -263,4 +263,3 @@ def annul2values(ccd, annulus):
 #         skydicts.append(skydict)
 #     skytable = Table(skydicts)
 #     return skytable
-
