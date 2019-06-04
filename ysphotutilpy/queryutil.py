@@ -73,7 +73,7 @@ def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
     return queried
 
 
-def group_stars(table, crit_separation, xcol="x", ycol="y"):
+def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
     ''' Group stars using DAOGROUP algorithm and return row indices.
     Parameters
     ----------
@@ -86,6 +86,9 @@ def group_stars(table, crit_separation, xcol="x", ycol="y"):
         The column names for x and y positions. This is necessary since
         ``photutils.DAOGroup`` accepts a table which has x y positions
         designated as ``"x_0"`` and ``"y_0"``.
+    index : bool, optional
+        Whether to return only the index of the grouped rows (group
+        information is lost) or the full grouped table (after group_by).
 
     Notes
     -----
@@ -104,7 +107,12 @@ def group_stars(table, crit_separation, xcol="x", ycol="y"):
 
     Return
     ------
+    gtab: Table
+        Returned when ``index_only=False``.
+        The table underwent ``.group_by("group_id")``.
+
     grouped_rows: list
+        Returned when ``index_only=True``.
         The indices of the rows which are "grouped" stars. You may remove
         such rows using ``table.remove_rows(grouped_rows)``.
     '''
@@ -114,13 +122,16 @@ def group_stars(table, crit_separation, xcol="x", ycol="y"):
     tab[xcol].name = "x_0"
     tab[ycol].name = "y_0"
     gtab = DAOGroup(crit_separation=crit_separation)(tab).group_by("group_id")
-    gid, gnum = np.unique(gtab["group_id"], return_counts=True)
-    gmask = gid[gnum != 1]  # group id with > 1 stars
-    grouped_rows = []
-    for i, gid in enumerate(gtab["group_id"]):
-        if gid in gmask:
-            grouped_rows.append(i)
-    return grouped_rows
+    if not row_iloc:
+        return gtab
+    else:
+        gid, gnum = np.unique(gtab["group_id"], return_counts=True)
+        gmask = gid[gnum != 1]  # group id with > 1 stars
+        grouped_rows = []
+        for i, gid in enumerate(gtab["group_id"]):
+            if gid in gmask:
+                grouped_rows.append(i)
+        return grouped_rows
 
 
 def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
