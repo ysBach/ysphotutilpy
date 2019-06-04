@@ -19,7 +19,8 @@ __all__ = ["apphot_annulus", "find_centroid_com"]
 
 def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
                    exposure_key="EXPTIME", error=None, mask=None,
-                   sky_keys={}, t_exposure_unit=u.s, **kwargs):
+                   sky_keys={}, t_exposure_unit=u.s, verbose=False,
+                   **kwargs):
     ''' Do aperture photometry using annulus.
     Parameters
     ----------
@@ -56,8 +57,9 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
         t_exposure = ccd.header[exposure_key]
 
     if error is not None:
-        print("Ignore any uncertainty extension in the original CCD "
-              + "and use provided error.")
+        if verbose:
+            print("Ignore any uncertainty extension in the original CCD "
+                  + "and use provided error.")
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
@@ -66,12 +68,14 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
         try:
             err = ccd.uncertainty.array
         except AttributeError:
-            warn("Couldn't find Uncertainty extension in ccd. Will not calculate errors.")
+            if verbose:
+                warn("Couldn't find Uncertainty extension in ccd. Will not calculate errors.")
             err = np.zeros_like(_ccd.data)
 
     if mask is not None:
         if _ccd.mask is not None:
-            warn("ccd contains mask, so given mask will be added to it.")
+            if verbose:
+                warn("ccd contains mask, so given mask will be added to it.")
             _ccd.mask += mask
         else:
             _ccd.mask = mask
