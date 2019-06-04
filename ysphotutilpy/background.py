@@ -141,16 +141,21 @@ def annul2values(ccd, annulus):
 
     mask_an = annulus.to_mask(method='center')
     for i, an in enumerate(mask_an):
-        an_idx = np.nonzero(an.data)
-        skys_1d = an.multiply(_ccd.data)[an_idx]
-        mask_1d = an.multiply(_ccd.mask)[an_idx]
+        in_an = (an.data == 1).astype(float)
+        # result identical to np.nonzero(an.data), but just for safety...
+        in_an[in_an == 0] = np.nan
+        skys_i = an.multiply(_ccd.data, fill_value=np.nan) * in_an
+        ccdmask_i = an.multiply(_ccd.mask, fill_value=False)
+        mask_i = (np.isnan(skys_i) + ccdmask_i).astype(bool)
         # skys_i = an.multiply(_ccd, fill_value=np.nan)
         # sky_xy = np.nonzero(an.data)
         # sky_all = mask_im[sky_xy]
         # sky_values = sky_all[~np.isnan(sky_all)]
         # values.append(sky_values)
-        skys_1d = np.ma.array(skys_1d, dtype=_ccd.dtype, mask=mask_1d)
+        skys_1d = np.array(skys_i[~mask_i].flatten(), dtype=_ccd.dtype)
         values.append(skys_1d)
+    # plt.imshow(nanmask)
+    # plt.imshow(skys_i)
 
     return values
 
