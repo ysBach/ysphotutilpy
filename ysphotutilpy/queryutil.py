@@ -122,7 +122,7 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
     tab[xcol].name = "x_0"
     tab[ycol].name = "y_0"
     gtab = DAOGroup(crit_separation=crit_separation)(tab).group_by("group_id")
-    if not row_iloc:
+    if not index_only:
         return gtab
     else:
         gid, gnum = np.unique(gtab["group_id"], return_counts=True)
