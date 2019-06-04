@@ -35,11 +35,6 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     error: array-like or Quantity, optional
         See ``photutils.aperture_photometry`` documentation.
         The pixel-wise error map to be propagated to magnitued error.
-        One common example is the Poisson error propagated with readout noise,
-        i.e., if ``e_Poisson = np.sqrt(gain * imagedata) / gain`` and
-        ``e_RONoise = R/gain`` in ADU, then
-        ``error = np.sqrt(e_Poisson**2 + e_RONoise**2)`` in ADU.
-        See ``photutils.utils.calc_total_error`` documentation.
     sky_keys: dict
         kwargs of ``sky_fit``. Mostly one doesn't change the default setting,
         so I intentionally made it to be dict rather than usual kwargs, etc.
@@ -91,9 +86,16 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     phot_f = hstack([phot, skys])
 
     phot_f["source_sum"] = phot_f["aperture_sum"] - n_ap * phot_f["msky"]
-    phot_f["source_sum_err"] = (np.sqrt(phot_f["aperture_sum_err"]**2
-                                        + (n_ap * phot_f['ssky'])**2
-                                        / (phot_f['nsky'] - phot_f['nrej'])))
+
+    # see, e.g., http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?radprof.hlp
+    # Poisson + RDnoise + dark + digitization noise:
+    var_errmap = phot_f["aperture_sum_err"]**2
+    # Sum of n_ap Gaussians (kind of random walk):
+    var_skyrand = n_ap * phot_f["ssky"]**2
+    # "systematic" uncertainty in the msky value:
+    var_skysyst = (n_ap * phot_f['ssky'])**2 / phot_f['nsky']
+
+    phot_f["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_skysyst)
 
     phot_f["mag"] = -2.5 * np.log10(phot_f['source_sum'] / t_exposure)
     phot_f["merr"] = (2.5 / np.log(10)
