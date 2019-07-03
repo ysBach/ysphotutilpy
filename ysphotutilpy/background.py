@@ -160,106 +160,108 @@ def annul2values(ccd, annulus):
     return values
 
 
-# def sky_fit(all_sky, method='mode', sky_nsigma=3, sky_iters=5,
-#             mode_option='sex'):
-#     '''
-#     Estimate sky from given sky values.
+"""
+def sky_fit(all_sky, method='mode', sky_nsigma=3, sky_iters=5,
+            mode_option='sex'):
+    '''
+    Estimate sky from given sky values.
 
-#     TODO: will it be necessary to include med_factor=2.5, mean_factor=1.5?
+    TODO: will it be necessary to include med_factor=2.5, mean_factor=1.5?
 
-#     Parameters
-#     ----------
-#     all_sky : ~numpy.ndarray
-#         The sky values as numpy ndarray format. It MUST be 1-d for proper use.
-#     method : {"mean", "median", "mode"}, optional
-#         The method to estimate sky value. You can give options to "mode"
-#         case; see mode_option.
-#         "mode" is analogous to Mode Estimator Background of photutils.
-#     sky_nsigma : float, optinal
-#         The input parameter for sky sigma clipping.
-#     sky_iters : float, optinal
-#         The input parameter for sky sigma clipping.
-#     mode_option : {"sex", "IRAF", "MMM"}, optional.
-#         sex  == (med_factor, mean_factor) = (2.5, 1.5)
-#         IRAF == (med_factor, mean_factor) = (3, 2)
-#         MMM  == (med_factor, mean_factor) = (3, 2)
-#         where ``msky = (med_factor * med) - (mean_factor * mean)``.
-#     Returns
-#     -------
-#     skytable: astropy.table.Table
-#         The table of the followings.
-#     msky : float
-#         The estimated sky value within the all_sky data, after sigma clipping.
-#     ssky : float
-#         The sample standard deviation of sky value within the all_sky data,
-#         after sigma clipping.
-#     nsky : int
-#         The number of pixels which were used for sky estimation after the
-#         sigma clipping.
-#     nrej : int
-#         The number of pixels which are rejected after sigma clipping.
-#     -------
+    Parameters
+    ----------
+    all_sky : ~numpy.ndarray
+        The sky values as numpy ndarray format. It MUST be 1-d for proper use.
+    method : {"mean", "median", "mode"}, optional
+        The method to estimate sky value. You can give options to "mode"
+        case; see mode_option.
+        "mode" is analogous to Mode Estimator Background of photutils.
+    sky_nsigma : float, optinal
+        The input parameter for sky sigma clipping.
+    sky_iters : float, optinal
+        The input parameter for sky sigma clipping.
+    mode_option : {"sex", "IRAF", "MMM"}, optional.
+        sex  == (med_factor, mean_factor) = (2.5, 1.5)
+        IRAF == (med_factor, mean_factor) = (3, 2)
+        MMM  == (med_factor, mean_factor) = (3, 2)
+        where ``msky = (med_factor * med) - (mean_factor * mean)``.
+    Returns
+    -------
+    skytable: astropy.table.Table
+        The table of the followings.
+    msky : float
+        The estimated sky value within the all_sky data, after sigma clipping.
+    ssky : float
+        The sample standard deviation of sky value within the all_sky data,
+        after sigma clipping.
+    nsky : int
+        The number of pixels which were used for sky estimation after the
+        sigma clipping.
+    nrej : int
+        The number of pixels which are rejected after sigma clipping.
+    -------
 
-#     '''
-#     skys = np.atleast_2d(all_sky)
-#     skydicts = []
+    '''
+    skys = np.atleast_2d(all_sky)
+    skydicts = []
 
-#     for sky in skys:
-#         skydict = {}
-#         if method == 'mean':
-#             skydict["msky"] = np.mean(sky)
-#             skydict["ssky"] = np.std(sky, ddof=1)
-#             skydict["nsky"] = sky.shape[0]
-#             skydict["nrej"] = 0
+    for sky in skys:
+        skydict = {}
+        if method == 'mean':
+            skydict["msky"] = np.mean(sky)
+            skydict["ssky"] = np.std(sky, ddof=1)
+            skydict["nsky"] = sky.shape[0]
+            skydict["nrej"] = 0
 
-#         elif method == 'median':
-#             skydict["msky"] = np.median(sky)
-#             skydict["ssky"] = np.std(sky, ddof=1)
-#             skydict["nsky"] = sky.shape[0]
-#             skydict["nrej"] = 0
+        elif method == 'median':
+            skydict["msky"] = np.median(sky)
+            skydict["ssky"] = np.std(sky, ddof=1)
+            skydict["nsky"] = sky.shape[0]
+            skydict["nrej"] = 0
 
-#         elif method == 'mode':
-#             # median centered sigma clipping:
-#             sky_clip = sigma_clip(sky, sigma=sky_nsigma, iters=sky_iters)
+        elif method == 'mode':
+            # median centered sigma clipping:
+            sky_clip = sigma_clip(sky, sigma=sky_nsigma, iters=sky_iters)
 
-#             sky_clipped = sky[~sky_clip.mask]
-#             nsky = np.count_nonzero(~sky_clip.mask)
-#             mean = np.mean(sky_clipped)
-#             med = np.median(sky_clipped)
-#             std = np.std(sky_clipped, ddof=1)
-#             nrej = sky.shape[0] - nsky
+            sky_clipped = sky[~sky_clip.mask]
+            nsky = np.count_nonzero(~sky_clip.mask)
+            mean = np.mean(sky_clipped)
+            med = np.median(sky_clipped)
+            std = np.std(sky_clipped, ddof=1)
+            nrej = sky.shape[0] - nsky
 
-#             skydict["nrej"] = nrej
-#             skydict["nsky"] = nsky
-#             skydict["ssky"] = std
+            skydict["nrej"] = nrej
+            skydict["nsky"] = nsky
+            skydict["ssky"] = std
 
-#             if nrej < 0:
-#                 raise ValueError('nrej < 0: check the code')
+            if nrej < 0:
+                raise ValueError('nrej < 0: check the code')
 
-#             if nrej > nsky:  # rejected > survived
-#                 warnings.warn('More than half of the pixels rejected.')
+            if nrej > nsky:  # rejected > survived
+                warnings.warn('More than half of the pixels rejected.')
 
-#             if mode_option == 'IRAF':
-#                 if (mean < med):
-#                     msky = mean
-#                 else:
-#                     msky = 3 * med - 2 * mean
-#                 skydict["msky"] = msky
+            if mode_option == 'IRAF':
+                if (mean < med):
+                    msky = mean
+                else:
+                    msky = 3 * med - 2 * mean
+                skydict["msky"] = msky
 
-#             elif mode_option == 'MMM':
-#                 msky = 3 * med - 2 * mean
-#                 skydict["msky"] = msky
+            elif mode_option == 'MMM':
+                msky = 3 * med - 2 * mean
+                skydict["msky"] = msky
 
-#             elif mode_option == 'sex':
-#                 if (mean - med) / std > 0.3:
-#                     msky = med
-#                 else:
-#                     msky = (2.5 * med) - (1.5 * mean)
-#                 skydict["msky"] = msky
+            elif mode_option == 'sex':
+                if (mean - med) / std > 0.3:
+                    msky = med
+                else:
+                    msky = (2.5 * med) - (1.5 * mean)
+                skydict["msky"] = msky
 
-#             else:
-#                 raise ValueError('mode_option not understood')
+            else:
+                raise ValueError('mode_option not understood')
 
-#         skydicts.append(skydict)
-#     skytable = Table(skydicts)
-#     return skytable
+        skydicts.append(skydict)
+    skytable = Table(skydicts)
+    return skytable
+"""
