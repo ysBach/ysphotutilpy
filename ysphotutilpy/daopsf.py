@@ -1,8 +1,11 @@
 import numpy as np
 from astropy.nddata import Cutout2D
 from astropy.modeling.fitting import LevMarLSQFitter
+from photutils.psf.groupstars import DAOGroup
+from astropy.table import Table, vstack
 
-__all__ = ["dao_nstar_clamp", "dao_weight_map", "dao_nstar"]
+__all__ = ["dao_nstar_clamp", "dao_weight_map", "dao_nstar",
+           "daophot_concat"]
 
 
 def dao_nstar_clamp(p_old, p_new_raw, p_clamp):
@@ -26,7 +29,8 @@ def dao_weight_map(data, position, r_fit):
     is_cut = False
     if np.any(np.array(data.shape) > (2 * r_fit + 1)):  # To save CPU
         is_cut = True
-        cut = Cutout2D(data=data, position=(x0, y0), size=(2 * r_fit + 1), mode='partial')
+        cut = Cutout2D(data=data, position=(x0, y0),
+                       size=(2 * r_fit + 1), mode='partial')
         data = cut.data
         x0, y0 = cut.to_cutout_position((x0, y0))
 
@@ -56,7 +60,8 @@ def dao_nstar(data, psf, position=None, r_fit=2, flux_init=1, sky=0, err=None,
     psf_init.flux = flux_init
 
     fbox = 2 * r_fit + 1  # fitting box size
-    fcut = Cutout2D(data, position=position, size=fbox, mode='partial')  # "fitting" cut
+    fcut = Cutout2D(data, position=position, size=fbox,
+                    mode='partial')  # "fitting" cut
     fcut_err = Cutout2D(err, position=position, size=fbox, mode='partial').data
     fcut_skysub = fcut.data - sky  # Must be sky subtracted before PSF fitting
     pos_fcut_init = fcut.to_cutout_position(position)  # Order of x, y
@@ -73,7 +78,8 @@ def dao_nstar(data, psf, position=None, r_fit=2, flux_init=1, sky=0, err=None,
     fit.x_0, fit.y_0 = pos_fit
 
     if full:
-        return fit, pos_fit, fitter, astropy_weight, fcut, fcut_skysub, fcut_err
+        return (fit, pos_fit, fitter,
+                astropy_weight, fcut, fcut_skysub, fcut_err)
 
     else:
         return fit, pos_fit, fitter
@@ -83,4 +89,25 @@ def dao_substar(data, position, fitted_psf, size):
     pass
 
 
+def daophot_concat(filelist, crit_separation, xcol="x", ycol="y",
+                   table_reader=Table.read, reader_kwargs={}):
+    ''' Concatenates the DAOPHOT-like results
+    filelist : list of path-like
+        The list of file paths to be concatenated.
+    '''
 
+    tablist = []
+    for fpath in filelist:
+        tab = table_reader(fpath, **reader_kwargs)
+        tablist.append(tab)
+    tabs = vstack(tablist)
+    if "group_id" in tabs.colnames:
+        tabs.remove_column("group_id")
+    tabs["id"] = np.arange(len(tabs)) + 1
+
+    tabs[xcol].name = "x_0"
+    tabs[ycol].name = "y_0"
+    tabs_g = DAOGroup(crit_separation=crit_separation)(tabs)
+    tabs_g["x_0"].name = xcol
+    tabs_g["y_0"].name = ycol
+    return tabs_g
