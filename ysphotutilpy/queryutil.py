@@ -1,12 +1,108 @@
 import numpy as np
 import pandas as pd
-from astroquery.vizier import Vizier
-from astropy.table import Table
-from astropy.wcs import WCS
-from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.coordinates import SkyCoord
+from astropy.table import Table, vstack
+from astropy.wcs import WCS
+from astroquery.jplhorizons import Horizons
+from astroquery.vizier import Vizier
 
-__all__ = ["panstarrs_query", "group_stars", "get_xy", "xyinFOV"]
+__all__ = ["HorizonsDiscreteEpochsQuery",
+           "panstarrs_query", "group_stars", "get_xy", "xyinFOV"]
+
+
+class HorizonsDiscreteEpochsQuery:
+    def __init__(self, targetname, location, epochs, id_type="smallbody"):
+        '''
+        Parameters
+        ----------
+        id : str
+            Name, number, or designation of the object to be queried.
+        location : str or dict
+            Observer's location for ephemerides queries or center body
+            name for orbital element or vector queries. Uses the same
+            codes as JPL Horizons. If no location is provided, Earth's
+            center is used for ephemerides queries and the Sun's center
+            for elements and vectors queries. Arbitrary topocentic
+            coordinates for ephemerides queries can be provided in the
+            format of a dictionary. The dictionary has to be of the form
+            {``'lon'``: longitude in deg (East positive, West negative),
+            ``'lat'``: latitude in deg (North positive, South negative),
+            ``'elevation'``: elevation in km above the reference
+            ellipsoid, [``'body'``: Horizons body ID of the central
+            body; optional; if this value is not provided it is assumed
+            that this location is on Earth]}.
+        epochs : scalar, list-like, or dictionary
+            Either a list of epochs in JD or MJD format or a dictionary
+            defining a range of times and dates; the range dictionary
+            has to be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
+            ``'stop'``:'YYYY-MM-DD [HH:MM:SS]',
+            ``'step'``:'n[y|d|m|s]'}. If no epochs are provided, the
+            current time is used.
+        id_type : str, optional
+            Identifier type, options:
+            ``'smallbody'``, ``'majorbody'`` (planets but also anything
+            that is not a small body), ``'designation'``, ``'name'``,
+            ``'asteroid_name'``, ``'comet_name'``, ``'id'`` (Horizons id
+            number), or ``'smallbody'`` (find the closest match under
+            any id_type), default: ``'smallbody'``
+        '''
+        self.targetname = str(targetname)
+        self.location = location
+        self.epochs = np.asarray(epochs)
+        self.id_type = id_type
+        self.query_table = None
+        self.uri = []
+
+    def __str__(self):
+        _str = "Query {:s} at location {} for given discrete epochs."
+        return _str.format(self.targetname, self.location)
+
+    def query(self, depoch=100, *args, **kwargs):
+        '''
+        Parameters
+        ----------
+        depoch : int, optional
+            The number of discrete epochs to be chopped.
+
+        args, kwargs : optional.
+            Passed to ``.ephemerides()`` of ``Horizons``.
+        '''
+        Nepoch = np.shape(self.epochs)[0]
+        Nquery = (Nepoch - 1) // depoch + 1
+        tabs = []
+
+        print(f'Query: {self.targetname} '
+              + f'at {self.location} for {Nepoch} epochs''')
+
+        if Nquery > 1:
+            print(f"Query chopped into {Nquery} chunks: Doing ",
+                  end=' ')
+
+        for i in range(Nquery):
+            print(f"{i+1}...", end=' ')
+            i_0 = i*depoch
+            i_1 = (i + 1)*depoch
+            epochs_i = self.epochs[i_0:i_1]
+
+            obj = Horizons(id=self.targetname,      #
+                           location=self.location,  #
+                           epochs=epochs_i,         #
+                           id_type=self.id_type)
+            eph = obj.ephemerides(*args, **kwargs)
+
+            tabs.append(eph)
+            self.uri.append(obj.uri)
+
+        if len(tabs) == 1:
+            self.query_table = tabs[0]
+
+        elif len(tabs) > 1:
+            self.query_table = vstack(tabs)
+
+        print("Query done.")
+
+        return self.query_table
 
 
 def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
@@ -207,23 +303,25 @@ def xyinFOV(header, table, ra_key='ra', dec_key='dec', bezel=0, origin=0,
     return _tab
 
 
-# def sdss2BV(g, r, gerr=None, rerr=None):
-#     '''
-#     Pan-STARRS DR1 (PS1) uses AB mag.
-#     https://www.sdss.org/dr12/algorithms/fluxcal/#SDSStoAB
-#     Jester et al. (2005) and Lupton (2005):
-#     https://www.sdss.org/dr12/algorithms/sdssubvritransform/
-#     Here I used Lupton. Application to PS1, it seems like Jester - Lupton VS
-#     Lupton V mag is scattered around -0.013 +- 0.003 (minmax = -0.025, -0.005)
-#     --> Lupton conversion is fainter.
-#     V = g - 0.5784*(g - r) - 0.0038;  sigma = 0.0054
-#     '''
-#     if gerr is None:
-#         gerr = np.zeros_like(g)
+"""
+def sdss2BV(g, r, gerr=None, rerr=None):
+    '''
+    Pan-STARRS DR1 (PS1) uses AB mag.
+    https://www.sdss.org/dr12/algorithms/fluxcal/#SDSStoAB
+    Jester et al. (2005) and Lupton (2005):
+    https://www.sdss.org/dr12/algorithms/sdssubvritransform/
+    Here I used Lupton. Application to PS1, it seems like Jester - Lupton VS
+    Lupton V mag is scattered around -0.013 +- 0.003 (minmax = -0.025, -0.005)
+    --> Lupton conversion is fainter.
+    V = g - 0.5784*(g - r) - 0.0038;  sigma = 0.0054
+    '''
+    if gerr is None:
+        gerr = np.zeros_like(g)
 
-#     if rerr is None:
-#         rerr = np.zeros_like(r)
+    if rerr is None:
+        rerr = np.zeros_like(r)
 
-#     V = g - 0.5784 * (g - r) - 0.0038
-#     dV = np.sqrt((1.5784 * gerr)**2 + (0.5784 * rerr)**2 + 0.0052**2)
-#     return V, dV
+    V = g - 0.5784 * (g - r) - 0.0038
+    dV = np.sqrt((1.5784 * gerr)**2 + (0.5784 * rerr)**2 + 0.0052**2)
+    return V, dV
+"""
