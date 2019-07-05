@@ -132,8 +132,9 @@ def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
         When set in addition to ``width``, the queried region becomes
         rectangular, with the specified ``width`` and ``height``.
 
-    columns : list of str, optional
-        The columns to be retrieved.
+    columns : list of str, str in ['*', 'all', 'full'], None, optional
+        The columns to be retrieved. Any str of ``['*', 'all', 'full']``
+        will return full list of columns.
 
     column_filters : dict, optional
         The column filters for astroquery.vizier.
@@ -150,8 +151,19 @@ def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
     """
     if columns is None:
         columns = ['objID', 'RAJ2000', 'DEJ2000', 'e_RAJ2000', 'e_DEJ2000',
-                   'gmag', 'e_gmag', 'rmag', 'e_rmag', 'imag', 'e_imag',
-                   'zmag', 'e_zmag', 'ymag', 'e_ymag']
+                   'Ng', 'gmag', 'e_gmag', 'gmagStd',
+                   'Nr', 'rmag', 'e_rmag', 'rmagStd',
+                   'Ni', 'imag', 'e_imag', 'imagStd',
+                   'Nz', 'zmag', 'e_zmag', 'zmagStd',
+                   'Ny', 'ymag', 'e_ymag', 'ymagStd',
+                   ]
+    elif isinstance(columns, str):
+        if columns in ['*', 'all', 'full']:
+            columns = "all"
+        else:
+            raise ValueError("If columns is str, it must be one of "
+                             + "['*', 'all', 'full']")
+
     vquery = Vizier(columns=columns,
                     column_filters=column_filters,
                     row_limit=-1)
