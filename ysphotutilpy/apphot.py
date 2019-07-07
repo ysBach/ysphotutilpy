@@ -76,7 +76,10 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
             _ccd.mask = mask
 
     skys = sky_fit(_ccd, annulus, **sky_keys)
-    n_ap = aperture.area()
+    try:
+        n_ap = aperture.area()
+    except TypeError:  # as of photutils 0.7
+        n_ap = aperture.area
     phot = apphot(_ccd.data, aperture, mask=_ccd.mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
     # will give a lot of headache for units. It's not easy since aperture
@@ -104,7 +107,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     return phot_f
 
 
-def centroiding_iteration(ccd, position_xy, cbox_size=5., csigma=3.):
+def centroiding_iteration(ccd, position_xy, cbox_size=5., csigma=3., verbose=False):
     ''' Find the intensity-weighted centroid of the image iteratively
 
     Returns
@@ -119,11 +122,13 @@ def centroiding_iteration(ccd, position_xy, cbox_size=5., csigma=3.):
 
     imgX, imgY = position_xy
     cutccd = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
-    avg, med, std = sigma_clipped_stats(cutccd.data, sigma=3, maxiters=5)
-    cthresh = med + csigma * std
+    cthresh = np.median(cutccd.data) + csigma * np.std(cutccd.data, ddof=1)
     # using pixels only above med + 3*std for centroiding is recommended.
     # See Ma+2009, Optics Express, 17, 8525
     mask = (cutccd.data < cthresh)
+    if verbose:
+        n_rej = np.count_nonzero(mask.astype(int))
+        print(f"{n_rej} rejected from threshold = {cthresh}")
     if ccd.mask is not None:
         mask += ccd.mask
     xc_cut, yc_cut = centroid_com(data=cutccd.data, mask=mask)
@@ -186,7 +191,9 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
         The iteratively found centroid position.
     '''
     if not isinstance(ccd, CCDData):
-        ccd = CCDData(ccd, unit='adu')  # Just a dummy
+        _ccd = CCDData(ccd, unit='adu')  # Just a dummy
+    else:
+        _ccd = ccd.copy()
 
     i_iter = 0
     xc_iter = [position_xy[0]]
@@ -197,13 +204,18 @@ def find_centroid_com(ccd, position_xy, maxiters=5, cbox_size=5., csigma=3.,
         print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]")
         print(f"With max iteration {maxiters:d}, shift tolerance {tol_shift}")
 
-    while (i_iter < maxiters) and (d < tol_shift):
-        xy_old = [xc_iter[-1], yc_iter[-1]]
+    while (i_iter < maxiters):
+        xy_old = (xc_iter[-1], yc_iter[-1])
 
-        x, y, d = centroiding_iteration(ccd=ccd,
+        x, y, d = centroiding_iteration(ccd=_ccd,
                                         position_xy=xy_old,
                                         cbox_size=cbox_size,
-                                        csigma=csigma)
+                                        csigma=csigma,
+                                        verbose=verbose)
+        if d < tol_shift:
+            if verbose:
+                print(f"Finishing iteration (shift {d:.5f} < tol_shift).")
+            break
         xc_iter.append(x)
         yc_iter.append(y)
         shift.append(d)
