@@ -4,7 +4,15 @@ import numpy as np
 from astropy.stats import sigma_clip
 from astropy.table import Table
 
-__all__ = ['sky_fit']
+__all__ = ['quick_sky_circ', 'sky_fit', "annul2values"]
+
+
+def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
+    """ Estimate sky with crude presets
+    """
+    from photutils.aperture import CircularAnnulus
+    annulus = CircularAnnulus(pos, r_in=r_in, r_out=r_out)
+    return sky_fit(ccd, annulus)
 
 
 def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
@@ -140,6 +148,12 @@ def annul2values(ccd, annulus):
         _ccd.mask = np.zeros_like(_ccd.data).astype(bool)
 
     mask_an = annulus.to_mask(method='center')
+    try:
+        if annulus.isscalar:  # as of photutils 0.7
+            mask_an = [mask_an]
+    except AttributeError:
+        pass
+
     for i, an in enumerate(mask_an):
         in_an = (an.data == 1).astype(float)
         # result identical to np.nonzero(an.data), but just for safety...

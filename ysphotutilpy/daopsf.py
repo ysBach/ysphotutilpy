@@ -24,6 +24,7 @@ def dao_weight_map(data, position, r_fit):
     Note
     ----
     StetsonPB 1987, PASP, 99, 191, p.207
+    https://iraf.net/irafhelp.php?val=daopars&help=Help+Page
     '''
     x0, y0 = position
     is_cut = False
@@ -40,8 +41,8 @@ def dao_weight_map(data, position, r_fit):
     # add 1.e-6 to avoid zero division
     distance_map = np.sqrt((xx_data - x0)**2 + (yy_data - y0)**2) + 1.e-6
     dist = np.ma.array(data=distance_map, mask=(distance_map > r_fit))
-    Rr_term = (r_fit / dist)**2 - 1
-    weight_map = 5 / (5 + 1 / Rr_term)
+    rsq = dist**2 / r_fit**2
+    weight_map = 5.0 / (5.0 + rsq / (1.0 - rsq))
     return weight_map
 
 
