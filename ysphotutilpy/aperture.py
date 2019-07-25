@@ -30,7 +30,10 @@ def cutout_from_ap(ap, ccd):
         ccd = CCDData(ccd, unit="adu")  # dummy unit
 
     positions = np.atleast_2d(ap.positions)
-    bboxes = np.atleast_1d(ap.bounding_boxes)
+    try:
+        bboxes = np.atleast_1d(ap.bbox)
+    except AttributeError:
+        bboxes = np.atleast_1d(ap.bounding_boxes)
     sizes = [bbox.shape for bbox in bboxes]
     cuts = []
     for pos, size in zip(positions, sizes):
@@ -531,7 +534,10 @@ class PillBoxMaskMixin:
         _, subpixels = self._translate_mask_mode(method, subpixels)
         min_mask = min(1.e-6, 1/(subpixels**2))
         masks = []
-        bboxes = np.atleast_1d(self.bounding_boxes)
+        try:
+            bboxes = np.atleast_1d(self.bbox)
+        except AttributeError:
+            bboxes = np.atleast_1d(self.bounding_boxes)
         is_annulus = True if hasattr(self, 'a_in') else False
 
         for i, (bbox, ap_r, ap_1, ap_2) in enumerate(zip(bboxes,
@@ -614,22 +620,28 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         self._set_aperture_elements
 
     @property
-    def bounding_boxes(self):
-        """
-        A list of minimal bounding boxes (`~photutils.BoundingBox`), one
-        for each position, enclosing the exact elliptical apertures.
-        """
-        bboxes_rect = self._ap_rect.bounding_boxes
-        bboxes_el_1 = self._ap_el_1.bounding_boxes
-        bboxes_el_2 = self._ap_el_2.bounding_boxes
-        bboxes = []
-        for bb_r, bb_1, bb_2 in zip(bboxes_rect, bboxes_el_1, bboxes_el_2):
-            bboxes.append( (bb_r) | (bb_1) | (bb_2) )
+    def _xy_extents(self):
+        return np.abs(self.offset) + self._ap_el_1._xy_extents
 
-        if self.isscalar:
-            return bboxes[0]
-        else:
-            return bboxes
+    # def bounding_boxes(self):
+    #     try:
+    #         bboxes_rect = self._ap_rect.bbox
+    #         bboxes_el_1 = self._ap_el_1.bbox
+    #         bboxes_el_2 = self._ap_el_2.bbox
+    #     except AttributeError:
+    #         bboxes_rect = self._ap_rect.bounding_boxes
+    #         bboxes_el_1 = self._ap_el_1.bounding_boxes
+    #         bboxes_el_2 = self._ap_el_2.bounding_boxes
+
+    #     bboxes = []
+    #     for bb_r, bb_1, bb_2 in zip(bboxes_rect, bboxes_el_1, bboxes_el_2):
+    #         bbox = (bb_r) | (bb_1) | (bb_2)
+    #         bboxes.append(  )
+
+    #     if self.isscalar:
+    #         return bboxes[0]
+    #     else:
+    #         return bboxes
 
     @property
     def area(self):
@@ -716,22 +728,25 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         self._set_aperture_elements
 
     @property
-    def bounding_boxes(self):
-        """
-        A list of minimal bounding boxes (`~photutils.BoundingBox`), one
-        for each position, enclosing the exact elliptical apertures.
-        """
-        bboxes_rect = self._ap_rect.bounding_boxes
-        bboxes_el_1 = self._ap_el_1.bounding_boxes
-        bboxes_el_2 = self._ap_el_2.bounding_boxes
-        bboxes = []
-        for bb_r, bb_1, bb_2 in zip(bboxes_rect, bboxes_el_1, bboxes_el_2):
-            bboxes.append( (bb_r) | (bb_1) | (bb_2) )
+    def _xy_extents(self):
+        return np.abs(self.offset) + self._ap_el_1._xy_extents
 
-        if self.isscalar:
-            return bboxes[0]
-        else:
-            return bboxes
+    # def bounding_boxes(self):
+    #     """
+    #     A list of minimal bounding boxes (`~photutils.BoundingBox`), one
+    #     for each position, enclosing the exact elliptical apertures.
+    #     """
+    #     bboxes_rect = self._ap_rect.bounding_boxes
+    #     bboxes_el_1 = self._ap_el_1.bounding_boxes
+    #     bboxes_el_2 = self._ap_el_2.bounding_boxes
+    #     bboxes = []
+    #     for bb_r, bb_1, bb_2 in zip(bboxes_rect, bboxes_el_1, bboxes_el_2):
+    #         bboxes.append( (bb_r) | (bb_1) | (bb_2) )
+
+    #     if self.isscalar:
+    #         return bboxes[0]
+    #     else:
+    #         return bboxes
 
     @property
     def area(self):
