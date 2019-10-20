@@ -220,8 +220,9 @@ def organize_ps1_and_isnear(ps1, header=None, bezel=0,
 
         # Since it includes Std, I used ``d``, inpired by the "total
         # derivative" compared to partial derivative.
-        var_g = ps1.queried["e_gmag"]**2 + ps1.queried["e_gmag"]**2
-        var_r = ps1.queried["e_rmag"]**2 + ps1.queried["e_rmag"]**2
+
+        var_g = ps1.queried["e_gmag"]**2 + ps1.queried["gmag_Std"]**2
+        var_r = ps1.queried["e_rmag"]**2 + ps1.queried["rmag_Std"]**2
         dc_gr = np.sqrt(var_g + var_r)
         ps1.queried["dC_gr"] = dc_gr
 
@@ -232,7 +233,7 @@ def organize_ps1_and_isnear(ps1, header=None, bezel=0,
         for k, p in pars.items():
             ps1mag = ps1.queried[p[3]]
             ps1.queried[k] = ps1mag + p[0] + p[1] * c_gr
-            ps1.queried[f"d{k}"] = np.sqrt(p[4] + p[1]*dc_gr**2 + p[2]**2)
+            ps1.queried[f"d{k}"] = np.sqrt(p[4]**2 + p[1]*dc_gr**2 + p[2]**2)
 
     return isnear
 
@@ -378,7 +379,6 @@ class PanSTARRS1:
 
         Note
         ----
-
             1 (2^0) = Used within relphot (FEW); skip star.
             2 = Used within relphot (POOR); skip star.
             4 = object IDed with known ICRF quasar (may have ICRF
