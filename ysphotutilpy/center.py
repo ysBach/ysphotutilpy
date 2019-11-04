@@ -32,7 +32,6 @@ def scaling_shift(pos_old, pos_new_naive, max_shift_step=None, verbose=False):
     return dx, dy, shift
 
 
-# TODO: Maybe make ssky to change as position updates.
 def find_center_2dg(ccd, position_xy, cbox_size=5., csigma=3., ssky=0,
                     sky_annulus=None, sky_kw={},
                     maxiters=5, error=None, atol_shift=1.e-4, max_shift=1,
