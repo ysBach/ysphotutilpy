@@ -11,8 +11,7 @@ from .background import sky_fit
 __all__ = ["apphot_annulus"]
 
 # TODO: Put centroiding into this apphot_annulus ?
-
-
+# TODO: use variance instead of error (see photutils 0.7)
 def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
                    exposure_key="EXPTIME", error=None, mask=None,
                    sky_keys={}, t_exposure_unit=u.s, verbose=False,
@@ -25,15 +24,16 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     aperture, annulus: photutils aperture and annulus object
         The aperture and annulus to be used for aperture photometry.
     exposure_key: str
-        The key for exposure time. Together with ``t_exposure_unit``, the
-        function will normalize the signal to exposure time. If ``t_exposure``
-        is not None, this will be ignored.
+        The key for exposure time. Together with ``t_exposure_unit``,
+        the function will normalize the signal to exposure time. If
+        ``t_exposure`` is not None, this will be ignored.
     error: array-like or Quantity, optional
         See ``photutils.aperture_photometry`` documentation.
         The pixel-wise error map to be propagated to magnitued error.
     sky_keys: dict
-        kwargs of ``sky_fit``. Mostly one doesn't change the default setting,
-        so I intentionally made it to be dict rather than usual kwargs, etc.
+        kwargs of ``sky_fit``. Mostly one doesn't change the default
+        setting, so I intentionally made it to be dict rather than usual
+        kwargs, etc.
     **kwargs:
         kwargs for ``photutils.aperture_photometry``.
 
@@ -88,11 +88,14 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     phot_f["source_sum"] = phot_f["aperture_sum"] - n_ap * phot_f["msky"]
 
     # see, e.g., http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?radprof.hlp
-    # Poisson + RDnoise + dark + digitization noise:
+    # Poisson + RDnoise (Poisson includes signal + sky + dark) :
     var_errmap = phot_f["aperture_sum_err"]**2
     # Sum of n_ap Gaussians (kind of random walk):
     var_skyrand = n_ap * phot_f["ssky"]**2
-    # "systematic" uncertainty in the msky value:
+    # The CLT error (although not correct, let me denote it as
+    # "systematic" error for simplicity) of the mean estimation is
+    # ssky/sqrt(nsky), and that is propagated for n_ap pixels, so we
+    # have std = n_ap*ssky/sqrt(nsky), so variance is:
     var_skysyst = (n_ap * phot_f['ssky'])**2 / phot_f['nsky']
 
     phot_f["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_skysyst)
