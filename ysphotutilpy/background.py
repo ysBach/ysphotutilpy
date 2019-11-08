@@ -83,7 +83,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
             mean = np.ma.mean(sky_clipped)
             med = np.ma.median(sky_clipped)
             std = np.ma.std(sky_clipped, ddof=1)
-            nrej = np.count_nonzero(sky) - nsky
+            nrej = sky.shape[0] - nsky
 
             skydict["nrej"] = nrej
             skydict["nsky"] = nsky
