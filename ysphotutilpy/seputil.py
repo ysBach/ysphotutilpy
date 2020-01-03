@@ -310,7 +310,7 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
             )
     obj = obj[~mask]
     obj = obj.reset_index()
-    obj = obj.rename(columns={'index':'segm_label'})
+    obj = obj.rename(columns={'index': 'segm_label'})
     obj['segm_label'] += 1
     return obj, segm
 
@@ -331,8 +331,9 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 
     r_min = phot_autoparams[1]  # R_min = 3.5
     use_circle = r_kron * np.sqrt(sepa * sepb) < r_min
-    cfl, cdfl, nrej_c = sep.sum_circle(data, sepx[use_circle], sepy[use_circle],
-                                       r_min, err=err, subpix=1)
+    cfl, cdfl, nrej_c = sep.sum_circle(
+        data, sepx[use_circle], sepy[use_circle], r_min,
+        err=err, subpix=1)
     fl[use_circle] = cfl
     dfl[use_circle] = cdfl
     nrej[use_circle] = nrej_c
