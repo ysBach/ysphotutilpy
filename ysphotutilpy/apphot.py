@@ -10,6 +10,7 @@ from .background import sky_fit
 
 __all__ = ["apphot_annulus"]
 
+
 # TODO: Put centroiding into this apphot_annulus ?
 # TODO: use variance instead of error (see photutils 0.7)
 def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
@@ -45,7 +46,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     _ccd = ccd.copy()
 
     if t_exposure is None:
-        t_exposure = ccd.header[exposure_key]
+        t_exposure = _ccd.header[exposure_key]
 
     if error is not None:
         if verbose:
@@ -57,7 +58,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
 
     else:
         try:
-            err = ccd.uncertainty.array
+            err = _ccd.uncertainty.array
         except AttributeError:
             if verbose:
                 warn("Couldn't find Uncertainty extension in ccd. "
@@ -96,9 +97,9 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     # "systematic" error for simplicity) of the mean estimation is
     # ssky/sqrt(nsky), and that is propagated for n_ap pixels, so we
     # have std = n_ap*ssky/sqrt(nsky), so variance is:
-    var_skysyst = (n_ap * phot_f['ssky'])**2 / phot_f['nsky']
+    var_sky = (n_ap * phot_f['ssky'])**2 / phot_f['nsky']
 
-    phot_f["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_skysyst)
+    phot_f["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_sky)
 
     phot_f["mag"] = -2.5 * np.log10(phot_f['source_sum'] / t_exposure)
     phot_f["merr"] = (2.5 / np.log(10)
