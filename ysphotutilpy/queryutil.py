@@ -8,6 +8,7 @@ from astropy.table import Table, vstack
 from astropy.wcs import WCS
 from astroquery.jplhorizons import Horizons
 from astroquery.vizier import Vizier
+from .util import bezel_mask
 
 __all__ = ["HorizonsDiscreteEpochsQuery", "organize_ps1_and_isnear",
            "PanSTARRS1", "group_stars", "get_xy", "xyinFOV",
@@ -645,7 +646,8 @@ def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
     return xy
 
 
-def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec', bezel=0,
+def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec',
+            bezel=0, bezel_x=None, bezel_y=None,
             origin=0, mode='all'):
     ''' Convert RA/DEC to pixel with rejection at bezels
     Parameters
@@ -664,9 +666,20 @@ def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec', bezel=0,
     ra_key, dec_key : str, optional
         The column names containing RA/DEC.
 
-    bezel : int or float, optional
-        The bezel size to exclude stars at the image edges. If you want to
-        keep some stars outside the edges, put negative values (e.g., ``-5``).
+    bezel : int, float, array-like, optional
+        The bezel size. If array-like, it should be ``(lower, upper)``.
+        If only this is given and ``bezel_x`` and/or ``bezel_y`` is/are
+        ``None``, it/both will be replaced by ``bezel``. If you want to
+        keep some stars outside the edges, put negative values (e.g.,
+        ``-5``).
+
+    bezel_x, bezel_y : int, float, 2-array-like, optional
+        The bezel (border width) for x and y axes. If array-like, it
+        should be ``(lower, upper)``. Mathematically put, only objects
+        with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
+        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you
+        want to keep some stars outside the edges, put negative values
+        (e.g., ``-5``).
 
     origin : int, optional
        Whether to return 0 or 1-based pixel coordinates.
@@ -689,13 +702,11 @@ def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec', bezel=0,
         wcs = WCS(header)
 
     coo = SkyCoord(_tab[ra_key], _tab[dec_key])
-    x, y = coo.to_pixel(wcs=wcs, origin=0, mode=mode)
+    x, y = coo.to_pixel(wcs=wcs, origin=origin, mode=mode)
 
-    nx, ny = header['naxis1'], header['naxis2']
-    mask = ((x < (0 + bezel))
-            | (x > (nx - bezel))
-            | (y < (0 + bezel))
-            | (y > (ny - bezel)))
+    mask = bezel_mask(x, y, header['NAXIS2'], header['NAXIS1'],
+                      bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
+
     x = x[~mask]
     y = y[~mask]
     _tab.remove_rows(mask)
