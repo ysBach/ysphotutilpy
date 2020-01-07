@@ -16,7 +16,7 @@ __all__ = ["apphot_annulus"]
 def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
                    exposure_key="EXPTIME", error=None, mask=None,
                    sky_keys={}, t_exposure_unit=u.s, verbose=False,
-                   **kwargs):
+                   pandas=False, **kwargs):
     ''' Do aperture photometry using annulus.
     Parameters
     ----------
@@ -35,6 +35,8 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
         kwargs of ``sky_fit``. Mostly one doesn't change the default
         setting, so I intentionally made it to be dict rather than usual
         kwargs, etc.
+    pandas : bool, optional.
+        Whether to convert to ``pandas.DataFrame``.
     **kwargs:
         kwargs for ``photutils.aperture_photometry``.
 
@@ -105,4 +107,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     phot_f["merr"] = (2.5 / np.log(10)
                       * phot_f["source_sum_err"] / phot_f['source_sum'])
 
-    return phot_f
+    if pandas:
+        return phot_f.to_pandas()
+    else:
+        return phot_f
