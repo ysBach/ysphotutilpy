@@ -51,14 +51,18 @@ Note that sep also uses same pixel notation as photutils: pixel 0 covers
 >>> # y: [7.66666667]
 '''
 from warnings import warn
+
 import numpy as np
 import pandas as pd
+from .util import bezel_mask
 
 try:
     import sep
 except ImportError:
     warn("Package sep is not installed. Some functions will not work.")
 
+
+__all__ = ['sep_back', 'sep_extract', 'sep_flux_auto']
 
 sep_default_kernel = np.array([[1.0, 2.0, 1.0],
                                [2.0, 4.0, 2.0],
@@ -149,8 +153,9 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
     if len(filter_size) == 1:
         filter_size = np.repeat(filter_size, 2)
 
-    bkg = sep.Background(data, bw=box_size[1], bh=box_size[0],
-                         fw=filter_size[1], fh=filter_size[0])
+    bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
+                         fw=filter_size[1], fh=filter_size[0],
+                         maskthresh=maskthresh, fthresh=filter_threshold)
 
     return bkg
 
@@ -160,8 +165,7 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
                 bezel_x=[0, 0], bezel_y=[0, 0],
                 gain=None, minarea=5, filter_kernel=sep_default_kernel,
                 filter_type='matched', deblend_nthresh=32,
-                deblend_cont=0.005, clean=True, clean_param=1.0,
-                segmentation_map=False):
+                deblend_cont=0.005, clean=True, clean_param=1.0):
     """
     Note
     ----
@@ -169,7 +173,6 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
     photutils may include ``detect_sources`` and ``source_properties``.
     Maybe we can use ``extract(data=data, err=err, thresh=3)``
     for a snr > 3 extraction.
-
 
     Parameters
     ----------
@@ -206,7 +209,9 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
         The bezel (border width) for x and y axes. If array-like, it
         should be ``(lower, upper)``. Mathematically put, only objects
         with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
-        bezel_x[1] - 0.5)`` (similar for y) will be selected.
+        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you
+        want to keep some stars outside the edges, put negative values
+        (e.g., ``-5``).
 
     gain : float, optional
         Conversion factor between data array units and poisson counts. This
@@ -246,10 +251,6 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
     clean_param : float, optional
         Cleaning parameter (see SExtractor manual). Default is 1.0.
 
-    segmentation_map : bool, optional
-        If True, also return a "segmentation map" giving the member
-        pixels of each object. Default is False.
-
     Returns
     -------
 
@@ -282,14 +283,6 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
     else:
         err = np.asarray(err)
 
-    bezel_x = np.atleast_1d(bezel_x)
-    if len(bezel_x) == 1:
-        bezel_x = np.repeat(bezel_x, 2)
-
-    bezel_y = np.atleast_1d(bezel_y)
-    if len(bezel_y) == 1:
-        bezel_y = np.repeat(bezel_y, 2)
-
     sky = bkg.back()
     err = np.sqrt(err**2 + bkg.rms()**2)
 
@@ -303,11 +296,8 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
     obj = pd.DataFrame(obj)
 
     ny, nx = data.shape
-    mask = ((obj["x"] < bezel_x[0] + 0.5)
-            | (obj["y"] < bezel_y[0] + 0.5)
-            | (obj["x"] > (nx - bezel_x[1]) - 0.5)
-            | (obj["y"] > (ny - bezel_y[1]) - 0.5)
-            )
+    mask = bezel_mask(obj['x'], obj['y'], nx, ny,
+                      bezel_x=bezel_x, bezel_y=bezel_y)
     obj = obj[~mask]
     obj = obj.reset_index()
     obj = obj.rename(columns={'index': 'segm_label'})
