@@ -3,9 +3,58 @@ A collection of temporary utilities, and likely be removed if similar
 functionality can be achieved by pre-existing packages.
 """
 import numpy as np
+from astropy.modeling.fitting import LevMarLSQFitter
+
+__all__ = ["bezel_mask", "Gaussian2D_correct",
+           "fit_astropy_model", "fit_Gaussian2D"]
 
 
-__all__ = ["Gaussian2D_correct"]
+def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0],
+               bezel_x=None, bezel_y=None):
+    '''
+    xvals, yvals : array-like
+        The x and y position values.
+    nx, ny : int or float
+        The number of x and y pixels (``NAXIS2`` and ``NAXIS1``,
+        respectively from header).
+    bezel : int, float, array-like, optional
+        The bezel size. If array-like, it should be ``(lower, upper)``.
+        If only this is given and ``bezel_x`` and/or ``bezel_y`` is/are
+        ``None``, it/both will be replaced by ``bezel``. If you want to
+        keep some stars outside the edges, put negative values (e.g.,
+        ``-5``).
+    bezel_x, bezel_y : int, float, 2-array-like, optional
+        The bezel (border width) for x and y axes. If array-like, it
+        should be ``(lower, upper)``. Mathematically put, only objects
+        with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
+        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you
+        want to keep some stars outside the edges, put negative values
+        (e.g., ``-5``).
+    '''
+    bezel = np.array(bezel)
+    if len(bezel) == 1:
+        bezel = np.repeat(bezel, 2)
+
+    if bezel_x is None:
+        bezel_x = bezel.copy()
+    else:
+        bezel_x = np.atleast_1d(bezel_x)
+        if len(bezel_x) == 1:
+            bezel_x = np.repeat(bezel_x, 2)
+
+    if bezel_y is None:
+        bezel_y = bezel.copy()
+    else:
+        bezel_y = np.atleast_1d(bezel_y)
+        if len(bezel_y) == 1:
+            bezel_y = np.repeat(bezel_y, 2)
+
+    mask = ((xvals < bezel_x[0] + 0.5)
+            | (yvals < bezel_y[0] + 0.5)
+            | (xvals > (nx - bezel_x[1]) - 0.5)
+            | (yvals > (ny - bezel_y[1]) - 0.5)
+            )
+    return mask
 
 
 def normalize(num, lower=0, upper=360, b=False):
@@ -169,6 +218,52 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
         new_model.theta.value = theta_norm
 
     return new_model
+
+
+def fit_astropy_model(data, model_init,
+                      sigma=None, fitter=LevMarLSQFitter(), **kwargs):
+    """
+    Parameters
+    ----------
+    data : ndarray
+        The data to fit the model.
+    sigma : ndarray, None, optional
+        The Gaussian error-bar of each pixel. In ``astropy``, we must
+        give ``weights=1/sigma``, which can be confusing.
+    fitter : astropy fitter
+        The fitter that will be used to fit.
+    kwargs :
+        The keyword arguments for the ``fitter.__call__``.
+
+    Returns
+    -------
+    fitted : model
+        The fitted model.
+    fitter : fitter
+        The fitter (maybe informative, e.g., ``fitter.fit_info``).
+    """
+    yy, xx = np.mgrid[:data.shape[0], :data.shape[1]]
+    if sigma is not None:
+        weights = 1/sigma
+    else:
+        weights = None
+    fitted = fitter(model_init, xx, yy, data, weights=weights, **kwargs)
+    return fitted, fitter
+
+
+def fit_Gaussian2D(data, model_init, correct=True,
+                   sigma=None, fitter=LevMarLSQFitter(), **kwargs):
+    """ Identical to fit_astropy_model but for Gaussian2D correct.
+    Note
+    ----
+    photutils.centroids.GaussianConst2D is also usable.
+    """
+    fitted, fitter = fit_astropy_model(
+        data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs
+    )
+    if correct:
+        fitted = Gaussian2D_correct(fitted)
+    return fitted, fitter
 
 
 '''
