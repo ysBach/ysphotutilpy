@@ -8,11 +8,92 @@ from astropy.table import Table, vstack
 from astropy.wcs import WCS
 from astroquery.jplhorizons import Horizons
 from astroquery.vizier import Vizier
+from scipy.interpolate import UnivariateSpline
+
 from .util import bezel_mask
 
-__all__ = ["HorizonsDiscreteEpochsQuery", "organize_ps1_and_isnear",
+__all__ = ["horizons_query",
+           "HorizonsDiscreteEpochsQuery", "organize_ps1_and_isnear",
            "PanSTARRS1", "group_stars", "get_xy", "xyinFOV",
            "panstarrs_query"]
+
+
+def horizons_query(id, start, stop, step='12h', location='500',
+                   id_type='smallbody', interpolate=None,
+                   interpolate_x='datetime_jd', k=1, s=0,
+                   **ephkw):
+    """
+    Parameters
+    ----------
+    id : str, required
+        Name, number, or designation of the object to be queried.
+    start, stop, step : str
+        The epochs to query from ``astroquery.jplhorizons.Horizons``
+        will use ``epochs = {'start':'YYYY-MM-DD [HH:MM:SS]',
+        'stop':'YYYY-MM-DD [HH:MM:SS]', 'step'``:'n[y|d|m|s]'}``.
+        Therefore, ``start``, ``stop``, and ``step`` must follow these
+        forms.
+    location : str or dict, optional
+        Observer's location for ephemerides queries or center body name
+        for orbital element or vector queries. Uses the same codes as
+        JPL Horizons. If no location is provided, Earth's center is used
+        for ephemerides queries and the Sun's center for elements and
+        vectors queries. Arbitrary topocentic coordinates for
+        ephemerides queries can be provided in the format of a
+        dictionary. The dictionary has to be of the form {``'lon'``:
+        longitude in deg (East positive, West negative), ``'lat'``:
+        latitude in deg (North positive, South negative),
+        ``'elevation'``: elevation in km above the reference ellipsoid,
+        [``'body'``: Horizons body ID of the central body; optional; if
+        this value is not provided it is assumed that this location is
+        on Earth]}.
+    id_type : str, optional
+        Identifier type, options: ``'smallbody'``, ``'majorbody'``
+        (planets but also anything that is not a small body),
+        ``'designation'``, ``'name'``, ``'asteroid_name'``,
+        ``'comet_name'``, ``'id'`` (Horizons id number), or
+        ``'smallbody'`` (find the closest match under any id_type),
+        default: ``'smallbody'``
+    interpolate, interpolate_x : None, list of str, optinal.
+        The column names to interpolate and the column for the ``x``
+        values to be used.
+        default: ``interpolate=None``, ``interpolate_x='datetime_jd'``.
+    k : int, optional
+        Degree of the smoothing spline.  Must be <= 5.
+        Default is k=1, a linear spline.
+    s : float or None, optional
+        Positive smoothing factor used to choose the number of knots.
+        Default is 0, i.e., the interpolation.
+    ephkw : kwargs, optional.
+        See the possible keyword arguments from astroquery:
+        https://astroquery.readthedocs.io/en/latest/api/astroquery.jplhorizons.HorizonsClass.html#astroquery.jplhorizons.HorizonsClass.ephemerides
+    Returns
+    -------
+
+    Example
+    -------
+    >>>
+
+    Note
+    ----
+    It uses ``scipy.interpolate.UnivariateSpline``.
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html
+    """
+    interpolated = {}
+
+    obj = Horizons(id=id,
+                   epochs=dict(start=start, stop=stop, step=step),
+                   location=location,
+                   id_type=id_type)
+    eph = obj.ephemerides(**ephkw)
+    if interpolate is not None and interpolate_x is not None:
+        if isinstance(interpolate, str):
+            interpolate = (interpolate)
+        x = eph[interpolate_x]
+        for i in interpolate:
+            interpolated[i] = UnivariateSpline(x, eph[i], k=k, s=s)
+
+    return eph, interpolated
 
 
 def mask_str(n_new, n_old, msg):
