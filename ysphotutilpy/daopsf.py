@@ -1,8 +1,8 @@
 import numpy as np
-from astropy.nddata import Cutout2D
 from astropy.modeling.fitting import LevMarLSQFitter
-from photutils.psf.groupstars import DAOGroup
+from astropy.nddata import Cutout2D
 from astropy.table import Table, vstack
+from photutils.psf.groupstars import DAOGroup
 
 __all__ = ["dao_nstar_clamp", "dao_weight_map", "dao_nstar",
            "daophot_concat"]
