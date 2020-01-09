@@ -18,7 +18,8 @@ __all__ = ["horizons_query",
            "panstarrs_query"]
 
 
-def horizons_query(id, start, stop, step='12h', location='500',
+def horizons_query(id, epochs=None,
+                   start=None, stop=None, step='12h', location='500',
                    id_type='smallbody', interpolate=None,
                    interpolate_x='datetime_jd', k=1, s=0,
                    output=None, format='csv',
@@ -28,12 +29,17 @@ def horizons_query(id, start, stop, step='12h', location='500',
     ----------
     id : str, required
         Name, number, or designation of the object to be queried.
-    start, stop, step : str
-        The epochs to query from ``astroquery.jplhorizons.Horizons``
-        will use ``epochs = {'start':'YYYY-MM-DD [HH:MM:SS]',
-        'stop':'YYYY-MM-DD [HH:MM:SS]', 'step'``:'n[y|d|m|s]'}``.
-        Therefore, ``start``, ``stop``, and ``step`` must follow these
-        forms.
+    epochs : scalar, list-like, or dictionary, optional
+        Either a list of epochs in JD or MJD format or a dictionary
+        defining a range of times and dates; the range dictionary has to
+        be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
+        ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If
+        no epochs are provided, the current time is used.
+    start, stop, step: str, optional.
+        If ``epochs=None``, it will be set as ``epochs = {'start':start,
+        'stop':stop, 'step':step}``. If **eithter** ``start`` or
+        ``stop`` is ``None``, ``epochs`` is set to ``None``, the current
+        time is used for query.
     location : str or dict, optional
         Observer's location for ephemerides queries or center body name
         for orbital element or vector queries. Uses the same codes as
@@ -86,8 +92,14 @@ def horizons_query(id, start, stop, step='12h', location='500',
     """
     interpolated = {}
 
+    if epochs is None:
+        if start is None or stop is None:
+            epochs = None
+        else:
+            epochs = dict(start=start, stop=stop, step=step)
+
     obj = Horizons(id=id,
-                   epochs=dict(start=start, stop=stop, step=step),
+                   epochs=epochs,
                    location=location,
                    id_type=id_type)
     eph = obj.ephemerides(**ephkw)
