@@ -141,7 +141,10 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
         rms error. All other methods/attributes include
         ``bkg.subfrom()``, ``bkg.globalback``, and ``bkg.globalrms``.
     '''
+    # asarrya is needed because sep gives Error for C-contiguous array.
     data = np.asarray(data)
+    if mask is not None:
+        mask = np.asarray(mask).astype(bool)
 
     box_size = np.atleast_1d(box_size)
     if len(box_size) == 1:
@@ -276,7 +279,11 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
     >>> plt.tight_layout()
     >>> plt.show()
     """
+    # asarrya is needed because sep gives Error for C-contiguous array.
     data = np.asarray(data)
+
+    if mask is not None:
+        mask = np.asarray(mask).astype(bool)
 
     if err is None:
         err = np.zeros_like(data)
