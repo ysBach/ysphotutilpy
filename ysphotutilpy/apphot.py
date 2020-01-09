@@ -88,6 +88,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
 
     phot_f = hstack([phot, skys])
 
+    phot_f['aparea'] = n_ap
     phot_f["source_sum"] = phot_f["aperture_sum"] - n_ap * phot_f["msky"]
 
     # see, e.g., http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?radprof.hlp
