@@ -21,6 +21,7 @@ __all__ = ["horizons_query",
 def horizons_query(id, start, stop, step='12h', location='500',
                    id_type='smallbody', interpolate=None,
                    interpolate_x='datetime_jd', k=1, s=0,
+                   output=None, format='csv',
                    **ephkw):
     """
     Parameters
@@ -64,6 +65,10 @@ def horizons_query(id, start, stop, step='12h', location='500',
     s : float or None, optional
         Positive smoothing factor used to choose the number of knots.
         Default is 0, i.e., the interpolation.
+    output : None, path-like, optional.
+        If you want to write the ephemerides, give this.
+    format : str, optional.
+        The output table format (see ``astropy.io.ascii.write``).
     ephkw : kwargs, optional.
         See the possible keyword arguments from astroquery:
         https://astroquery.readthedocs.io/en/latest/api/astroquery.jplhorizons.HorizonsClass.html#astroquery.jplhorizons.HorizonsClass.ephemerides
@@ -92,7 +97,8 @@ def horizons_query(id, start, stop, step='12h', location='500',
         x = eph[interpolate_x]
         for i in interpolate:
             interpolated[i] = UnivariateSpline(x, eph[i], k=k, s=s)
-
+    if output is not None:
+        eph.write(Path(output), format=format)
     return eph, interpolated
 
 
