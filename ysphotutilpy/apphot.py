@@ -4,7 +4,7 @@ import numpy as np
 from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.table import hstack
-from photutils import aperture_photometry as apphot
+from photutils import aperture_photometry
 
 from .background import sky_fit
 
@@ -86,7 +86,8 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
         except TypeError:  # prior to photutils 0.7
             n_ap = np.array([ap.area() for ap in aperture])
 
-    phot = apphot(_ccd.data, aperture, mask=_ccd.mask, error=err, **kwargs)
+    phot = aperture_photometry(_ccd.data, aperture,
+                               mask=_ccd.mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
     # will give a lot of headache for units. It's not easy since aperture
     # can be pixel units or angular units (Sky apertures).
