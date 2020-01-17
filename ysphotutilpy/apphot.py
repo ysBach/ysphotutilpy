@@ -22,7 +22,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     ----------
     ccd: CCDData
         The data to be photometried. Preferably in ADU.
-    aperture, annulus: aperture and annulus object or array of them.
+    aperture, annulus: aperture and annulus object.
         The aperture and annulus to be used for aperture photometry.
     exposure_key: str
         The key for exposure time. Together with ``t_exposure_unit``,
@@ -80,11 +80,11 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
         n_ap = aperture.area
     except TypeError:  # prior to photutils 0.7
         n_ap = aperture.area()
-    except AttributeError:  # if array of aperture given
-        try:
-            n_ap = np.array([ap.area for ap in aperture])
-        except TypeError:  # prior to photutils 0.7
-            n_ap = np.array([ap.area() for ap in aperture])
+    # except AttributeError:  # if array of aperture given
+    #     try:
+    #         n_ap = np.array([ap.area for ap in aperture])
+    #     except TypeError:  # prior to photutils 0.7
+    #         n_ap = np.array([ap.area() for ap in aperture])
 
     phot = aperture_photometry(_ccd.data, aperture,
                                mask=_ccd.mask, error=err, **kwargs)
@@ -94,6 +94,8 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     # ysBach 2018-07-26
 
     phot_f = hstack([phot, skys])
+
+
 
     phot_f['aparea'] = n_ap
     phot_f["source_sum"] = phot_f["aperture_sum"] - n_ap * phot_f["msky"]
