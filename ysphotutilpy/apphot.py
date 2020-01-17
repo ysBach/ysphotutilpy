@@ -22,7 +22,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     ----------
     ccd: CCDData
         The data to be photometried. Preferably in ADU.
-    aperture, annulus: photutils aperture and annulus object
+    aperture, annulus: aperture and annulus object or array of them.
         The aperture and annulus to be used for aperture photometry.
     exposure_key: str
         The key for exposure time. Together with ``t_exposure_unit``,
@@ -77,9 +77,15 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
 
     skys = sky_fit(_ccd, annulus, **sky_keys)
     try:
-        n_ap = aperture.area()
-    except TypeError:  # as of photutils 0.7
         n_ap = aperture.area
+    except TypeError:  # prior to photutils 0.7
+        n_ap = aperture.area()
+    except AttributeError:  # if array of aperture given
+        try:
+            n_ap = np.array([ap.area for ap in aperture])
+        except TypeError:  # prior to photutils 0.7
+            n_ap = np.array([ap.area() for ap in aperture])
+
     phot = apphot(_ccd.data, aperture, mask=_ccd.mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
     # will give a lot of headache for units. It's not easy since aperture
