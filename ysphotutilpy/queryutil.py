@@ -214,10 +214,25 @@ class HorizonsDiscreteEpochsQuery:
         return self.query_table
 
 
+PS1_DR1_DEL_FLAG = [
+    0,   # FEW: Used within relphot; skip star.
+    1,   # POOR: Used within relphot; skip star.
+    2,   # ICRF_QSO: object IDed with known ICRF quasar
+    3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
+    5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
+    7,   # HERN_VARIABLE: identified as a variable based on ChiSq
+    8,   # TRANSIENT: identified as a non-periodic (stationary) transient
+    9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
+    10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
+    23,  # EXT: extended in our data (eg, PS)
+    24   # EXT_ALT: extended in external data (eg, 2MASS)
+]
+
+
 def organize_ps1_and_isnear(ps1, header=None, bezel=0,
                             nearby_obj_minsep=0*u.deg, group_crit_separation=0,
                             select_filter_kw={},
-                            del_flags=[0, 1, 2, 7, 8, 9, 10, 23, 24],
+                            del_flags=PS1_DR1_DEL_FLAG,
                             drop_by_Kron=True,
                             calc_JC=True):
     ''' Organizes the PanSTARRS1 object and check nearby objects.
@@ -315,45 +330,35 @@ def organize_ps1_and_isnear(ps1, header=None, bezel=0,
     ps1.queried["_r"].format = "%.3f"
 
     if calc_JC:
-        c_gr = ps1.queried["gmag"] - ps1.queried["rmag"]
-        ps1.queried["C_gr"] = c_gr
+        ps1.queried["grcolor"] = ps1.queried["gmag"] - ps1.queried["rmag"]
 
-        # Since it includes Std, I used ``d``, inpired by the "total
-        # derivative" compared to partial derivative.
-
-        var_g = ps1.queried["e_gmag"]**2 + ps1.queried["gmag_Std"]**2
-        var_r = ps1.queried["e_rmag"]**2 + ps1.queried["rmag_Std"]**2
+        # Unfortunately the Std of color is unavailable from the columns
+        # provided by PS1 DR1. But error of the mean can be estimated by
+        # Gaussian error propagation
+        var_g = ps1.queried["e_gmag"]**2
+        var_r = ps1.queried["e_rmag"]**2
         dc_gr = np.sqrt(var_g + var_r)
-        ps1.queried["dC_gr"] = dc_gr
+        ps1.queried["e_grcolor"] = dc_gr
 
-        pars = dict(Bmag=[0.213, 0.587, 0.034, "gmag", var_g],
-                    Vmag=[0.006, 0.474, 0.012, "rmag", var_r],
-                    Rmag=[-0.138, -0.131, 0.015, "rmag", var_r])
+        pars = dict(Bmag=[0.213, 0.587, 0.034, "gmag"],
+                    Vmag=[0.006, 0.474, 0.012, "rmag"],
+                    Rmag=[-0.138, -0.131, 0.015, "rmag"])
         # filter_name = [B_0, B_1, B_sc of Tonry, mag used for conversion]
         for k, p in pars.items():
-            ps1mag = ps1.queried[p[3]]
-            ps1.queried[k] = ps1mag + p[0] + p[1] * c_gr
-            ps1.queried[f"d{k}"] = np.sqrt(p[4]**2 + p[1]*dc_gr**2 + p[2]**2)
+            ps1.queried[k] = (
+                p[0]
+                + p[1]*ps1.queried["grcolor"]
+                + ps1.queried[p[3]]
+            )
+            ps1.queried[f"e_{k}"] = np.sqrt(
+                (p[1]*ps1.queried["e_grcolor"])**2
+                + p[2]**2
+            )
 
     return isnear
 
 
-PS1_DR1_DEL_FLAG = [
-    0,   # FEW: Used within relphot; skip star.
-    1,   # POOR: Used within relphot; skip star.
-    2,   # ICRF_QSO: object IDed with known ICRF quasar
-    3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
-    5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
-    7,   # HERN_VARIABLE: identified as a variable based on ChiSq
-    8,   # TRANSIENT: identified as a non-periodic (stationary) transient
-    9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
-    10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
-    23,  # EXT: extended in our data (eg, PS)
-    24   # EXT_ALT: extended in external data (eg, 2MASS)
-]
 # TODO: Let it accept SkyCoord too
-
-
 class PanSTARRS1:
     def __init__(self, ra, dec, radius=None, inner_radius=None,
                  width=None, height=None, columns=["**", "+_r"],
