@@ -338,7 +338,22 @@ def organize_ps1_and_isnear(ps1, header=None, bezel=0,
     return isnear
 
 
+PS1_DR1_DEL_FLAG = [
+    0,   # FEW: Used within relphot; skip star.
+    1,   # POOR: Used within relphot; skip star.
+    2,   # ICRF_QSO: object IDed with known ICRF quasar
+    3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
+    5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
+    7,   # HERN_VARIABLE: identified as a variable based on ChiSq
+    8,   # TRANSIENT: identified as a non-periodic (stationary) transient
+    9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
+    10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
+    23,  # EXT: extended in our data (eg, PS)
+    24   # EXT_ALT: extended in external data (eg, 2MASS)
+]
 # TODO: Let it accept SkyCoord too
+
+
 class PanSTARRS1:
     def __init__(self, ra, dec, radius=None, inner_radius=None,
                  width=None, height=None, columns=["**", "+_r"],
@@ -453,13 +468,21 @@ class PanSTARRS1:
             transformation (``'wcs'``).
         '''
         N_old = len(self.queried)
+        bezel = np.atleast_1d(bezel)
+
+        if bezel.shape == (1,):
+            bezel = np.tile(bezel, 2)
+        elif bezel.shape != (2,):
+            raise ValueError("bezel must have shape (1,) or (2,). "
+                             + f"Now {bezel.shape}")
+
         self.queried = xyinFOV(table=self.queried, header=header, wcs=wcs,
                                ra_key="RAJ2000", dec_key="DEJ2000",
                                bezel=bezel, origin=0, mode=mode)
         N_new = len(self.queried)
         mask_str(N_new, N_old, f"{bezel}-pixel bezel")
 
-    def drop_for_diff_phot(self, del_flags=[0, 1, 2, 7, 8, 9, 10, 23, 24],
+    def drop_for_diff_phot(self, del_flags=PS1_DR1_DEL_FLAG,
                            drop_by_Kron=True):
         ''' Drop objects which are not good for differential photometry.
         Parameters
@@ -479,61 +502,92 @@ class PanSTARRS1:
 
         Note
         ----
-            1 (2^0) = Used within relphot (FEW); skip star.
-            2 = Used within relphot (POOR); skip star.
+        FEW
+            1 (2^0) = Used within relphot; skip star.
+        POOR
+            2 = Used within relphot; skip star.
+        ICRF_QSO
             4 = object IDed with known ICRF quasar (may have ICRF
                 position measurement)
+        HERN_QSO_P60
             8 = identified as likely QSO (Hernitschek+
-                2015ApJ...801...45H), PQSO≥0.60
+                2015ApJ...801...45H), P_QSO >= 0.60
+        HERN_QSO_P05
             16 = identified as possible QSO (Hernitschek+
-                2015ApJ...801...45H), PQSO≥0.05
+                2015ApJ...801...45H), P_QSO >= 0.05
+        HERN_RRL_P60
             32 = identified as likely RR Lyra (Hernitschek+
-                2015ApJ...801...45H), PRRLyra≥0.60
+                2015ApJ...801...45H), P_RRLyra >= 0.60
+        HERN_RRL_P05
             64 = identified as possible RR Lyra (Hernitschek+
-                2015ApJ...801...45H), PRRLyra≥0.05
+                2015ApJ...801...45H), P_RRLyra >= 0.05
+        HERN_VARIABLE
             128 = identified as a variable based on ChiSq (Hernitschek+
                 2015ApJ...801...45H)
+        TRANSIENT
             256 = identified as a non-periodic (stationary) transient
+        HAS_SOLSYS_DET
             512 = at least one detection identified with a known
                 solar-system object (asteroid or other).
+        MOST_SOLSYS_DET
             1024 (2^10) = most detections identified with a known
                 solar-system object (asteroid or other).
+        LARGE_PM
             2048 = star with large proper motion
+        RAW_AVE
             4096 = simple weighted average position was used (no IRLS
                 fitting)
+        FIT_AVE
             8192 = average position was fitted
+        FIT_PM
             16384 = proper motion model was fitted
+        FIT_PAR
             32768 = parallax model was fitted
+        USE_AVE
             65536 = average position used (not PM or PAR)
+        USE_PM
             131072 = proper motion used (not AVE or PAR)
+        USE_PAR
             262144 = parallax used (not AVE or PM)
+        NO_MEAN_ASTROM
             524288 = mean astrometry could not be measured
+        STACK_FOR_MEAN
             1048576 (2^20) = stack position used for mean astrometry
+        MEAN_FOR_STACK
             2097152 = mean astrometry used for stack position
+        BAD_PM
             4194304 = failure to measure proper-motion model
+        EXT
             8388608 = extended in our data (eg, PS)
+        EXT_ALT
             16777216 = extended in external data (eg, 2MASS)
+        GOOD
             33554432 = good-quality measurement in our data (eg,PS)
+        GOOD_ALT
             67108864 = good-quality measurement in external data (eg,
                 2MASS)
+        GOOD_STACK
             134217728 = good-quality object in the stack (>1 good stack
                 measurement)
+        BEST_STACK
             268435456 = the primary stack measurements are the best
                 measurements
+        SUSPECT_STACK
             536870912 = suspect object in the stack (no more than 1 good
                 measurement, 2 or more suspect or good stack
                 measurement)
+        BAD_STACK
             1073741824 (2^30) = poor-quality stack object (no more than
                 1 good or suspect measurement)
 
         Among the ``"f_objID"``, the following are better to be dropped
         because they are surely not usable for differential photometry:
 
-            * 1, 2, 4, 128, 256, 512, 1024, 8388608, 16777216
+            * 1, 2, 4, 8, 32, 128, 256, 512, 1024, 8388608, 16777216
 
         or in binary position (``del_flags``),
 
-            * 0, 1, 2, 7, 8, 9, 10, 23, 24
+            * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
 
         (plus maybe 2048(2^11) because centroiding may not work
         properly?)
