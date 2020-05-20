@@ -3,7 +3,7 @@ from warnings import warn
 import numpy as np
 from astropy import units as u
 from astropy.nddata import CCDData
-from astropy.table import QTable
+from astropy.table import QTable, hstack
 from photutils import aperture_photometry
 
 from .background import sky_fit
@@ -101,7 +101,6 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
 
     skys = sky_fit(_ccd, annulus, **sky_keys)
 
-    aperture = np.atleast_1d(aperture)
     _phot = aperture_photometry(_ccd.data, aperture,
                                 mask=_ccd.mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
@@ -109,28 +108,32 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     # can be pixel units or angular units (Sky apertures).
     # ysBach 2018-07-26
 
-    # Convert aperture_sum_xx columns into 1-column...
-    n = len(aperture)
-    apsums = []
-    aperrs = []
-    phot = QTable(meta=_phot.meta)
+    try:  # If multiple apertures at each position
+        # Convert aperture_sum_xx columns into 1-column...
+        n = len(aperture)
+        apsums = []
+        aperrs = []
+        phot = QTable(meta=_phot.meta)
 
-    for i, c in enumerate(_phot.colnames):
-        if not c.startswith("aperture"):
-            phot[c] = [_phot[c][0]]*n
-        elif c.startswith("aperture_sum_err"):
-            aperrs.append(_phot[c][0])
+        for i, c in enumerate(_phot.colnames):
+            if not c.startswith("aperture"):
+                phot[c] = [_phot[c][0]]*n
+            elif c.startswith("aperture_sum_err"):
+                aperrs.append(_phot[c][0])
+            else:
+                apsums.append(_phot[c][0])
+
+        phot["aperture_sum"] = apsums
+        if aperrs:
+            phot["aperture_sum_err"] = aperrs
         else:
-            apsums.append(_phot[c][0])
+            phot = _phot
+        for c in skys.colnames:
+            phot[c] = [skys[c][0]]*n
 
-    phot["aperture_sum"] = apsums
-    if aperrs:
-        phot["aperture_sum_err"] = aperrs
-    else:
-        phot = _phot
-
-    for c in skys.colnames:
-        phot[c] = [skys[c][0]]*n
+    except TypeError:  # len(ap) will give error if it's not a list
+        # Simply hstack
+        phot = hstack([_phot, skys])
 
     phot['aparea'] = n_ap
     phot["source_sum"] = phot["aperture_sum"] - n_ap * phot["msky"]
