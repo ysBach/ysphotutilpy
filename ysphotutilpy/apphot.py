@@ -3,7 +3,7 @@ from warnings import warn
 import numpy as np
 from astropy import units as u
 from astropy.nddata import CCDData
-from astropy.table import hstack, QTable
+from astropy.table import QTable
 from photutils import aperture_photometry
 
 from .background import sky_fit
