@@ -108,7 +108,8 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
     # can be pixel units or angular units (Sky apertures).
     # ysBach 2018-07-26
 
-    try:  # If multiple apertures at each position
+    if isinstance(aperture, (list, tuple, np.ndarray)):
+        # If multiple apertures at each position
         # Convert aperture_sum_xx columns into 1-column...
         n = len(aperture)
         apsums = []
@@ -131,7 +132,7 @@ def apphot_annulus(ccd, aperture, annulus, t_exposure=None,
         for c in skys.colnames:
             phot[c] = [skys[c][0]]*n
 
-    except TypeError:  # len(ap) will give error if it's not a list
+    else:
         # Simply hstack
         phot = hstack([_phot, skys])
 
