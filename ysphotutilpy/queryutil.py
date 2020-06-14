@@ -19,7 +19,7 @@ __all__ = ["horizons_query",
            "panstarrs_query"]
 
 
-def horizons_query(id, epochs=None,
+def horizons_query(id, epochs=None, sort_by='datetime_jd',
                    start=None, stop=None, step='12h', location='500',
                    id_type='smallbody', interpolate=None,
                    interpolate_x='datetime_jd', k=1, s=0,
@@ -36,6 +36,12 @@ def horizons_query(id, epochs=None,
         be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
         ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If
         no epochs are provided, the current time is used.
+    sort_by : None, str or list of str, optional.
+        The column keys to sort the table. It is recommended to sort by
+        time, because it seems the default sorting by JPL HORIZONS is
+        based on time, not the ``epochs`` (i.e., ``epochs = [1, 3, 2]``
+        would return an ephemerides table in the order of ``[1, 2,
+        3]``). Give ``None`` to skip sorting.
     start, stop, step: str, optional.
         If ``epochs=None``, it will be set as ``epochs = {'start':start,
         'stop':stop, 'step':step}``. If **eithter** ``start`` or
@@ -81,6 +87,15 @@ def horizons_query(id, epochs=None,
         https://astroquery.readthedocs.io/en/latest/api/astroquery.jplhorizons.HorizonsClass.html#astroquery.jplhorizons.HorizonsClass.ephemerides
     Returns
     -------
+    obj : astroquery.jplhorizons.HorizonsClass
+        The object used for query.
+
+    eph : astropy Table
+        The queried ephemerides from Horizons
+
+    interpolated: dict
+        The interpolation functions for the columns (specified by
+        ``interpolate``).
 
     Example
     -------
@@ -110,9 +125,13 @@ def horizons_query(id, epochs=None,
         x = eph[interpolate_x]
         for i in interpolate:
             interpolated[i] = UnivariateSpline(x, eph[i], k=k, s=s)
+
+    if sort_by is not None:
+        eph.sort(sort_by)
+
     if output is not None:
         eph.write(Path(output), format=format)
-    return eph, interpolated
+    return obj, eph, interpolated
 
 
 def mask_str(n_new, n_old, msg):
@@ -195,10 +214,12 @@ class HorizonsDiscreteEpochsQuery:
             i_1 = (i + 1)*depoch
             epochs_i = self.epochs[i_0:i_1]
 
-            obj = Horizons(id=self.targetname,      #
-                           location=self.location,  #
-                           epochs=epochs_i,         #
-                           id_type=self.id_type)
+            obj = Horizons(
+                id=self.targetname,
+                location=self.location,
+                epochs=epochs_i,
+                id_type=self.id_type
+            )
             eph = obj.ephemerides(*args, **kwargs)
 
             tabs.append(eph)
