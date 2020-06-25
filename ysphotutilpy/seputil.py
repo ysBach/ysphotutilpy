@@ -157,10 +157,15 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
     if len(filter_size) == 1:
         filter_size = np.repeat(filter_size, 2)
 
-    bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
-                         fw=filter_size[1], fh=filter_size[0],
-                         maskthresh=maskthresh, fthresh=filter_threshold)
-
+    try:
+        bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
+                             fw=filter_size[1], fh=filter_size[0],
+                             maskthresh=maskthresh, fthresh=filter_threshold)
+    except ValueError:
+        data = data.byteswap().newbyteorder()
+        bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
+                             fw=filter_size[1], fh=filter_size[0],
+                             maskthresh=maskthresh, fthresh=filter_threshold)
     return bkg
 
 
