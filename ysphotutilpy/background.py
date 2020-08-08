@@ -85,8 +85,8 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
             std = np.ma.std(sky_clipped, ddof=1)
             nrej = sky.shape[0] - nsky
 
-            skydict["nrej"] = nrej
             skydict["nsky"] = nsky
+            skydict["nrej"] = nrej
             skydict["ssky"] = std
 
             if nrej < 0:
