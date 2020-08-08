@@ -64,7 +64,12 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None,
     _ccd = ccd.copy()
 
     if t_exposure is None:
-        t_exposure = _ccd.header[exposure_key]
+        try:
+            t_exposure = _ccd.header[exposure_key]
+        except (KeyError, IndexError):
+            t_exposure = 1
+            warn("The exposure time info not given and not found from the"
+                 + f"header({exposure_key}). Setting it to 1 sec.")
 
     if error is not None:
         if verbose:
