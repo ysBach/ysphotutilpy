@@ -51,6 +51,7 @@ Note that sep also uses same pixel notation as photutils: pixel 0 covers
 >>> # y: [7.66666667]
 '''
 from warnings import warn
+from astropy.time import Time
 
 import numpy as np
 import pandas as pd
@@ -63,7 +64,7 @@ except ImportError:
     warn("Package sep is not installed. Some functions will not work.")
 
 
-__all__ = ['sep_back', 'sep_extract', 'sep_flux_auto']
+__all__ = ['sep_find_obj', 'sep_back', 'sep_extract', 'sep_flux_auto']
 
 sep_default_kernel = np.array([[1.0, 2.0, 1.0],
                                [2.0, 4.0, 2.0],
@@ -89,50 +90,51 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
     maskthresh : float, optional
         Only in sep. The effective mask will be ``m = (mask <
         maskthresh)``.
-        sep:
-        Mask threshold. This is the inclusive upper limit on the mask
-        value in order for the corresponding pixel to be unmasked. For
-        boolean arrays, False and True are interpreted as 0 and 1,
-        respectively. Thus, given a threshold of zero, True corresponds
-        to masked and False corresponds to unmasked.
-        photutils:
-        In photutils, sigma clipping is used (need check).
+
+        **sep**: Mask threshold. This is the inclusive upper limit on
+        the mask value in order for the corresponding pixel to be
+        unmasked. For boolean arrays, False and True are interpreted as
+        0 and 1, respectively. Thus, given a threshold of zero, True
+        corresponds to masked and False corresponds to unmasked.
+
+        **photutils**: In photutils, sigma clipping is used (need
+        check).
 
     filter_threshold : int, optional
         Name in photutils; ``fthresh`` in the oritinal sep. Default is
         0.0.
-        sep:
-        Filter threshold. Default is 0.0.
-        photutils:
-        The threshold value for used for selective median filtering of
-        the low-resolution 2D background map.  The median filter will be
-        applied to only the background meshes with values larger than
-        ``filter_threshold``.  Set to `None` to filter all meshes
-        (default).
+
+        **sep**: Filter threshold. Default is 0.0.
+
+        **photutils**: The threshold value for used for selective median
+        filtering of the low-resolution 2D background map.  The median
+        filter will be applied to only the background meshes with values
+        larger than ``filter_threshold``.  Set to `None` to filter all
+        meshes (default).
 
     box_size : int or array_like (int)
         Name in photutils; ``bh, bw`` in sep. Default is ``(64, 64)``.
-        sep:
-        Size of background boxes in pixels. Default is 64.
-        photutils:
-        The box size along each axis. If ``box_size`` is a scalar then a
-        square box of size ``box_size`` will be used.  If ``box_size``
-        has two elements, they should be in ``(ny, nx)`` order.  For
-        best results, the box shape should be chosen such that the
-        ``data`` are covered by an integer number of boxes in both
-        dimensions. When this is not the case, see the ``edge_method``
-        keyword for more options.
+
+        **sep**: Size of background boxes in pixels. Default is 64.
+
+        **photutils**: The box size along each axis. If ``box_size`` is
+        a scalar then a square box of size ``box_size`` will be used.
+        If ``box_size`` has two elements, they should be in ``(ny, nx)``
+        order.  For best results, the box shape should be chosen such
+        that the ``data`` are covered by an integer number of boxes in
+        both dimensions. When this is not the case, see the
+        ``edge_method`` keyword for more options.
 
     filter_size : int or array_like (int), optional
         Name in photutils; ``bh, bw`` in sep. Default is ``(64, 64)``.
-        sep:
-        Filter width and height in boxes. Default is 3.
-        photutils:
-        The window size of the 2D median filter to apply to the
-        low-resolution background map. If ``filter_size`` is a scalar
-        then a square box of size ``filter_size`` will be used.  If
-        ``filter_size`` has two elements, they should be in ``(ny, nx)``
-        order.  A filter size of ``1`` (or ``(1, 1)``) means no
+
+        **sep**: Filter width and height in boxes. Default is 3.
+
+        **photutils**: The window size of the 2D median filter to apply
+        to the low-resolution background map. If ``filter_size`` is a
+        scalar then a square box of size ``filter_size`` will be used.
+        If ``filter_size`` has two elements, they should be in ``(ny,
+        nx)`` order.  A filter size of ``1`` (or ``(1, 1)``) means no
         filtering.
 
     Returns
@@ -161,11 +163,20 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
         bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
                              fw=filter_size[1], fh=filter_size[0],
                              maskthresh=maskthresh, fthresh=filter_threshold)
-    except ValueError:
+    except ValueError:  # Non-native byte order
         data = data.byteswap().newbyteorder()
-        bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
-                             fw=filter_size[1], fh=filter_size[0],
-                             maskthresh=maskthresh, fthresh=filter_threshold)
+        try:
+            bkg = sep.Background(data, mask=mask, bw=box_size[1],
+                                 bh=box_size[0], fw=filter_size[1],
+                                 fh=filter_size[0],
+                                 maskthresh=maskthresh,
+                                 fthresh=filter_threshold)
+        except ValueError:  # e.g., int16 not supported
+            bkg = sep.Background(data.astype('float32'),
+                                 mask=mask, bw=box_size[1], bh=box_size[0],
+                                 fw=filter_size[1], fh=filter_size[0],
+                                 maskthresh=maskthresh,
+                                 fthresh=filter_threshold)
     return bkg
 
 
@@ -230,6 +241,7 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
 
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
+
     filter_kernel : `~numpy.ndarray` or None, optional
         Filter kernel used for on-the-fly filtering (used to
         enhance detection). Default is a 3x3 array:
@@ -315,12 +327,14 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0,
     obj = obj.reset_index()
     obj = obj.rename(columns={'index': 'segm_label'})
     obj['segm_label'] += 1
+    obj.insert(loc=1, column='thresh_raw', value=thresh)
     return obj, segm
 
 
 def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
-    # Calculate FLUX_AUTO
+    ''' Calculate FLUX_AUTO
     # https://sep.readthedocs.io/en/v1.0.x/apertures.html#equivalent-of-flux-auto-e-g-mag-auto-in-source-extractor
+    '''
 
     sepx, sepy = sepext['x'], sepext['y']
     sepa, sepb = sepext['a'], sepext['b']
