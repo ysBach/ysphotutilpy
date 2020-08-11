@@ -16,9 +16,8 @@ def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
     return sky_fit(ccd, annulus)
 
 
-# TODO: replaces ma functions?
 def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
-            maxiters=5, mode_option='sex'):
+            maxiters=5, std_ddof=1, mode_option='sex'):
     """ Estimate the sky value from image and annulus.
     Parameters
     ----------
@@ -64,38 +63,26 @@ def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
 
     for i, sky in enumerate(skys):
         skydict = {}
+        sky_clip = sigma_clip(sky, sigma=sigma, maxiters=maxiters,
+                              std_ddof=std_ddof, masked=False)
+        std = np.std(sky_clip, ddof=std_ddof)
+        nsky = sky_clip.size
+        nrej = nsky - sky_clip.size
+        if nrej < 0:
+            raise ValueError('nrej < 0: check the code')
+
+        if nrej > nsky:  # rejected > survived
+            warn('More than half of the pixels rejected.')
 
         if method == 'mean':
-            skydict["msky"] = np.ma.mean(sky)
-            skydict["ssky"] = np.ma.std(sky, ddof=1)
-            skydict["nsky"] = sky.shape[0]
-            skydict["nrej"] = 0
+            skydict["msky"] = np.mean(sky_clip)
 
         elif method == 'median':
-            skydict["msky"] = np.ma.median(sky)
-            skydict["ssky"] = np.ma.std(sky, ddof=1)
-            skydict["nsky"] = sky.shape[0]
-            skydict["nrej"] = 0
+            skydict["msky"] = np.median(sky_clip)
 
         elif method == 'mode':
-            sky_clip = sigma_clip(sky, sigma=sigma, maxiters=maxiters)
-
-            sky_clipped = sky[~sky_clip.mask]
-            nsky = np.count_nonzero(~sky_clip.mask)
-            mean = np.ma.mean(sky_clipped)
-            med = np.ma.median(sky_clipped)
-            std = np.ma.std(sky_clipped, ddof=1)
-            nrej = sky.shape[0] - nsky
-
-            skydict["nsky"] = nsky
-            skydict["nrej"] = nrej
-            skydict["ssky"] = std
-
-            if nrej < 0:
-                raise ValueError('nrej < 0: check the code')
-
-            if nrej > nsky:  # rejected > survived
-                warn('More than half of the pixels rejected.')
+            mean = np.mean(sky_clip)
+            med = np.median(sky_clip)
 
             if mode_option == 'IRAF':
                 if (mean < med):
@@ -118,6 +105,9 @@ def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
             else:
                 raise ValueError('mode_option not understood')
 
+        skydict['ssky'] = std
+        skydict['nsky'] = nsky
+        skydict['nrej'] = nrej
         skydicts.append(skydict)
     skytable = Table(skydicts)
     # skytable["msky"].unit = u.adu / u.pix
@@ -187,4 +177,3 @@ def annul2values(ccd, annulus, mask=None):
     # plt.imshow(skys_i)
 
     return values
-
