@@ -63,13 +63,28 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None,
     '''
     _ccd = ccd.copy()
 
-    if t_exposure is None:
-        try:
-            t_exposure = _ccd.header[exposure_key]
-        except (KeyError, IndexError):
+    if isinstance(_ccd, CCDData):
+        _arr = _ccd.data
+        _mask = _ccd.mask
+        if t_exposure is None:
+            try:
+                t_exposure = _ccd.header[exposure_key]
+            except (KeyError, IndexError):
+                t_exposure = 1
+                warn("The exposure time info not given and not found from the"
+                     + f"header({exposure_key}). Setting it to 1 sec.")
+    else:  # ndarray
+        _arr = np.array(_ccd)
+        _mask = None
+        if t_exposure is None:
             t_exposure = 1
-            warn("The exposure time info not given and not found from the"
-                 + f"header({exposure_key}). Setting it to 1 sec.")
+            warn("The exposure time info not given. Setting it to 1 sec.")
+
+    if _mask is None:
+        _mask = np.zeros_like(_arr).astype(bool)
+
+    if mask is not None:
+        _mask |= mask
 
     if error is not None:
         if verbose:
@@ -78,7 +93,6 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None,
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
-
     else:
         try:
             err = _ccd.uncertainty.array
@@ -86,19 +100,11 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None,
             if verbose:
                 warn("Couldn't find Uncertainty extension in ccd. "
                      + "Will not calculate errors.")
-            err = np.zeros_like(_ccd.data)
-
-    if mask is not None:
-        if _ccd.mask is not None:
-            if verbose:
-                warn("ccd contains mask, so given mask will be added to it.")
-            _ccd.mask += mask
-        else:
-            _ccd.mask = mask
+            err = np.zeros_like(_arr)
 
     if aparea_exact:
-        _ones = np.ones_like(_ccd.data)
-        _area = aperture_photometry(_ones, aperture, mask=_ccd.mask, **kwargs)
+        _ones = np.ones_like(_arr)
+        _area = aperture_photometry(_ones, aperture, mask=_mask, **kwargs)
         n_ap = []
         for c in _area.colnames:
             if c.startswith("aperture_sum"):
@@ -115,15 +121,15 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None,
             except TypeError:  # prior to photutils 0.7
                 n_ap = np.array([ap.area() for ap in aperture])
 
-    _phot = aperture_photometry(_ccd.data, aperture,
-                                mask=_ccd.mask, error=err, **kwargs)
+    _phot = aperture_photometry(_arr, aperture,
+                                mask=_mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
     # will give a lot of headache for units. It's not easy since aperture
     # can be pixel units or angular units (Sky apertures).
     # ysBach 2018-07-26
 
     if annulus is not None:
-        skys = sky_fit(_ccd, annulus, **sky_keys)
+        skys = sky_fit(_arr, annulus, mask=_mask, **sky_keys)
         for c in skys.colnames:
             _phot[c] = [skys[c][0]]
     else:
