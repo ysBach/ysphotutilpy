@@ -1,6 +1,7 @@
 from warnings import warn
 
 import numpy as np
+from astropy.nddata import CCDData
 from astropy.stats import sigma_clip
 from astropy.table import Table
 
@@ -15,8 +16,9 @@ def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
     return sky_fit(ccd, annulus)
 
 
-def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
-            sky_maxiters=5, mode_option='sex'):
+# TODO: replaces ma functions?
+def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
+            maxiters=5, mode_option='sex'):
     """ Estimate the sky value from image and annulus.
     Parameters
     ----------
@@ -58,7 +60,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
     """
 
     skydicts = []
-    skys = annul2values(ccd, annulus)
+    skys = annul2values(ccd, annulus, mask=mask)
 
     for i, sky in enumerate(skys):
         skydict = {}
@@ -76,7 +78,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
             skydict["nrej"] = 0
 
         elif method == 'mode':
-            sky_clip = sigma_clip(sky, sigma=sky_nsigma, maxiters=sky_maxiters)
+            sky_clip = sigma_clip(sky, sigma=sigma, maxiters=maxiters)
 
             sky_clipped = sky[~sky_clip.mask]
             nsky = np.count_nonzero(~sky_clip.mask)
@@ -124,7 +126,7 @@ def sky_fit(ccd, annulus, method='mode', sky_nsigma=3,
     return skytable
 
 
-def annul2values(ccd, annulus):
+def annul2values(ccd, annulus, mask=None):
     ''' Extracts the pixel values from the image with annuli
 
     Parameters
@@ -138,35 +140,48 @@ def annul2values(ccd, annulus):
     #     this value.
     Returns
     -------
-    values: list
+    values: list of ndarray
         The list of pixel values. Length is the same as the number of annuli in
         ``annulus``.
     '''
     values = []
-    _ccd = ccd.copy()
-    if _ccd.mask is None:
-        _ccd.mask = np.zeros_like(_ccd.data).astype(bool)
 
-    mask_an = annulus.to_mask(method='center')
+    if isinstance(ccd, CCDData):
+        _ccd = ccd.copy()
+        _arr = _ccd.data
+        _mask = _ccd.mask
+
+    else:  # ndarray
+        _arr = np.array(ccd)
+        _mask = None
+
+    if _mask is None:
+        _mask = np.zeros_like(_arr).astype(bool)
+
+    if mask is not None:
+        _mask |= mask
+
+    an_masks = annulus.to_mask(method='center')
     try:
         if annulus.isscalar:  # as of photutils 0.7
-            mask_an = [mask_an]
+            an_masks = [an_masks]
     except AttributeError:
         pass
 
-    for i, an in enumerate(mask_an):
-        in_an = (an.data == 1).astype(float)
-        # result identical to np.nonzero(an.data), but just for safety...
+    for i, an_mask in enumerate(an_masks):
+        # result identical to an.data itself, but just for safety...
+        in_an = (an_mask.data == 1).astype(int)
+        # replace to NaN for in_an=0, because sometimes pixel itself is 0...
         in_an[in_an == 0] = np.nan
-        skys_i = an.multiply(_ccd.data, fill_value=np.nan) * in_an
-        ccdmask_i = an.multiply(_ccd.mask, fill_value=False)
+        skys_i = an_mask.multiply(_arr, fill_value=np.nan) * in_an
+        ccdmask_i = an_mask.multiply(_mask, fill_value=False)
         mask_i = (np.isnan(skys_i) + ccdmask_i).astype(bool)
-        # skys_i = an.multiply(_ccd, fill_value=np.nan)
+        # skys_i = an.multiply(_arr, fill_value=np.nan)
         # sky_xy = np.nonzero(an.data)
         # sky_all = mask_im[sky_xy]
         # sky_values = sky_all[~np.isnan(sky_all)]
         # values.append(sky_values)
-        skys_1d = np.array(skys_i[~mask_i].flatten(), dtype=_ccd.dtype)
+        skys_1d = np.array(skys_i[~mask_i].ravel(), dtype=_arr.dtype)
         values.append(skys_1d)
     # plt.imshow(nanmask)
     # plt.imshow(skys_i)
