@@ -64,7 +64,7 @@ def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
     for i, sky in enumerate(skys):
         skydict = {}
         sky_clip = sigma_clip(sky, sigma=sigma, maxiters=maxiters,
-                              std_ddof=std_ddof, masked=False)
+                              masked=False)
         std = np.std(sky_clip, ddof=std_ddof)
         nsky = sky_clip.size
         nrej = nsky - sky_clip.size
@@ -160,7 +160,7 @@ def annul2values(ccd, annulus, mask=None):
 
     for i, an_mask in enumerate(an_masks):
         # result identical to an.data itself, but just for safety...
-        in_an = (an_mask.data == 1).astype(int)
+        in_an = (an_mask.data == 1).astype(float)  # float for NaN below
         # replace to NaN for in_an=0, because sometimes pixel itself is 0...
         in_an[in_an == 0] = np.nan
         skys_i = an_mask.multiply(_arr, fill_value=np.nan) * in_an
