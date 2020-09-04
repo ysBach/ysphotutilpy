@@ -52,6 +52,7 @@ Note that sep also uses same pixel notation as photutils: pixel 0 covers
 '''
 from warnings import warn
 from astropy.time import Time
+from astropy.nddata import CCDData
 
 import numpy as np
 import pandas as pd
@@ -64,11 +65,135 @@ except ImportError:
     warn("Package sep is not installed. Some functions will not work.")
 
 
-__all__ = ['sep_find_obj', 'sep_back', 'sep_extract', 'sep_flux_auto']
+__all__ = ['sep_back', 'sep_extract', 'sep_flux_auto']
 
 sep_default_kernel = np.array([[1.0, 2.0, 1.0],
                                [2.0, 4.0, 2.0],
                                [1.0, 2.0, 1.0]], dtype=np.float32)
+
+
+# def sep_find_obj(
+#         ccd, mask=None, err=None, var=None,
+#         thresh_tests=[30, 20, 10, 6, 5, 4, 3],
+#         bezel_x=None, bezel_y=None, box_size=(64, 64),
+#         filter_size=(12, 12), deblend_cont=1, minarea=100, verbose=True,
+#         update_header=True, **extract_kw
+# ):
+#     """
+#     Parameters
+#     ----------
+#     ccd : CCDData or ndarray.
+#         The CCD or ndarray to find object.
+
+#     thresh_tests : list-like of float, optional.
+#         The SNR thresholds to be used for finding the object. It is
+#         first sorted in descending order, and if more than one object is
+#         found, that value is used.
+
+#     bezel_x, bezel_y : int, float, list of such, optional.
+#         The x and y bezels, in ``[lower, upper]`` convention.
+
+#     box_size : int or array-like (int) optional.
+#         The background smooting box size. Default is ``(64, 64)``
+#         for NIC. **Note**: If array-like, order must be ``[height,
+#         width]``, i.e., y and x size.
+
+#     filter_size : int or array-like (int) optional.
+#         The 2D median filter size. Default is ``(12, 12)`` for NIC.
+#         **Note**: If array-like, order must be ``[height, width]``,
+#         i.e., y and x size.
+
+#     minarea : int, optional
+#         Minimum number of pixels required for an object. Default is
+#         100 for NIC.
+
+#     deblend_cont : float, optional
+#         Minimum contrast ratio used for object deblending. To
+#         entirely disable deblending, set to 1.0 (default). Default of
+#         sep was 0.005.
+
+#     # gauss_fbox : int, float, array-like of such, optional.
+#     #     The fitting box size to fit a Gaussian2D function to the
+#     #     objects found by ``sep``. This is done to automatically set
+#     #     aperture sizes of the object.
+
+#     Returns
+#     -------
+
+#     Note
+#     ----
+#     This includes ``sep``'s ``extract`` and ``background``.
+#     Equivalent processes in photutils may include ``detect_sources``
+#     and ``source_properties``, and ``Background2D``, respectively.
+
+#     Example
+#     -------
+#     >>>
+#     """
+
+#     if isinstance(ccd, CCDData):
+#         _arr = ccd.data.copy()
+#         _mask = ccd.mask
+#         if update_header:
+#             try:
+#                 from ysfitsutilpy.hdrutil import add_to_header
+#             except ImportError:
+#                 raise ImportError("ysfitsutilpy is needed for update_header.")
+#     else:
+#         _arr = np.array(ccd)
+#         _mask = None
+#         update_header = False  # override
+#         if update_header and verbose:
+#             warn("Given array, not CCDData. Header will not be updated.")
+
+#     if _mask is None:
+#         _mask = np.zeros_like(_arr, dtype=bool)
+
+#     if mask is not None:
+#         _mask = _mask | mask
+
+#     bkg_kw = dict(mask=_mask, maskthresh=0.0, filter_threshold=0.0,
+#                   box_size=box_size, filter_size=filter_size)
+
+#     sepv = sep.__version__
+#     s_bkg = f"Background estimated from sep (v {sepv}) with {bkg_kw}."
+
+#     _t = Time.now()
+#     bkg = sep_back(_arr, **bkg_kw)
+#     if update_header:
+#         add_to_header(ccd.header, 'h', s_bkg, verbose=verbose, t_ref=_t)
+
+#     thresh_tests = np.sort(np.atleast_1d(thresh_tests))[::-1]
+#     for thresh in thresh_tests:
+#         ext_kw = dict(bkg=bkg, err=err, mask=_mask, thresh=thresh,
+#                       minarea=minarea,
+#                       deblend_cont=deblend_cont, bezel_x=bezel_x,
+#                       bezel_y=bezel_y, **extract_kw)
+#         s_obj = f"Objects found from sep (v {sepv}) with {ext_kw}."
+
+#         _t = Time.now()
+#         obj, seg = sep_extract(_arr, **ext_kw)
+#         if update_header:
+#             add_to_header(ccd.header, 'h', s_obj, verbose=verbose, t_ref=_t)
+
+#         nobj = len(obj)
+#         ccd.header["NOBJ-SEP"] = (nobj, "Number of objects found from SEP.")
+
+#     if nobj < 1:
+#         warn("No object found!", Warning)
+#     elif nobj > 1:
+#         # Sort obj such that the 0-th is our target.
+#         ny, nx = ccd.data.shape
+#         obj['_r'] = np.sqrt((obj['x'] - nx/2)**2 + (obj['y'] - ny/2)**2)
+#         obj.sort_values('_r', inplace=True)
+
+#         if update_header:
+#             s = ("{} objects found; Only the one closest to the FOV center "
+#                  + "(segmentation map label = {}) will be used.")
+#             s = s.format(nobj, obj['segm_label'].values[0])
+#             add_to_header(ccd.header, 'h', s, verbose=verbose)
+
+#     return bkg, obj, seg
 
 
 def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
@@ -88,8 +213,8 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
         Mask array.
 
     maskthresh : float, optional
-        Only in sep. The effective mask will be ``m = (mask <
-        maskthresh)``.
+        Only in sep. The effective mask will be ``m =
+        (mask.astype(float) >= maskthresh)``.
 
         **sep**: Mask threshold. This is the inclusive upper limit on
         the mask value in order for the corresponding pixel to be
@@ -159,24 +284,17 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0,
     if len(filter_size) == 1:
         filter_size = np.repeat(filter_size, 2)
 
+    kw = dict(mask=mask, bw=box_size[1], bh=box_size[0],
+              fw=filter_size[1], fh=filter_size[0],
+              maskthresh=maskthresh, fthresh=filter_threshold)
     try:
-        bkg = sep.Background(data, mask=mask, bw=box_size[1], bh=box_size[0],
-                             fw=filter_size[1], fh=filter_size[0],
-                             maskthresh=maskthresh, fthresh=filter_threshold)
+        bkg = sep.Background(data, **kw)
     except ValueError:  # Non-native byte order
         data = data.byteswap().newbyteorder()
         try:
-            bkg = sep.Background(data, mask=mask, bw=box_size[1],
-                                 bh=box_size[0], fw=filter_size[1],
-                                 fh=filter_size[0],
-                                 maskthresh=maskthresh,
-                                 fthresh=filter_threshold)
+            bkg = sep.Background(data, **kw)
         except ValueError:  # e.g., int16 not supported
-            bkg = sep.Background(data.astype('float32'),
-                                 mask=mask, bw=box_size[1], bh=box_size[0],
-                                 fw=filter_size[1], fh=filter_size[0],
-                                 maskthresh=maskthresh,
-                                 fthresh=filter_threshold)
+            bkg = sep.Background(data.astype('float32'), **kw)
     return bkg
 
 
