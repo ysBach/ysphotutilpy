@@ -1,3 +1,4 @@
+from typing import Type
 import numpy as np
 from astropy import units as u
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
@@ -163,26 +164,46 @@ def cut_for_ap(to_move, based_on=None, ccd=None):
 """
 
 
-def circ_ap_an(positions, fwhm, f_ap=1.5, f_in=4., f_out=6.):
+def _sanitize_apsize(size=None, fwhm=None, factor=None, name='size', repeat=False):
+    def __repeat(item, repeat=False, rep=2):
+        if repeat and np.isscalar(item):
+            return np.repeat(item, rep)
+        else:
+            return np.atleast_1d(item) if repeat else np.atleast_1d(item)[0]
+
+    if size is None:
+        try:
+            fwhm = __repeat(fwhm, repeat=repeat, rep=2)
+            factor = __repeat(factor, repeat=repeat, rep=2)
+            return factor*fwhm
+        except TypeError:
+            raise ValueError(f"{name} is None; fwhm must be given.")
+    else:
+        size = __repeat(size, repeat=repeat, rep=2)
+        return size
+
+
+def circ_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, f_ap=1.5, f_in=4., f_out=6.):
     ''' A convenience function for pixel circular aperture/annulus
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
         The pixel coordinates of the aperture center(s) in one of the
-        following formats:
+        following formats::
 
-        * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
-        * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
-        * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in
-            pixel units
+          * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
+          * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
+          * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in pixel units
 
-    fwhm : float
+    r_ap, r_in, r_out : float, optional.
+        The aperture, annular inner, and annular outer radii.
+
+    fwhm : float, optional.
         The FWHM in pixel unit.
 
-    f_ap, f_in, f_out: int or float, optional
-        The factors multiplied to ``fwhm`` to set the aperture radius,
-        inner sky radius, and outer sky radius, respectively. Defaults
-        are ``1.5``, ``4.0``, and ``6.0``, respectively, which are de
+    f_ap, f_in, f_out: int or float, optional.
+        The factors multiplied to ``fwhm`` to set the aperture radius, inner sky radius, and outer sky
+        radius, respectively. Defaults are ``1.5``, ``4.0``, and ``6.0``, respectively, which are de
         facto standard values used by classical IRAF users.
 
     Returns
@@ -190,70 +211,63 @@ def circ_ap_an(positions, fwhm, f_ap=1.5, f_in=4., f_out=6.):
     ap, an : `~photutils.CircularAperture` and `~photutils.CircularAnnulus`
         The object aperture and sky annulus.
     '''
-    r_ap = f_ap * fwhm
-    r_in = f_in * fwhm
-    r_out = f_out * fwhm
+    r_ap = _sanitize_apsize(r_ap, fwhm=fwhm, factor=f_ap, name='r_ap')
+    r_in = _sanitize_apsize(r_in, fwhm=fwhm, factor=f_in, name='r_in')
+    r_out = _sanitize_apsize(r_out, fwhm=fwhm, factor=f_out, name='r_out')
+
     ap = CircularAperture(positions=positions, r=r_ap)
     an = CircularAnnulus(positions=positions, r_in=r_in, r_out=r_out)
     return ap, an
 
 
-def ellip_ap_an(positions, fwhm, theta=0.,
+def ellip_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, theta=0.,
                 f_ap=(1.5, 1.5), f_in=(4., 4.), f_out=(6., 6.)):
     ''' A convenience function for pixel elliptical aperture/annulus
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
-        The pixel coordinates of the aperture center(s) in one of the
-        following formats:
+        The pixel coordinates of the aperture center(s) in one of the following formats::
 
-        * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
-        * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
-        * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in
-            pixel units
+          * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
+          * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
+          * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in pixel units
+
+    r_ap, r_in, r_out: int or float, list or tuple of such, optional
+        The aperture, annular inner, and annular outer radii. If list-like, the 0-th element is
+        regarded as the "semi-major" axis, even though it is smaller than the 1-th element.
 
     fwhm : float
         The FWHM in pixel unit.
 
     theta : float, optional
-        The rotation angle in radians of the ellipse semimajor axis from
-        the positive ``x`` axis.  The rotation angle increases
-        counterclockwise.  The default is 0.
+        The rotation angle in radians of the ellipse semimajor axis (0-th element of radii or f
+        parameters, not necessarily the longer axis) from the positive ``x`` axis.  The rotation angle
+        increases counterclockwise.  The default is 0.
 
     f_ap, f_in, f_out: int or float, list or tuple of such, optional
-        The factors multiplied to ``fwhm`` to set the aperture ``a`` and
-        ``b``, inner sky ``a`` and ``b``, and outer sky ``a`` and ``b``,
-        respectively. If scalar, it is assumed to be identical for both
-        ``a`` and ``b`` parameters. Defaults are ``(1.5, 1.5)``, ``(4.0,
-        4.0)``, and ``(6.0, 6.0)``, respectively, which are de facto
-        standard values used by classical IRAF users.
+        The factors multiplied to ``fwhm`` to set the aperture ``a`` and ``b``, inner sky ``a`` and
+        ``b``, and outer sky ``a`` and ``b``, respectively. If scalar, it is assumed to be identical
+        for both ``a`` and ``b`` parameters. Defaults are ``(1.5, 1.5)``, ``(4.0, 4.0)``, and ``(6.0,
+        6.0)``, respectively, which are de facto standard values used by classical IRAF users. If
+        list-like, the 0-th element is regarded as the "semi-major" axis, even though it is smaller
+        than the 1-th element.
 
     Returns
     -------
     ap, an : `~photutils.EllipticalAperture` and `~photutils.EllipticalAnnulus`
         The object aperture and sky annulus.
     '''
-    if np.isscalar(fwhm):
-        fwhm = np.repeat(fwhm, 2)
+    a_ap, b_ap = _sanitize_apsize(r_ap, fwhm, factor=f_ap, name='r_ap', repeat=True)
+    a_in, b_in = _sanitize_apsize(r_in, fwhm, factor=f_in, name='r_in', repeat=True)
+    a_out, b_out = _sanitize_apsize(r_out, fwhm, factor=f_out, name='r_out', repeat=True)
 
-    if np.isscalar(f_ap):
-        f_ap = np.repeat(f_ap, 2)
+    pt = dict(positions=positions, theta=theta)
 
-    if np.isscalar(f_in):
-        f_in = np.repeat(f_in, 2)
-
-    if np.isscalar(f_out):
-        f_out = np.repeat(f_out, 2)
-
-    a_ap = f_ap[0] * fwhm[0]
-    b_ap = f_ap[1] * fwhm[1]
-    a_in = f_in[0] * fwhm[0]
-    a_out = f_out[0] * fwhm[0]
-    b_out = f_out[1] * fwhm[1]
-
-    ap = EllipticalAperture(positions=positions, a=a_ap, b=b_ap, theta=theta)
-    an = EllipticalAnnulus(positions=positions, a_in=a_in, a_out=a_out,
-                           b_out=b_out, theta=theta)
+    ap = EllipticalAperture(**pt, a=a_ap, b=b_ap)
+    try:
+        an = EllipticalAnnulus(**pt, a_in=a_in, a_out=a_out, b_in=b_in, b_out=b_out)
+    except TypeError:  # Prior to photutils 1.0, b_in is not supported.
+        an = EllipticalAnnulus(**pt, a_in=a_in, a_out=a_out, b_out=b_out)
 
     return ap, an
 
