@@ -6,6 +6,7 @@ from setuptools import setup, find_packages
 setup_requires = []
 install_requires = ['numpy',
                     'pandas',
+                    'bottleneck',
                     'astropy >= 2.0',
                     'ccdproc >= 1.3',
                     'matplotlib >= 2',
