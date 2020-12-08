@@ -1,6 +1,7 @@
 from warnings import warn
 
 import numpy as np
+import bottleneck as bn
 from astropy.nddata import CCDData
 from astropy.stats import sigma_clip
 from astropy.table import Table
@@ -16,8 +17,7 @@ def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
     return sky_fit(ccd, annulus)
 
 
-def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
-            maxiters=5, std_ddof=1, mode_option='sex'):
+def sky_fit(ccd, annulus, mask=None, method='mode', mode_option='sex', std_ddof=1, **kwargs):
     """ Estimate the sky value from image and annulus.
     Parameters
     ----------
@@ -29,18 +29,20 @@ def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
     #     The pixels which are masked by ``ccd.mask`` will be replaced with
     #     this value.
     method : {"mean", "median", "mode"}, optional
-        The method to estimate sky value. You can give options to "mode"
-        case; see mode_option.
+        The method to estimate sky value. You can give options to "mode" case; see ``mode_option``.
         "mode" is analogous to Mode Estimator Background of photutils.
-    sky_nsigma : float, optinal
-        The input parameter for sky sigma clipping.
-    sky_maxiters : float, optinal
-        The input parameter for sky sigma clipping.
     mode_option : {"sex", "IRAF", "MMM"}, optional.
-        sex  == (med_factor, mean_factor) = (2.5, 1.5)
-        IRAF == (med_factor, mean_factor) = (3, 2)
-        MMM  == (med_factor, mean_factor) = (3, 2)
+        Three options::
+
+          * sex  == (med_factor, mean_factor) = (2.5, 1.5)
+          * IRAF == (med_factor, mean_factor) = (3, 2)
+          * MMM  == (med_factor, mean_factor) = (3, 2)
+
         where ``msky = (med_factor * med) - (mean_factor * mean)``.
+    std_ddof : int, optional.
+        The "delta-degrees of freedom" for sky standard deviation calculation.
+    kwargs : dict
+        The keyword arguments for sigma-clipping.
 
     Returns
     -------
@@ -57,16 +59,17 @@ def sky_fit(ccd, annulus, mask=None, method='mode', sigma=3,
     nrej : int
         The number of pixels which are rejected after sigma clipping.
     """
+    def _sstd(arr, ddof=0, axis=None):
+        return np.sqrt(arr.size/(arr.size - ddof))*bn.nanstd(arr, axis=axis)
 
     skydicts = []
     skys = annul2values(ccd, annulus, mask=mask)
 
     for i, sky in enumerate(skys):
         skydict = {}
-        sky_clip = sigma_clip(sky, sigma=sigma, maxiters=maxiters,
-                              masked=False)
+        sky_clip = sigma_clip(sky, masked=False, stdfunc=_sstd, **kwargs)
         std = np.std(sky_clip, ddof=std_ddof)
-        nsky = sky_clip.size
+        nsky = sky.size
         nrej = nsky - sky_clip.size
         if nrej < 0:
             raise ValueError('nrej < 0: check the code')
