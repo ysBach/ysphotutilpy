@@ -158,7 +158,7 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
     return bkg
 
 
-def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None,
+def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None,
                 bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5, filter_kernel=sep_default_kernel,
                 filter_type='matched', deblend_nthresh=32, deblend_cont=0.005, clean=True, clean_param=1.0):
     """
@@ -194,6 +194,11 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
     err, var : float or `~numpy.ndarray`, optional
         Error *or* variance (specify at most one). This can be used to specify a pixel-by-pixel
         detection threshold; see ``thresh``.
+
+    pos_ref : `None`, list-like of two floats, optional.
+        If not `None`, it must be the (x, y) position of the reference point. The returned ``obj`` will
+        have ``'dist_ref'`` column which is the distance of the object's position (``sqrt((obj["x"] -
+        pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)``) and sorted based on this.
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
         The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
@@ -236,6 +241,7 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
 
     Returns
     -------
+    obj, segm
 
     Example
     -------
@@ -299,6 +305,14 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
     obj = obj.rename(columns={'index': 'segm_label'})
     obj['segm_label'] += 1
     obj.insert(loc=1, column='thresh_raw', value=thresh)
+
+    if pos_ref is not None:
+        pos_ref = np.array(pos_ref).flatten()
+        if pos_ref.size != 2:
+            raise ValueError(f"pos_ref must have the size of two (now it is {pos_ref.size}).")
+        dist_ref = np.sqrt((obj["x"] - pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)
+        obj.insert(loc=1, column='dist_ref', value=dist_ref)
+        obj = obj.sort_values("dist_ref").reset_index(drop=True)
 
     # Set segm value to 0 (False) if removed by bezel.
     if len(obj) < n_original:
