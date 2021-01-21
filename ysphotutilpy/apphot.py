@@ -3,7 +3,7 @@ from warnings import warn
 import numpy as np
 from astropy import units as u
 from astropy.nddata import CCDData
-from astropy.table import QTable, hstack
+from astropy.table import QTable
 from photutils import aperture_photometry
 
 from .background import sky_fit
@@ -14,14 +14,10 @@ __all__ = ["apphot_annulus"]
 # TODO: Put centroiding into this apphot_annulus ?
 # TODO: use variance instead of error (see photutils 0.7)
 # TODO: one_aperture_per_row : bool, optional.
-# `photutils.aperture_photometry` produces 1-row result if multiple
-# radii aperture is given with column names starting from
-# ``aperture_sum_0`` and ``aperture_sum_err_0``.
-def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None,
-                   exposure_key="EXPTIME", error=None, mask=None,
-                   sky_keys={}, aparea_exact=False,
-                   t_exposure_unit=u.s, verbose=False,
-                   pandas=False, **kwargs):
+# `photutils.aperture_photometry` produces 1-row result if multiple radii aperture is given with column
+# names starting from ``aperture_sum_0`` and ``aperture_sum_err_0``.
+def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="EXPTIME", error=None,
+                   mask=None, sky_keys={}, aparea_exact=False, verbose=False, pandas=False, **kwargs):
     ''' Do aperture photometry using annulus.
 
     Parameters
