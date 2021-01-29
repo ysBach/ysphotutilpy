@@ -19,72 +19,70 @@ __all__ = ["horizons_query",
            "panstarrs_query"]
 
 
-def horizons_query(id, epochs=None, sort_by='datetime_jd',
-                   start=None, stop=None, step='12h', location='500',
-                   id_type='smallbody', interpolate=None,
-                   interpolate_x='datetime_jd', k=1, s=0,
-                   output=None, format='csv',
-                   **ephkw):
+def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None, step='12h', location='500',
+                   id_type='smallbody', interpolate=None, interpolate_x='datetime_jd', k=1, s=0,
+                   output=None, format='csv', **ephkw):
     """
     Parameters
     ----------
     id : str, required
         Name, number, or designation of the object to be queried.
+
     epochs : scalar, list-like, or dictionary, optional
-        Either a list of epochs in JD or MJD format or a dictionary
-        defining a range of times and dates; the range dictionary has to
-        be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
-        ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If
-        no epochs are provided, the current time is used.
+        Either a list of epochs in JD or MJD format or a dictionary defining a range of times and
+        dates; the range dictionary has to be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
+        ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If no epochs are provided, the
+        current time is used.
+
     sort_by : None, str or list of str, optional.
-        The column keys to sort the table. It is recommended to sort by
-        time, because it seems the default sorting by JPL HORIZONS is
-        based on time, not the ``epochs`` (i.e., ``epochs = [1, 3, 2]``
-        would return an ephemerides table in the order of ``[1, 2,
-        3]``). Give ``None`` to skip sorting.
+        The column keys to sort the table. It is recommended to sort by time, because it seems the
+        default sorting by JPL HORIZONS is based on time, not the ``epochs`` (i.e., ``epochs = [1, 3,
+        2]`` would return an ephemerides table in the order of ``[1, 2, 3]``). Give `None` to skip
+        sorting.
+
     start, stop, step: str, optional.
-        If ``epochs=None``, it will be set as ``epochs = {'start':start,
-        'stop':stop, 'step':step}``. If **eithter** ``start`` or
-        ``stop`` is ``None``, ``epochs`` is set to ``None``, the current
+        If ``epochs=None``, it will be set as ``epochs = {'start':start, 'stop':stop, 'step':step}``.
+        If **eithter** ``start`` or ``stop`` is `None`, ``epochs`` is set to `None`, the current
         time is used for query.
+
     location : str or dict, optional
-        Observer's location for ephemerides queries or center body name
-        for orbital element or vector queries. Uses the same codes as
-        JPL Horizons. If no location is provided, Earth's center is used
-        for ephemerides queries and the Sun's center for elements and
-        vectors queries. Arbitrary topocentic coordinates for
-        ephemerides queries can be provided in the format of a
-        dictionary. The dictionary has to be of the form {``'lon'``:
-        longitude in deg (East positive, West negative), ``'lat'``:
-        latitude in deg (North positive, South negative),
-        ``'elevation'``: elevation in km above the reference ellipsoid,
-        [``'body'``: Horizons body ID of the central body; optional; if
-        this value is not provided it is assumed that this location is
-        on Earth]}.
+        Observer's location for ephemerides queries or center body name for orbital element or vector
+        queries. Uses the same codes as JPL Horizons. If no location is provided, Earth's center is
+        used for ephemerides queries and the Sun's center for elements and vectors queries. Arbitrary
+        topocentic coordinates for ephemerides queries can be provided in the format of a dictionary.
+        The dictionary has to be of the form {``'lon'``: longitude in deg (East positive, West
+        negative), ``'lat'``: latitude in deg (North positive, South negative), ``'elevation'``:
+        elevation in km above the reference ellipsoid, [``'body'``: Horizons body ID of the central
+        body; optional; if this value is not provided it is assumed that this location is on Earth]}.
+
     id_type : str, optional
-        Identifier type, options: ``'smallbody'``, ``'majorbody'``
-        (planets but also anything that is not a small body),
-        ``'designation'``, ``'name'``, ``'asteroid_name'``,
-        ``'comet_name'``, ``'id'`` (Horizons id number), or
-        ``'smallbody'`` (find the closest match under any id_type),
+        Identifier type, options: ``'smallbody'``, ``'majorbody'`` (planets but also anything that is
+        not a small body), ``'designation'``, ``'name'``, ``'asteroid_name'``, ``'comet_name'``,
+        ``'id'`` (Horizons id number), or ``'smallbody'`` (find the closest match under any id_type),
         default: ``'smallbody'``
+
     interpolate, interpolate_x : None, list of str, optinal.
-        The column names to interpolate and the column for the ``x``
-        values to be used.
+        The column names to interpolate and the column for the ``x`` values to be used.
         default: ``interpolate=None``, ``interpolate_x='datetime_jd'``.
+
     k : int, optional
         Degree of the smoothing spline.  Must be <= 5.
         Default is k=1, a linear spline.
+
     s : float or None, optional
         Positive smoothing factor used to choose the number of knots.
         Default is 0, i.e., the interpolation.
+
     output : None, path-like, optional.
         If you want to write the ephemerides, give this.
+
     format : str, optional.
         The output table format (see ``astropy.io.ascii.write``).
+
     ephkw : kwargs, optional.
         See the possible keyword arguments from astroquery:
         https://astroquery.readthedocs.io/en/latest/api/astroquery.jplhorizons.HorizonsClass.html#astroquery.jplhorizons.HorizonsClass.ephemerides
+
     Returns
     -------
     obj : astroquery.jplhorizons.HorizonsClass
@@ -97,9 +95,6 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd',
         The interpolation functions for the columns (specified by
         ``interpolate``).
 
-    Example
-    -------
-    >>>
 
     Note
     ----
@@ -114,10 +109,7 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd',
         else:
             epochs = dict(start=start, stop=stop, step=step)
 
-    obj = Horizons(id=id,
-                   epochs=epochs,
-                   location=location,
-                   id_type=id_type)
+    obj = Horizons(id=id, epochs=epochs, location=location, id_type=id_type)
     eph = obj.ephemerides(**ephkw)
     if interpolate is not None and interpolate_x is not None:
         if isinstance(interpolate, str):
@@ -136,8 +128,7 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd',
 
 def mask_str(n_new, n_old, msg):
     dn = n_old - n_new
-    print(f"{n_new:3d} objects remaining: {dn:3d} masked "
-          + f"out of {n_old:3d} based on {msg:s}.")
+    print(f"{n_new:3d} objects remaining: {dn:3d} masked out of {n_old:3d} based on {msg:s}.")
 
 
 class HorizonsDiscreteEpochsQuery:
@@ -147,34 +138,30 @@ class HorizonsDiscreteEpochsQuery:
         ----------
         id : str
             Name, number, or designation of the object to be queried.
+
         location : str or dict
-            Observer's location for ephemerides queries or center body
-            name for orbital element or vector queries. Uses the same
-            codes as JPL Horizons. If no location is provided, Earth's
-            center is used for ephemerides queries and the Sun's center
-            for elements and vectors queries. Arbitrary topocentic
-            coordinates for ephemerides queries can be provided in the
-            format of a dictionary. The dictionary has to be of the form
-            {``'lon'``: longitude in deg (East positive, West negative),
-            ``'lat'``: latitude in deg (North positive, South negative),
-            ``'elevation'``: elevation in km above the reference
-            ellipsoid, [``'body'``: Horizons body ID of the central
-            body; optional; if this value is not provided it is assumed
+            Observer's location for ephemerides queries or center body name for orbital element or
+            vector queries. Uses the same codes as JPL Horizons. If no location is provided, Earth's
+            center is used for ephemerides queries and the Sun's center for elements and vectors
+            queries. Arbitrary topocentic coordinates for ephemerides queries can be provided in the
+            format of a dictionary. The dictionary has to be of the form {``'lon'``: longitude in deg
+            (East positive, West negative), ``'lat'``: latitude in deg (North positive, South
+            negative), ``'elevation'``: elevation in km above the reference ellipsoid, [``'body'``:
+            Horizons body ID of the central body; optional; if this value is not provided it is assumed
             that this location is on Earth]}.
+
         epochs : scalar, list-like, or dictionary
-            Either a list of epochs in JD or MJD format or a dictionary
-            defining a range of times and dates; the range dictionary
-            has to be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
-            ``'stop'``:'YYYY-MM-DD [HH:MM:SS]',
-            ``'step'``:'n[y|d|m|s]'}. If no epochs are provided, the
-            current time is used.
+            Either a list of epochs in JD or MJD format or a dictionary defining a range of times and
+            dates; the range dictionary has to be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
+            ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If no epochs are provided,
+            the current time is used.
+
         id_type : str, optional
             Identifier type, options:
-            ``'smallbody'``, ``'majorbody'`` (planets but also anything
-            that is not a small body), ``'designation'``, ``'name'``,
-            ``'asteroid_name'``, ``'comet_name'``, ``'id'`` (Horizons id
-            number), or ``'smallbody'`` (find the closest match under
-            any id_type), default: ``'smallbody'``
+            ``'smallbody'``, ``'majorbody'`` (planets but also anything that is not a small body),
+            ``'designation'``, ``'name'``, ``'asteroid_name'``, ``'comet_name'``, ``'id'`` (Horizons id
+            number), or ``'smallbody'`` (find the closest match under any id_type),
+            default: ``'smallbody'``
         '''
         self.targetname = str(targetname)
         self.location = location
@@ -205,8 +192,7 @@ class HorizonsDiscreteEpochsQuery:
               + f'at {self.location} for {Nepoch} epochs''')
 
         if Nquery > 1:
-            print(f"Query chopped into {Nquery} chunks: Doing ",
-                  end=' ')
+            print(f"Query chopped into {Nquery} chunks: Doing ", end=' ')
 
         for i in range(Nquery):
             print(f"{i+1}...", end=' ')
@@ -214,12 +200,7 @@ class HorizonsDiscreteEpochsQuery:
             i_1 = (i + 1)*depoch
             epochs_i = self.epochs[i_0:i_1]
 
-            obj = Horizons(
-                id=self.targetname,
-                location=self.location,
-                epochs=epochs_i,
-                id_type=self.id_type
-            )
+            obj = Horizons(id=self.targetname, location=self.location, epochs=epochs_i, id_type=self.id_type)
             eph = obj.ephemerides(*args, **kwargs)
 
             tabs.append(eph)
@@ -251,12 +232,8 @@ PS1_DR1_DEL_FLAG = [
 ]
 
 
-def organize_ps1_and_isnear(ps1, header=None, bezel=0,
-                            nearby_obj_minsep=0*u.deg, group_crit_separation=0,
-                            select_filter_kw={},
-                            del_flags=PS1_DR1_DEL_FLAG,
-                            drop_by_Kron=True,
-                            calc_JC=True):
+def organize_ps1_and_isnear(ps1, header=None, bezel=0, nearby_obj_minsep=0*u.deg, group_crit_separation=0,
+                            select_filter_kw={}, del_flags=PS1_DR1_DEL_FLAG, drop_by_Kron=True, calc_JC=True):
     ''' Organizes the PanSTARRS1 object and check nearby objects.
     Parameters
     ----------
@@ -264,61 +241,46 @@ def organize_ps1_and_isnear(ps1, header=None, bezel=0,
         The `~PanSTARRS1` object.
 
     header : `astropy.header.Header`, None, optional
-        The header to extract WCS related information. If ``None``
-        (default), it will not drop any stars based on the field of view
-        criterion.
+        The header to extract WCS related information. If `None` (default), it will not drop any stars
+        based on the field of view criterion.
 
     bezel : int, float, optional
         The bezel used to select stars inside the field of view.
 
     nearby_obj_minsep : float, `~astropy.Quantity`, optional.
-        If there is any object closer than this value, a warning message
-        will be printed.
+        If there is any object closer than this value, a warning message will be printed.
 
     group_crit_separation : float, optional
-        The critical separation parameter used in DAOGROUP algorithm
-        (`~photutils.DAOGroup`) to select grouped stars.
+        The critical separation parameter used in DAOGROUP algorithm (`~photutils.DAOGroup`) to select
+        grouped stars.
 
     select_filter_kw : dict, optional
         The kwargs for `~PanSTARRS1.select_filter()` method.
 
     del_flags : list of int, optional
-        The flags to be used for dropping objects based on ``"f_objID"``
-        of Pan-STARRS1 query.
+        The flags to be used for dropping objects based on ``"f_objID"`` of Pan-STARRS1 query.
 
     drop_by_Kron : bool, optional
-        If ``True`` (default), drop the galaxies based on the Kron
-        magnitude criterion suggested by PS1:
+        If `True` (default), drop the galaxies based on the Kron magnitude criterion suggested by PS1:
         https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
         which works good only if i <~ 21.
 
     calc_JC : bool, optional
-        Whether to calculate the Johnson-Cousins B V R_C filter
-        magnitudes by the linear relationship given by Table 6 of Tonry
-        J. et al. 2012, ApJ, 750, 99., using g-r color. The following
-        columns will be added to the table ``ps1.queried``:
+        Whether to calculate the Johnson-Cousins B V R_C filter magnitudes by the linear relationship
+        given by Table 6 of Tonry J. et al. 2012, ApJ, 750, 99., using g-r color. The following columns
+        will be added to the table ``ps1.queried``:
 
-            * ``"C_gr"``:
-                The ``g-r`` color.
-
-            * ``"dC_gr"``:
-                The total error of ``g-r`` color. Not only the error-bar
-                of the mean PSF magnitude (``"e_Xmag`` for filter
-                ``X="g"`` and ``X="r"``), but also the intrinsic
-                error-bar of each measurements (``"XmagStd" for filter
-                ``X="g"`` and ``X="r"``) are considered, i.e., four
-                error-bars are propagated by first order approximation
-                (square sum and square rooted).
-
-            * ``"Bmag"``, ``"Vmag"``, ``Rmag``:
-                ``B = g + 0.213 + 0.587(g-r) (+- 0.034)``
-                ``V = r + 0.006 + 0.474(g-r) (+- 0.012)``
-                ``R = r - 0.138 -0.131(g-r) (+-0.015)``
-            * ``"dBmag"``, ``"dVmag"``, ``"dRmag"``:
-                The total error of above magnitudes. The scatter
-                reported by Tonry et al. (e.g., 0.012 mag for V) is
-                propagated with the first order error estimated from the
-                magnitude calculation formula.
+          * ``"C_gr"``: The ``g-r`` color.
+          * ``"dC_gr"``: The total error of ``g-r`` color. Not only the error-bar of the mean PSF
+            magnitude (``"e_Xmag`` for filter ``X="g"`` and ``X="r"``), but also the intrinsic
+            error-bar of each measurements (``"XmagStd" for filter ``X="g"`` and ``X="r"``) are
+            considered, i.e., four error-bars are propagated by first order approximation (square sum
+            and square rooted).
+          * ``"Bmag"``, ``"Vmag"``, ``Rmag``: ``B = g + 0.213 + 0.587(g-r) (+- 0.034)``, ``V = r +
+            0.006 + 0.474(g-r) (+- 0.012)``, ``R = r - 0.138 -0.131(g-r) (+-0.015)``
+          * ``"dBmag"``, ``"dVmag"``, ``"dRmag"``: The total error of above magnitudes. The scatter
+            reported by Tonry et al. (e.g., 0.012 mag for V) is propagated with the first order error
+            estimated from the magnitude calculation formula.
 
     Returns
     -------
@@ -367,15 +329,8 @@ def organize_ps1_and_isnear(ps1, header=None, bezel=0,
                     Rmag=[-0.138, -0.131, 0.015, "rmag"])
         # filter_name = [B_0, B_1, B_sc of Tonry, mag used for conversion]
         for k, p in pars.items():
-            ps1.queried[k] = (
-                p[0]
-                + p[1]*ps1.queried["grcolor"]
-                + ps1.queried[p[3]]
-            )
-            ps1.queried[f"e_{k}"] = np.sqrt(
-                (p[1]*ps1.queried["e_grcolor"])**2
-                + p[2]**2
-            )
+            ps1.queried[k] = (p[0] + p[1]*ps1.queried["grcolor"] + ps1.queried[p[3]])
+            ps1.queried[f"e_{k}"] = np.sqrt((p[1]*ps1.queried["e_grcolor"])**2 + p[2]**2)
 
     return isnear
 
@@ -390,30 +345,27 @@ class PanSTARRS1:
         Parameters
         ----------
         ra, dec, radius : float or `~astropy.Quantity`
-            The central RA, DEC and the cone search radius. If not
-            `~astropy.Quantity`, assuming it is in degrees unit.
+            The central RA, DEC and the cone search radius. If not `~astropy.Quantity`, assuming it is
+            in degrees unit.
 
         inner_radius : cfloat or `~astropy.Quantity`
-            When set in addition to ``radius``, the queried region
-            becomes annular, with outer radius ``radius`` and inner
-            radius ``inner_radius``. If not `~astropy.Quantity`,
-            assuming it is in degrees unit.
+            When set in addition to ``radius``, the queried region becomes annular, with outer radius
+            ``radius`` and inner radius ``inner_radius``. If not `~astropy.Quantity`, assuming it is
+            in degrees unit.
 
         width : convertible to `~astropy.coordinates.Angle`
-            The width of the square region to query. If not
-            `~astropy.Quantity`, assuming it is in degrees unit.
-
-        height : convertible to `~astropy.coordinates.Angle`
-            When set in addition to ``width``, the queried region
-            becomes rectangular, with the specified ``width`` and
-            ``height``. If not `~astropy.Quantity`, assuming it is in
+            The width of the square region to query. If not `~astropy.Quantity`, assuming it is in
             degrees unit.
 
+        height : convertible to `~astropy.coordinates.Angle`
+            When set in addition to ``width``, the queried region becomes rectangular, with the
+            specified ``width`` and ``height``. If not `~astropy.Quantity`, assuming it is in degrees
+            unit.
+
         columns : list of str, str in ['*', '**'], optional
-            The columns to be retrieved. The special column ``"*"``
-            requests just the default columns of a catalog; ``"**"``
-            (Default) would request all the columns. For sorting, use
-            ``"+"`` in front of the column name. See the documentation:
+            The columns to be retrieved. The special column ``"*"`` requests just the default columns
+            of a catalog; ``"**"`` (Default) would request all the columns. For sorting, use ``"+"``
+            in front of the column name. See the documentation:
             https://astroquery.readthedocs.io/en/latest/vizier/vizier.html#specifying-keywords-output-columns-and-constraints-on-columns
 
         column_filters : dict, optional
@@ -429,8 +381,7 @@ class PanSTARRS1:
         ----
         All columns: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=II/349
         """
-        _params = dict(ra=ra, dec=dec, radius=radius,
-                       inner_radius=inner_radius, width=width, height=height)
+        _params = dict(ra=ra, dec=dec, radius=radius, inner_radius=inner_radius, width=width, height=height)
 
         for k, v in _params.items():
             if v is None:
@@ -438,6 +389,7 @@ class PanSTARRS1:
             if not isinstance(v, u.Quantity):
                 warn(f"{k} is not astropy Quantity: Assuming deg unit")
                 _params[k] = v * u.deg
+
         self.ra = _params["ra"]
         self.dec = _params["dec"]
         self.radius = _params["radius"]
@@ -449,17 +401,14 @@ class PanSTARRS1:
             if columns in ['*', '**']:
                 self.columns = [columns]
             else:
-                raise ValueError("If columns is str, it must be one of "
-                                 + "['*', '**']")
+                raise ValueError("If columns is str, it must be one of ['*', '**']")
         else:
             self.columns = columns
 
         self.column_filters = column_filters
 
     def query(self):
-        vquery = Vizier(columns=self.columns,
-                        column_filters=self.column_filters,
-                        row_limit=-1)
+        vquery = Vizier(columns=self.columns, column_filters=self.column_filters, row_limit=-1)
 
         field = SkyCoord(ra=self.ra, dec=self.dec, frame='icrs')
 
@@ -477,22 +426,20 @@ class PanSTARRS1:
         Parameters
         ----------
         header : astropy.io.fits.Header, optional
-            The header to extract WCS information. One and only one of
-            ``header`` and ``wcs`` must be given.
+            The header to extract WCS information. One and only one of ``header`` and ``wcs`` must be
+            given.
 
         wcs : astropy.wcs.WCS, optional
-            The WCS to convert the RA/DEC to XY. One and only one of
-            ``header`` and ``wcs`` must be given.
+            The WCS to convert the RA/DEC to XY. One and only one of ``header`` and ``wcs`` must be
+            given.
 
         bezel: int or float, optional
-            The bezel size to exclude stars at the image edges. If you
-            want to keep some stars outside the edges, put negative
-            values (e.g., ``-5``).
+            The bezel size to exclude stars at the image edges. If you want to keep some stars outside
+            the edges, put negative values (e.g., ``-5``).
 
         mode: 'all' or 'wcs', optional
-            Whether to do the transformation including distortions
-            (``'all'``) or only including only the core WCS
-            transformation (``'wcs'``).
+            Whether to do the transformation including distortions (``'all'``) or only including only
+            the core WCS transformation (``'wcs'``).
         '''
         N_old = len(self.queried)
         bezel = np.atleast_1d(bezel)
@@ -500,8 +447,7 @@ class PanSTARRS1:
         if bezel.shape == (1,):
             bezel = np.tile(bezel, 2)
         elif bezel.shape != (2,):
-            raise ValueError("bezel must have shape (1,) or (2,). "
-                             + f"Now {bezel.shape}")
+            raise ValueError(f"bezel must have shape (1,) or (2,). Now {bezel.shape}")
 
         self.queried = xyinFOV(table=self.queried, header=header, wcs=wcs,
                                ra_key="RAJ2000", dec_key="DEJ2000",
@@ -515,100 +461,57 @@ class PanSTARRS1:
         Parameters
         ----------
         del_flags : list of int, None, optional
-            The flags to be used for dropping objects based on
-            ``"f_objID"`` of Pan-STARRS1 query. These are the powers of
-            2 to identify the flag (e.g., 2 means ``2**2`` or flag
-            ``4``). See Note below for each flag. Set it to ``None`` to
-            keep all the objects based on ``"f_objID"``.
+            The flags to be used for dropping objects based on ``"f_objID"`` of Pan-STARRS1 query.
+            These are the powers of 2 to identify the flag (e.g., 2 means ``2**2`` or flag ``4``). See
+            Note below for each flag. Set it to `None` to keep all the objects based on ``"f_objID"``.
 
         drop_by_Kron : bool, optional
-            If ``True`` (default), drop the galaxies based on the Kron
-            magnitude criterion suggested by PS1:
+            If `True` (default), drop the galaxies based on the Kron magnitude criterion suggested by
+            PS1:
             https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
             which works good only if i <~ 21.
 
         Note
         ----
-        FEW
-            1 (2^0) = Used within relphot; skip star.
-        POOR
-            2 = Used within relphot; skip star.
-        ICRF_QSO
-            4 = object IDed with known ICRF quasar (may have ICRF
-                position measurement)
-        HERN_QSO_P60
-            8 = identified as likely QSO (Hernitschek+
-                2015ApJ...801...45H), P_QSO >= 0.60
-        HERN_QSO_P05
-            16 = identified as possible QSO (Hernitschek+
-                2015ApJ...801...45H), P_QSO >= 0.05
-        HERN_RRL_P60
-            32 = identified as likely RR Lyra (Hernitschek+
-                2015ApJ...801...45H), P_RRLyra >= 0.60
-        HERN_RRL_P05
-            64 = identified as possible RR Lyra (Hernitschek+
-                2015ApJ...801...45H), P_RRLyra >= 0.05
-        HERN_VARIABLE
-            128 = identified as a variable based on ChiSq (Hernitschek+
-                2015ApJ...801...45H)
-        TRANSIENT
-            256 = identified as a non-periodic (stationary) transient
-        HAS_SOLSYS_DET
-            512 = at least one detection identified with a known
-                solar-system object (asteroid or other).
-        MOST_SOLSYS_DET
-            1024 (2^10) = most detections identified with a known
-                solar-system object (asteroid or other).
-        LARGE_PM
-            2048 = star with large proper motion
-        RAW_AVE
-            4096 = simple weighted average position was used (no IRLS
-                fitting)
-        FIT_AVE
-            8192 = average position was fitted
-        FIT_PM
-            16384 = proper motion model was fitted
-        FIT_PAR
-            32768 = parallax model was fitted
-        USE_AVE
-            65536 = average position used (not PM or PAR)
-        USE_PM
-            131072 = proper motion used (not AVE or PAR)
-        USE_PAR
-            262144 = parallax used (not AVE or PM)
-        NO_MEAN_ASTROM
-            524288 = mean astrometry could not be measured
-        STACK_FOR_MEAN
-            1048576 (2^20) = stack position used for mean astrometry
-        MEAN_FOR_STACK
-            2097152 = mean astrometry used for stack position
-        BAD_PM
-            4194304 = failure to measure proper-motion model
-        EXT
-            8388608 = extended in our data (eg, PS)
-        EXT_ALT
-            16777216 = extended in external data (eg, 2MASS)
-        GOOD
-            33554432 = good-quality measurement in our data (eg,PS)
-        GOOD_ALT
-            67108864 = good-quality measurement in external data (eg,
-                2MASS)
-        GOOD_STACK
-            134217728 = good-quality object in the stack (>1 good stack
-                measurement)
-        BEST_STACK
-            268435456 = the primary stack measurements are the best
-                measurements
-        SUSPECT_STACK
-            536870912 = suspect object in the stack (no more than 1 good
-                measurement, 2 or more suspect or good stack
-                measurement)
-        BAD_STACK
-            1073741824 (2^30) = poor-quality stack object (no more than
-                1 good or suspect measurement)
+        H15 means Hernitschek+ 2015ApJ...801...45H.
+          * FEW (1) : Used within relphot; skip star.
+          * POOR (2) : Used within relphot; skip star.
+          * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF position measurement)
+          * HERN_QSO_P60 (8) : identified as likely QSO (H15), P_QSO >= 0.60
+          * HERN_QSO_P05 (16) : identified as possible QSO (H15), P_QSO >= 0.05
+          * HERN_RRL_P60 (32) : identified as likely RR Lyra (H15), P_RRLyra >= 0.60
+          * HERN_RRL_P05 (64) : identified as possible RR Lyra (H15), P_RRLyra >= 0.05
+          * HERN_VARIABLE (128) : identified as a variable based on ChiSq (H15)
+          * TRANSIENT (256) : identified as a non-periodic (stationary) transient
+          * HAS_SOLSYS_DET (512) : at least one detection identified with a known solar-system object
+            (asteroid or other).
+          * MOST_SOLSYS_DET (1024 (2^10)) : most detections identified with a known solar-system object
+            (asteroid or other).
+          * LARGE_PM (2048) : star with large proper motion
+          * RAW_AVE (4096) : simple weighted average position was used (no IRLS fitting)
+          * FIT_AVE (8192) : average position was fitted
+          * FIT_PM (16384) : proper motion model was fitted
+          * FIT_PAR (32768) : parallax model was fitted
+          * USE_AVE (65536) : average position used (not PM or PAR)
+          * USE_PM (131072) : proper motion used (not AVE or PAR)
+          * USE_PAR (262144) : parallax used (not AVE or PM)
+          * NO_MEAN_ASTROM (524288) : mean astrometry could not be measured
+          * STACK_FOR_MEAN (1048576 (2^20)) : stack position used for mean astrometry
+          * MEAN_FOR_STACK (2097152) : mean astrometry used for stack position
+          * BAD_PM (4194304) : failure to measure proper-motion model
+          * EXT (8388608) : extended in our data (eg, PS)
+          * EXT_ALT (16777216) : extended in external data (eg, 2MASS)
+          * GOOD (33554432) : good-quality measurement in our data (eg,PS)
+          * GOOD_ALT (67108864) : good-quality measurement in external data (eg, 2MASS)
+          * GOOD_STACK (134217728) : good-quality object in the stack (>1 good stack measurement)
+          * BEST_STACK (268435456) : the primary stack measurements are the best measurements
+          * SUSPECT_STACK (536870912) : suspect object in the stack (no more than 1 good measurement,
+            2 or more suspect or good stack measurement)
+          * BAD_STACK (1073741824 (2^30)) : poor-quality stack object (no more than 1 good or suspect
+            measurement)
 
-        Among the ``"f_objID"``, the following are better to be dropped
-        because they are surely not usable for differential photometry:
+        Among the ``"f_objID"``, the following are better to be dropped because they are surely not
+        usable for differential photometry:
 
             * 1, 2, 4, 8, 32, 128, 256, 512, 1024, 8388608, 16777216
 
@@ -616,8 +519,7 @@ class PanSTARRS1:
 
             * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
 
-        (plus maybe 2048(2^11) because centroiding may not work
-        properly?)
+        (plus maybe 2048(2^11) because centroiding may not work properly?)
         '''
         N_old = len(self.queried)
         if del_flags is not None:
@@ -643,8 +545,7 @@ class PanSTARRS1:
             mask_str(N_Kron, N_old, "the Kron magnitude criterion")
 
     def select_filters(self, filter_names=["g", "r", "i"],
-                       keep_columns=["_r", "objID", "f_objID",
-                                     "RAJ2000", "DEJ2000", "x", "y"],
+                       keep_columns=["_r", "objID", "f_objID", "RAJ2000", "DEJ2000", "x", "y"],
                        n_mins=[0, 0, 0]):
         ''' Abridges the columns depending on the specified filters.
         '''
@@ -693,18 +594,17 @@ class PanSTARRS1:
         ''' Checkes whether there is any nearby object.
         Note
         ----
-        It checks the ``"_r"`` column of the ``PanSTARRS1`` queried
-        result. Therefore, the query center should be the position where
-        you want to check for any nearby object.
+        It checks the ``"_r"`` column of the ``PanSTARRS1`` queried result. Therefore, the query
+        center should be the position where you want to check for any nearby object.
 
         Parameters
         ----------
         minsep : float or `~astropy.Quantity`
             The minimum separation to detect nearby object
+
         maxmag : int or float, optional
-            The maximum magnitude value to mask objects. Objects fainter
-            than this magnitude (Mean PSF magnitude) will be accepted
-            even though it is nearby the search center.
+            The maximum magnitude value to mask objects. Objects fainter than this magnitude (Mean PSF
+            magnitude) will be accepted even though it is nearby the search center.
         '''
         if isinstance(minsep, (float, int)):
             warn("minsep is not Quantity. Assuming degree unit.")
@@ -726,37 +626,37 @@ class PanSTARRS1:
 
     def drop_star_groups(self, crit_separation):
         N_old = len(self.queried)
-        grouped_rows = group_stars(table=self.queried,
-                                   crit_separation=crit_separation,
+        grouped_rows = group_stars(table=self.queried, crit_separation=crit_separation,
                                    xcol="x", ycol="y", index_only=True)
         self.queried.remove_rows(grouped_rows)
         N_new = len(self.queried)
-        mask_str(N_new, N_old,
-                 (f"DAOGROUP with {crit_separation:.3f}-pixel critical "
-                  + "separation."))
+        mask_str(N_new, N_old, (f"DAOGROUP with {crit_separation:.3f}-pixel critical separation."))
 
 
 def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
     ''' Group stars using DAOGROUP algorithm and return row indices.
+
     Parameters
     ----------
-    table: astropy.table.Table
+    table : astropy.table.Table
         The queried result table.
-    crit_separation: float or int
-        Distance, in units of pixels, such that any two stars separated by
-        less than this distance will be placed in the same group.
-    xcol, ycol: str, optional
-        The column names for x and y positions. This is necessary since
-        ``photutils.DAOGroup`` accepts a table which has x y positions
-        designated as ``"x_0"`` and ``"y_0"``.
+
+    crit_separation : float or int
+        Distance, in units of pixels, such that any two stars separated by less than this distance
+        will be placed in the same group.
+
+    xcol, ycol : str, optional
+        The column names for x and y positions. This is necessary since `~photutils.DAOGroup accepts
+        a table which has x y positions designated as ``"x_0"`` and ``"y_0"``.
+
     index : bool, optional
-        Whether to return only the index of the grouped rows (group
-        information is lost) or the full grouped table (after group_by).
+        Whether to return only the index of the grouped rows (group information is lost) or the full
+        grouped table (after group_by).
 
     Notes
     -----
-    Assuming the psf fwhm to be known, ``crit_separation`` may be set to
-    ``k * fwhm``, for some positive real k.
+    Assuming the psf fwhm to be known, ``crit_separation`` may be set to ``k * fwhm``, for some
+    positive real k.
 
     See Also
     --------
@@ -771,13 +671,12 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
     Return
     ------
     gtab: Table
-        Returned when ``index_only=False``.
-        The table underwent ``.group_by("group_id")``.
+        Returned when ``index_only=False``. The table underwent ``.group_by("group_id")``.
 
     grouped_rows: list
         Returned when ``index_only=True``.
-        The indices of the rows which are "grouped" stars. You may remove
-        such rows using ``table.remove_rows(grouped_rows)``.
+        The indices of the rows which are "grouped" stars. You may remove such rows using
+        ``table.remove_rows(grouped_rows)``.
     '''
     from photutils.psf.groupstars import DAOGroup
     tab = table.copy()
@@ -785,6 +684,7 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
     tab[xcol].name = "x_0"
     tab[ycol].name = "y_0"
     gtab = DAOGroup(crit_separation=crit_separation)(tab).group_by("group_id")
+
     if not index_only:
         return gtab
     else:
@@ -799,26 +699,24 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
 
 def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
     ''' Get image XY from the header WCS
+
     Parameters
     ----------
-    header: astropy.io.fits.Header or pandas.DataFrame
+    header : astropy.io.fits.Header or pandas.DataFrame
         The header to extract WCS information.
 
     ra, dec: float or Quantity or array-like of such
-        The coordinates to get XY position. If Quantity, ``unit`` will
-        likely be ignored.
+        The coordinates to get XY position. If Quantity, ``unit`` will likely be ignored.
 
     unit: `~astropy.Quantity` or tuple of such
-        Unit of the ``ra`` and ``dec`` given. It can be a tuple if they
-        differ.
+        Unit of the ``ra`` and ``dec`` given. It can be a tuple if they differ.
 
     origin: int, optional
        Whether to return 0 or 1-based pixel coordinates.
 
     mode: 'all' or 'wcs', optional
-        Whether to do the transformation including distortions
-        (``'all'``) or only including only the core WCS transformation
-        (``'wcs'``).
+        Whether to do the transformation including distortions (``'all'``) or only including only the
+        core WCS transformation (``'wcs'``).
     '''
     w = WCS(header)
     coo = SkyCoord(ra, dec, unit=unit)
@@ -826,19 +724,18 @@ def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
     return xy
 
 
-def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec',
-            bezel=0, bezel_x=None, bezel_y=None,
-            origin=0, mode='all'):
+def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec', bezel=0, bezel_x=None,
+            bezel_y=None, origin=0, mode='all'):
     ''' Convert RA/DEC to pixel with rejection at bezels
+
     Parameters
     ----------
     header : astropy.io.fits.Header, optional
-        The header to extract WCS information. One and only one of
-        ``header`` and ``wcs`` must be given.
+        The header to extract WCS information. One and only one of ``header`` and ``wcs`` must be
+        given.
 
     wcs : astropy.wcs.WCS, optional
-        The WCS to convert the RA/DEC to XY. One and only one of
-        ``header`` and ``wcs`` must be given.
+        The WCS to convert the RA/DEC to XY. One and only one of ``header`` and ``wcs`` must be given.
 
     table : astropy.table.Table or pandas.DataFrame
         The queried result table.
@@ -847,26 +744,22 @@ def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec',
         The column names containing RA/DEC.
 
     bezel : int, float, array-like, optional
-        The bezel size. If array-like, it should be ``(lower, upper)``.
-        If only this is given and ``bezel_x`` and/or ``bezel_y`` is/are
-        ``None``, it/both will be replaced by ``bezel``. If you want to
-        keep some stars outside the edges, put negative values (e.g.,
-        ``-5``).
+        The bezel size. If array-like, it should be ``(lower, upper)``. If only this is given and
+        ``bezel_x`` and/or ``bezel_y`` is/are `None`, it/both will be replaced by ``bezel``. If you
+        want to keep some stars outside the edges, put negative values (e.g., ``-5``).
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
-        The bezel (border width) for x and y axes. If array-like, it
-        should be ``(lower, upper)``. Mathematically put, only objects
-        with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
-        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you
-        want to keep some stars outside the edges, put negative values
-        (e.g., ``-5``).
+        The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
+        Mathematically put, only objects with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx
+        - bezel_x[1] - 0.5)`` (similar for y) will be selected. If you want to keep some stars outside
+        the edges, put negative values (e.g., ``-5``).
 
     origin : int, optional
        Whether to return 0 or 1-based pixel coordinates.
 
     mode: 'all' or 'wcs', optional
-        Whether to do the transformation including distortions (``'all'``) or
-        only including only the core WCS transformation (``'wcs'``).
+        Whether to do the transformation including distortions (``'all'``) or only including only the
+        core WCS transformation (``'wcs'``).
     '''
     if not (header is None) ^ (wcs is None):
         raise ValueError("One and only one of header and wcs should be given.")
@@ -875,8 +768,7 @@ def xyinFOV(table, header=None, wcs=None, ra_key='ra', dec_key='dec',
     if isinstance(table, pd.DataFrame):
         _tab = Table.from_pandas(table)
     elif not isinstance(table, Table):
-        raise TypeError(
-            "table must be either astropy Table or pandas DataFrame.")
+        raise TypeError("table must be either astropy Table or pandas DataFrame.")
 
     if wcs is None:
         wcs = WCS(header)
