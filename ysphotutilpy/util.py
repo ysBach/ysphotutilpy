@@ -5,8 +5,39 @@ pre-existing packages.
 import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
 
-__all__ = ["bezel_mask", "Gaussian2D_correct",
+__all__ = ["sqsum", "err_prop", "_naturalize_pct", "_naturalize_deg",
+           "bezel_mask", "Gaussian2D_correct",
            "fit_astropy_model", "fit_Gaussian2D"]
+
+
+def sqsum(*args):
+    _sum = 0
+    for a in args:
+        _sum += a**2
+    return _sum
+
+
+def err_prop(*errs):
+    var = 0
+    for e in errs:
+        var += e**2
+    return np.sqrt(var)
+
+
+def _naturalize_pct(*args, in_pct=False):
+    if in_pct:
+        factor = 100
+    else:
+        factor = 1
+    return [a/factor for a in args]
+
+
+def _naturalize_deg(*args, in_deg=False):
+    if in_deg:
+        factor = np.pi/180
+    else:
+        factor = 1
+    return [a*factor for a in args]
 
 
 def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0], bezel_x=None, bezel_y=None):
