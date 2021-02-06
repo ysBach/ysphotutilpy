@@ -1,6 +1,6 @@
 """
-A collection of temporary utilities, and likely be removed if similar
-functionality can be achieved by pre-existing packages.
+A collection of temporary utilities, and likely be removed if similar functionality can be achieved by
+pre-existing packages.
 """
 import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
@@ -9,27 +9,26 @@ __all__ = ["bezel_mask", "Gaussian2D_correct",
            "fit_astropy_model", "fit_Gaussian2D"]
 
 
-def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0],
-               bezel_x=None, bezel_y=None):
+def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0], bezel_x=None, bezel_y=None):
     '''
+    Parameters
+    ----------
     xvals, yvals : array-like
         The x and y position values.
+
     nx, ny : int or float
-        The number of x and y pixels (``NAXIS2`` and ``NAXIS1``,
-        respectively from header).
+        The number of x and y pixels (``NAXIS2`` and ``NAXIS1``, respectively from header).
+
     bezel : int, float, array-like, optional
-        The bezel size. If array-like, it should be ``(lower, upper)``.
-        If only this is given and ``bezel_x`` and/or ``bezel_y`` is/are
-        ``None``, it/both will be replaced by ``bezel``. If you want to
-        keep some stars outside the edges, put negative values (e.g.,
-        ``-5``).
+        The bezel size. If array-like, it should be ``(lower, upper)``. If only this is given and
+        ``bezel_x`` and/or ``bezel_y`` is/are ``None``, it/both will be replaced by ``bezel``. If you
+        want to keep some stars outside the edges, put negative values (e.g., ``-5``).
+
     bezel_x, bezel_y : int, float, 2-array-like, optional
-        The bezel (border width) for x and y axes. If array-like, it
-        should be ``(lower, upper)``. Mathematically put, only objects
-        with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
-        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you
-        want to keep some stars outside the edges, put negative values
-        (e.g., ``-5``).
+        The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
+        Mathematically put, only objects with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
+        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you want to keep some stars outside
+        the edges, put negative values (e.g., ``-5``).
     '''
     bezel = np.array(bezel)
     if len(bezel) == 1:
@@ -60,42 +59,44 @@ def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0],
 def normalize(num, lower=0, upper=360, b=False):
     """Normalize number to range [lower, upper) or [lower, upper].
     From phn: https://github.com/phn/angles
+
     Parameters
     ----------
     num : float
         The number to be normalized.
+
     lower : int
         Lower limit of range. Default is 0.
+
     upper : int
         Upper limit of range. Default is 360.
+
     b : bool
-        Type of normalization. Default is False. See notes.
-        When b=True, the range must be symmetric about 0.
-        When b=False, the range must be symmetric about 0 or ``lower`` must
-        be equal to 0.
+        Type of normalization. Default is False. See notes. When b=True, the range must be symmetric
+        about 0. When b=False, the range must be symmetric about 0 or ``lower`` must be equal to 0.
+
     Returns
     -------
     n : float
         A number in the range [lower, upper) or [lower, upper].
+
     Raises
     ------
     ValueError
       If lower >= upper.
+
     Notes
     -----
-    If the keyword `b == False`, then the normalization is done in the
-    following way. Consider the numbers to be arranged in a circle,
-    with the lower and upper ends sitting on top of each other. Moving
-    past one limit, takes the number into the beginning of the other
-    end. For example, if range is [0 - 360), then 361 becomes 1 and 360
-    becomes 0. Negative numbers move from higher to lower numbers. So,
-    -1 normalized to [0 - 360) becomes 359.
-    When b=False range must be symmetric about 0 or lower=0.
-    If the keyword `b == True`, then the given number is considered to
-    "bounce" between the two limits. So, -91 normalized to [-90, 90],
-    becomes -89, instead of 89. In this case the range is [lower,
-    upper]. This code is based on the function `fmt_delta` of `TPM`.
-    When b=True range must be symmetric about 0.
+    If the keyword `b == False`, then the normalization is done in the following way. Consider the
+    numbers to be arranged in a circle, with the lower and upper ends sitting on top of each other.
+    Moving past one limit, takes the number into the beginning of the other end. For example, if range
+    is [0 - 360), then 361 becomes 1 and 360 becomes 0. Negative numbers move from higher to lower
+    numbers. So, -1 normalized to [0 - 360) becomes 359.
+    When b=False range must be symmetric about 0 or lower=0. If the keyword `b == True`, then the given
+    number is considered to "bounce" between the two limits. So, -91 normalized to [-90, 90], becomes
+    -89, instead of 89. In this case the range is [lower, upper]. This code is based on the function
+    `fmt_delta` of `TPM`. When b=True range must be symmetric about 0.
+
     Examples
     --------
     >>> normalize(-270,-180,180)
@@ -198,8 +199,7 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
     >>>         plt.pause(0.1)
     You may see some patterns in the residual image, they are < 10**(-13).
     '''
-    # I didn't use ``Gaussian2D`` directly, becaus GaussianConst2D from
-    # photutils may also be used.
+    # I didn't use ``Gaussian2D`` directly, because GaussianConst2D from photutils may also be used.
     new_model = model.__class__(*model.parameters)
     sig_x = np.abs(model.x_stddev.value)
     sig_y = np.abs(model.y_stddev.value)
@@ -220,18 +220,20 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
     return new_model
 
 
-def fit_astropy_model(data, model_init,
-                      sigma=None, fitter=LevMarLSQFitter(), **kwargs):
+def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
     """
     Parameters
     ----------
     data : ndarray
         The data to fit the model.
+
     sigma : ndarray, None, optional
-        The Gaussian error-bar of each pixel. In ``astropy``, we must
-        give ``weights=1/sigma``, which can be confusing.
+        The Gaussian error-bar of each pixel. In ``astropy``, we must give ``weights=1/sigma``, which
+        can be confusing.
+
     fitter : astropy fitter
         The fitter that will be used to fit.
+
     kwargs :
         The keyword arguments for the ``fitter.__call__``.
 
@@ -239,6 +241,7 @@ def fit_astropy_model(data, model_init,
     -------
     fitted : model
         The fitted model.
+
     fitter : fitter
         The fitter (maybe informative, e.g., ``fitter.fit_info``).
     """
@@ -251,16 +254,13 @@ def fit_astropy_model(data, model_init,
     return fitted, fitter
 
 
-def fit_Gaussian2D(data, model_init, correct=True,
-                   sigma=None, fitter=LevMarLSQFitter(), **kwargs):
+def fit_Gaussian2D(data, model_init, correct=True, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
     """ Identical to fit_astropy_model but for Gaussian2D correct.
     Note
     ----
     photutils.centroids.GaussianConst2D is also usable.
     """
-    fitted, fitter = fit_astropy_model(
-        data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs
-    )
+    fitted, fitter = fit_astropy_model(data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs)
     if correct:
         fitted = Gaussian2D_correct(fitted)
     return fitted, fitter
