@@ -113,7 +113,7 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
     eph = obj.ephemerides(**ephkw)
     if interpolate is not None and interpolate_x is not None:
         if isinstance(interpolate, str):
-            interpolate = (interpolate)
+            interpolate = [interpolate]
         x = eph[interpolate_x]
         for i in interpolate:
             interpolated[i] = UnivariateSpline(x, eph[i], k=k, s=s)
