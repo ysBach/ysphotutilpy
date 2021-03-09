@@ -11,19 +11,126 @@ Primitive naming:
 - n: the number of HWP angles used. 3 or 4.
 """
 import numpy as np
+from .util import err_prop, convert_pct, convert_deg
 
-__all__ = ['LinPolOE4', 'proper_pol']
-
-
-def sqsum(v1, v2):
-    return v1**2 + v2**2
+__all__ = ['calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol', 'calc_pol_r',
+           'LinPolOE4', 'proper_pol']
 
 
-def eprop(*errs):
-    var = 0
-    for e in errs:
-        var += e**2
-    return np.sqrt(var)
+def calc_qu_4set(o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
+                 do_000=0, do_450=0, do_225=0, do_675=0, de_000=0, de_450=0, de_225=0, de_675=0,
+                 return_pct=False):
+    s_000 = err_prop(de_000/e_000, do_000/o_000)
+    s_450 = err_prop(de_450/e_450, do_450/o_450)
+    s_225 = err_prop(de_225/e_225, do_225/o_225)
+    s_675 = err_prop(de_675/e_675, do_675/o_675)
+
+    rq = np.sqrt((e_000/o_000)/(e_450/o_450))
+    ru = np.sqrt((e_225/o_225)/(e_675/o_675))
+    q = (rq - 1)/(rq + 1)
+    u = (ru - 1)/(ru + 1)
+    dq = (rq/(rq + 1)**2)*err_prop(s_000, s_450)
+    du = (ru/(ru + 1)**2)*err_prop(s_225, s_675)
+    q, u, dq, du = convert_pct(q, u, dq, du, already=False, convert2unit=return_pct)
+    return q, u, dq, du
+
+
+# TODO: make calc_qu_3set, which uses 0, 60, 120 degree data.
+
+
+def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, return_pct=False):
+    q, dq, u, du, p_eff, dp_eff = convert_pct(q, dq, u, du, p_eff, dp_eff, already=in_pct, convert2unit=False)
+
+    q_eff = q/p_eff
+    u_eff = u/p_eff
+
+    dq_eff = np.abs(q_eff)*err_prop(dq/q, dp_eff/p_eff)
+    du_eff = np.abs(u_eff)*err_prop(du/u, dp_eff/p_eff)
+
+    q_eff, u_eff, dq_eff, du_eff = convert_pct(q_eff, u_eff, dq_eff, du_eff,
+                                               already=False, convert2unit=return_pct)
+    return q_eff, u_eff, dq_eff, du_eff
+
+
+def correct_off(q, u, dq=0, du=0, rot_q=0, rot_u=0, q_off=0, dq_off=0, u_off=0, du_off=0,
+                in_pct=False, in_deg=False, return_pct=False):
+    '''
+    Assumed: rotator angle (INSROT-like value) is assumed to have zero error.
+    '''
+    q, dq, u, du, q_off, dq_off, u_off, du_off = convert_pct(
+        q, dq, u, du, q_off, dq_off, u_off, du_off, already=in_pct, convert2unit=False
+    )
+    rot_q, rot_u = convert_deg(rot_q, rot_u, already=in_deg, convert2unit=False)
+
+    cos2q = np.cos(2*rot_q)
+    sin2q = np.sin(2*rot_q)
+    cos2u = np.cos(2*rot_u)
+    sin2u = np.sin(2*rot_u)
+    q_rot = q - (cos2q*q_off - sin2q*u_off)
+    u_rot = u - (cos2u*q_off - sin2u*u_off)
+
+    dq_rot = err_prop(dq, cos2q*dq_off, sin2q*du_off)
+    du_rot = err_prop(du, cos2u*dq_off, sin2u*du_off)
+
+    q_rot, u_rot, dq_rot, du_rot = convert_pct(q_rot, u_rot, dq_rot, du_rot,
+                                               already=False, convert2unit=return_pct)
+    return q_rot, u_rot, dq_rot, du_rot
+
+
+def correct_pa(q, u, dq=0, du=0, pa_off=0, dpa_off=0, pa_obs=0, in_pct=False, in_deg=False, return_pct=False):
+    '''
+    Assumed: optic's position angle (PA or INST-PA-like value) is assumed to have zero error.
+    '''
+    q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
+    pa_off, dpa_off, pa_obs = convert_deg(pa_off, dpa_off, pa_obs, already=in_deg, convert2unit=False)
+
+    offset = pa_off - pa_obs
+    cos2o = np.cos(2*offset)
+    sin2o = np.sin(2*offset)
+    q_inst = cos2o*q + sin2o*u
+    u_inst = -sin2o*q + cos2o*u
+
+    dq_inst = err_prop(cos2o*dq, sin2o*du, 2*sin2o*q*dpa_off, 2*cos2o*u*dpa_off)
+    du_inst = err_prop(sin2o*dq, cos2o*du, 2*cos2o*q*dpa_off, 2*sin2o*u*dpa_off)
+
+    q_inst, u_inst, dq_inst, du_inst = convert_pct(q_inst, u_inst, dq_inst, du_inst,
+                                                   already=False, convert2unit=return_pct)
+    return q_inst, u_inst, dq_inst, du_inst
+
+
+def calc_pol(q, u, dq=0, du=0, in_pct=False, return_pct=False, return_deg=False):
+    q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
+    pol = np.sqrt(q**2 + u**2)
+    dpol = err_prop(q*dq, u*du)/pol
+    thp = 0.5*np.arctan2(u, q)
+    dthp = err_prop(q*du, u*dq)/(2*pol**2)
+
+    pol, dpol = convert_pct(pol, dpol, already=False, convert2unit=return_pct)
+    thp, dthp = convert_deg(thp, dthp, already=False, convert2unit=return_deg)
+    return pol, thp, dpol, dthp
+
+
+def calc_pol_r(pol, thp, suntargetpa=0, dpol=0, dthp=0, dsuntargetpa=0, in_pct=False, in_deg=False,
+               return_pct=False, return_deg=False):
+    pol, dpol = convert_pct(pol, dpol, already=in_pct, convert2unit=False)
+    thp, dthp, suntargetpa, dsuntargetpa = convert_deg(thp, dthp, suntargetpa, dsuntargetpa,
+                                                       already=in_deg, convert2unit=False)
+    thr = thp + suntargetpa
+    # if np.array(thr).size == 1:
+    #     thr += np.pi/2 if thr < 0 else 0
+    #     thr -= np.pi/2 if thr > np.pi else 0
+    # else:
+    #     thr[thr < 0] += np.pi/2
+    #     thr[thr > np.pi] -= np.pi/2
+    cos2r = np.cos(2*thr)
+    sin2r = np.sin(2*thr)
+    polr = pol*cos2r
+    dpolr = err_prop(dpol*cos2r, pol*(-2*sin2r)*dthp)
+    dthr = err_prop(dthp, dsuntargetpa)
+    polr, dpolr = convert_pct(polr, dpolr, already=False, convert2unit=return_pct)
+    thr, dthr = convert_deg(thr, dthr, already=False, convert2unit=return_deg)
+
+    return polr, thr, dpolr, dthr
 
 
 class PolObjMixin:
@@ -36,14 +143,14 @@ class PolObjMixin:
             self.r675 = self.i675_e/self.i675_o
 
             # noise-to-signal (dr/r) of I_e/I_o for each HWP angle
-            self.ns000 = eprop(self.di000_e/self.i000_e,
-                               self.di000_o/self.i000_o)
-            self.ns450 = eprop(self.di450_e/self.i450_e,
-                               self.di450_o/self.i450_o)
-            self.ns225 = eprop(self.di225_e/self.i225_e,
-                               self.di225_o/self.i225_o)
-            self.ns675 = eprop(self.di675_e/self.i675_e,
-                               self.di675_o/self.i675_o)
+            self.ns000 = err_prop(self.di000_e/self.i000_e,
+                                  self.di000_o/self.i000_o)
+            self.ns450 = err_prop(self.di450_e/self.i450_e,
+                                  self.di450_o/self.i450_o)
+            self.ns225 = err_prop(self.di225_e/self.i225_e,
+                                  self.di225_o/self.i225_o)
+            self.ns675 = err_prop(self.di675_e/self.i675_e,
+                                  self.di675_o/self.i675_o)
 
             # The q/u values
             self.r_q = np.sqrt(self.r000/self.r045)
@@ -52,8 +159,8 @@ class PolObjMixin:
             self.u0 = (self.r_u - 1)/(self.r_u + 1)
 
             # The errors
-            s_q = eprop(self.ns000, self.ns450)
-            s_u = eprop(self.ns225, self.ns675)
+            s_q = err_prop(self.ns000, self.ns450)
+            s_u = err_prop(self.ns225, self.ns675)
             self.dq0 = (self.r_q/(self.r_q + 1)**2 * s_q)
             self.du0 = (self.r_u/(self.r_u + 1)**2 * s_u)
         else:
@@ -240,8 +347,8 @@ class LinPolOE4(PolObjMixin):
 
         self.q1 = self.q0/self.p_eff
         self.u1 = self.u0/self.p_eff
-        self.dq1 = eprop(self.dq0, np.abs(self.q1)*self.dp_eff)/self.p_eff
-        self.du1 = eprop(self.du0, np.abs(self.u1)*self.dp_eff)/self.p_eff
+        self.dq1 = err_prop(self.dq0, np.abs(self.q1)*self.dp_eff)/self.p_eff
+        self.du1 = err_prop(self.du0, np.abs(self.u1)*self.dp_eff)/self.p_eff
 
         # self.messages = ("Polarization efficiency corrected by "
         #                   + f"p_eff = {self.p_eff}, "
@@ -251,24 +358,24 @@ class LinPolOE4(PolObjMixin):
         rotu = (np.cos(2*self.rot_instu), np.sin(2*self.rot_instu))
         self.q2 = (self.q1 - (self.q_inst*rotq[0] - self.u_inst*rotq[1]))
         self.u2 = (self.u1 - (self.q_inst*rotu[1] + self.u_inst*rotu[0]))
-        # dq_inst_rot = eprop(self.dq_inst*rotq[0], self.du_inst*rotq[1])
-        # du_inst_rot = eprop(self.dq_inst*rotu[1], self.du_inst*rotu[0])
-        self.dq2 = eprop(self.dq1, self.dq_inst*rotq[0], self.du_inst*rotq[1])
-        self.du2 = eprop(self.du1, self.dq_inst*rotu[1], self.du_inst*rotu[0])
+        # dq_inst_rot = err_prop(self.dq_inst*rotq[0], self.du_inst*rotq[1])
+        # du_inst_rot = err_prop(self.dq_inst*rotu[1], self.du_inst*rotu[0])
+        self.dq2 = err_prop(self.dq1, self.dq_inst*rotq[0], self.du_inst*rotq[1])
+        self.du2 = err_prop(self.du1, self.dq_inst*rotu[1], self.du_inst*rotu[0])
 
         theta = self.theta_inst - self.pa_inst
         rot = (np.cos(2*theta), np.sin(2*theta))
         self.q3 = +1*self.q2*rot[0] + self.u2*rot[1]
         self.u3 = -1*self.q2*rot[1] + self.u2*rot[0]
-        self.dq3 = eprop(rot[0]*self.dq2,
-                         rot[1]*self.du2,
-                         2*self.u3*dtheta_inst)
-        self.du3 = eprop(rot[1]*self.dq2,
-                         rot[0]*self.du2,
-                         2*self.q3*dtheta_inst)
+        self.dq3 = err_prop(rot[0]*self.dq2,
+                            rot[1]*self.du2,
+                            2*self.u3*dtheta_inst)
+        self.du3 = err_prop(rot[1]*self.dq2,
+                            rot[0]*self.du2,
+                            2*self.q3*dtheta_inst)
 
         self.pol = np.sqrt(self.q3**2 + self.u3**2)
-        self.dpol = eprop(self.q3*self.dq3, self.u3*self.du3)/self.pol
+        self.dpol = err_prop(self.q3*self.dq3, self.u3*self.du3)/self.pol
         self.theta = 0.5*np.arctan2(self.u3, self.q3)
         self.dtheta = 0.5*self.dpol/self.pol
 
