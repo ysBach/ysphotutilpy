@@ -24,7 +24,7 @@ def err_prop(*errs):
     return np.sqrt(var)
 
 
-def _linear_unit_converter(*args, factor=1, already=False, convert=False):
+def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
     ''' Converts units among non-physical units (%, deg-radian, etc).
     Parameters
     ----------
@@ -35,7 +35,7 @@ def _linear_unit_converter(*args, factor=1, already=False, convert=False):
     already : bool, optional.
         Whether the input args are already in the desired unit specified by ``factor``.
 
-    convert : bool, optional.
+    convert2unit : bool, optional.
         Whether to convert the input args to the unit specified by ``factor``.
 
 
@@ -43,28 +43,28 @@ def _linear_unit_converter(*args, factor=1, already=False, convert=False):
     -------
     This is a converter for per-cent (%) VS natural unit (absolute value <= 1)::
 
-        _linear_unit_converter(*args, factor=100, already=already, convert=convert)
+        _linear_unit_converter(*args, factor=100, already=already, convert2unit=convert2unit)
 
     and this is a converter for degrees VS radian::
 
-        _linear_unit_converter(*args, factor=180/np.pi, already=already, convert=convert)
+        _linear_unit_converter(*args, factor=180/np.pi, already=already, convert2unit=convert2unit)
 
     '''
-    if not already and convert:
+    if not already and convert2unit:
         factor = factor
-    elif already and not convert:
+    elif already and not convert2unit:
         factor = 1/factor
     else:  # i.e., both True or both False
         factor = 1
     return [a*factor for a in args]
 
 
-def convert_pct(*args, already=False, convert=False):
-    return _linear_unit_converter(*args, factor=100, already=already, convert=convert)
+def convert_pct(*args, already=False, convert2unit=False):
+    return _linear_unit_converter(*args, factor=100, already=already, convert2unit=convert2unit)
 
 
-def convert_deg(*args, already=False, convert=False):
-    return _linear_unit_converter(*args, factor=180/np.pi, already=already, convert=convert)
+def convert_deg(*args, already=False, convert2unit=False):
+    return _linear_unit_converter(*args, factor=180/np.pi, already=already, convert2unit=convert2unit)
 
 
 def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0], bezel_x=None, bezel_y=None):
