@@ -17,7 +17,8 @@ __all__ = ["apphot_annulus"]
 # `photutils.aperture_photometry` produces 1-row result if multiple radii aperture is given with column
 # names starting from ``aperture_sum_0`` and ``aperture_sum_err_0``.
 def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="EXPTIME", error=None,
-                   mask=None, sky_keys={}, aparea_exact=False, verbose=False, pandas=False, **kwargs):
+                   mask=None, sky_keys={}, aparea_exact=False, npix_mask=2,
+                   verbose=False, pandas=False, **kwargs):
     ''' Do aperture photometry using annulus.
 
     Parameters
@@ -43,8 +44,15 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
         it to be dict rather than usual kwargs, etc.
 
     aparea_exact : bool, optional
-        Whether to calculate the aperture area (``'aparea'`` column) exactly or not. If ``True``, the
-        area outside the image  **and** those specified by mask are not counted. Default is ``False``.
+        Whether to calculate the aperture area (``'aparea'`` column) exactly or not. If `True`, the
+        area outside the image **and** those specified by mask are not counted. Default is `False`.
+
+    npix_mask : int, optional.
+        If the number of masked pixels in the aperture is equal to or greater than ``npix_mask``, the
+        column ``bad`` will be marked as ``1``.
+
+        ..note::
+            Currently it is not checked for annulus (works only for aperture)
 
     pandas : bool, optional.
         Whether to convert to ``pandas.DataFrame``.
@@ -76,7 +84,15 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
             t_exposure = 1
             warn("The exposure time info not given. Setting it to 1 sec.")
 
+    aperture = np.array(aperture).flatten()
+
+    flag_bad = True
+    nbads = []
+    bads = []
     if _mask is None:
+        flag_bad = False
+        bads = [0]*aperture.size
+        nbads = [0]*aperture.size
         _mask = np.zeros_like(_arr).astype(bool)
 
     if mask is not None:
@@ -106,19 +122,22 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
         n_ap = np.array(n_ap)
     else:
         try:
-            n_ap = aperture.area
+            n_ap = np.array([ap.area for ap in aperture])
         except TypeError:  # prior to photutils 0.7
-            n_ap = aperture.area()
-        except AttributeError:  # if array of aperture given
-            try:
-                n_ap = np.array([ap.area for ap in aperture])
-            except TypeError:  # prior to photutils 0.7
-                n_ap = np.array([ap.area() for ap in aperture])
+            n_ap = np.array([ap.area() for ap in aperture])
 
     _phot = aperture_photometry(_arr, aperture, mask=_mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below will give a lot of headache
     # for units. It's not easy since aperture can be pixel units or angular units (Sky apertures).
     # ysBach 2018-07-26
+
+    if flag_bad:
+        for ap in aperture:
+            apmask = ap.to_mask(method='exact')
+            nbad = np.count_nonzero(apmask.multiply(_mask))
+            bad = 1 if nbad > npix_mask else 0
+            nbads.append(nbads)
+            bads.append(bad)
 
     if annulus is not None:
         skys = sky_fit(_arr, annulus, mask=_mask, **sky_keys)
@@ -173,6 +192,8 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
 
     phot["mag"] = -2.5*np.log10(phot['source_sum']/t_exposure)
     phot["merr"] = (2.5/np.log(10)*phot["source_sum_err"]/phot['source_sum'])
+    phot["bad"] = bads
+    phot["nbad"] = nbads
 
     if pandas:
         return phot.to_pandas()
