@@ -5,6 +5,7 @@ from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.table import QTable
 from photutils import aperture_photometry
+from photutils.aperture import Aperture
 
 from .background import sky_fit
 
@@ -17,7 +18,7 @@ __all__ = ["apphot_annulus"]
 # `photutils.aperture_photometry` produces 1-row result if multiple radii aperture is given with column
 # names starting from ``aperture_sum_0`` and ``aperture_sum_err_0``.
 def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="EXPTIME", error=None,
-                   mask=None, sky_keys={}, aparea_exact=False, npix_mask=2,
+                   mask=None, sky_keys={}, aparea_exact=False, npix_mask_ap=2,
                    verbose=False, pandas=False, **kwargs):
     ''' Do aperture photometry using annulus.
 
@@ -47,8 +48,8 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
         Whether to calculate the aperture area (``'aparea'`` column) exactly or not. If `True`, the
         area outside the image **and** those specified by mask are not counted. Default is `False`.
 
-    npix_mask : int, optional.
-        If the number of masked pixels in the aperture is equal to or greater than ``npix_mask``, the
+    npix_mask_ap : int, optional.
+        If the number of masked pixels in the aperture is equal to or greater than ``npix_mask_ap``, the
         column ``bad`` will be marked as ``1``.
 
         ..note::
@@ -64,27 +65,68 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
     -------
     phot_f: astropy.table.Table
         The photometry result.
+
+    bad code
+      * 1 (2^0) : number of masked pixels ``> npix_mask_ap`` within aperture.
+      * 2 (2^1) : number of masked pixels ``> npix_mask_an`` within annulus. (not implemented yet)
     '''
+    def _propagate_ccdmask(ccd, additional_mask=None):
+        ''' Propagate the CCDData's mask and additional mask from ysfitsutilpy.
+
+        Parameters
+        ----------
+        ccd : CCDData, ndarray
+            The ccd to extract mask. If ndarray, it will only return a copy of ``additional_mask``.
+
+        additional_mask : mask-like, None
+            The mask to be propagated.
+
+        Note
+        ----
+        The original ``ccd.mask`` is not modified. To do so,
+        >>> ccd.mask = propagate_ccdmask(ccd, additional_mask=mask2)
+        '''
+        from copy import deepcopy
+        if additional_mask is None:
+            try:
+                mask = ccd.mask.copy()
+            except AttributeError:  # i.e., if ccd.mask is None
+                mask = None
+        else:
+            try:
+                mask = ccd.mask | additional_mask
+            except (TypeError, AttributeError):  # i.e., if ccd.mask is None:
+                mask = deepcopy(additional_mask)
+        return mask
+
     _ccd = ccd.copy()
 
     if isinstance(_ccd, CCDData):
         _arr = _ccd.data
-        _mask = _ccd.mask
+        _mask = _propagate_ccdmask(_ccd, additional_mask=mask)
         if t_exposure is None:
             try:
                 t_exposure = _ccd.header[exposure_key]
             except (KeyError, IndexError):
                 t_exposure = 1
-                warn(f"The exposure time info not given and not found from the header({exposure_key})."
-                     + " Setting it to 1 sec.")
+                if verbose:
+                    warn("The exposure time info not given and not found from the header"
+                         + f" ({exposure_key}). Setting it to 1 sec.")
     else:  # ndarray
         _arr = np.array(_ccd)
-        _mask = None
+        _mask = mask
         if t_exposure is None:
             t_exposure = 1
-            warn("The exposure time info not given. Setting it to 1 sec.")
+            if verbose:
+                warn("The exposure time info not given. Setting it to 1 sec.")
 
-    aperture = np.array(aperture).flatten()
+    # [multi-position, same radius] case results in ONE Aperture object with multiple positions.
+    #   If this Aperture is turned into list, photutils (1.0) gives ValueError:
+    #   ValueError: Input apertures must all have identical positions.
+    # [single-position, multi-radius] case, the user will input MANY Aperture objects in a list.
+    #   In this case, the aperture must be flattened into a list.
+    if not isinstance(aperture, Aperture):
+        aperture = np.array(aperture).flatten()
 
     flag_bad = True
     nbads = []
@@ -135,8 +177,8 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
         for ap in aperture:
             apmask = ap.to_mask(method='exact')
             nbad = np.count_nonzero(apmask.multiply(_mask))
-            bad = 1 if nbad > npix_mask else 0
-            nbads.append(nbads)
+            bad = 1 if nbad > npix_mask_ap else 0
+            nbads.append(nbad)
             bads.append(bad)
 
     if annulus is not None:
@@ -201,7 +243,7 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
         return phot
 
 
-#TODO: make this...
+# TODO: make this...
 def apphot_ellip_sep(ccd, x, y, a, a_in, a_out, bpa=1, theta=0, t_exposure=None,
                      exposure_key="EXPTIME", error=None, mask=None, sky_keys={}, aparea_exact=False,
                      t_exposure_unit=u.s, verbose=False, pandas=False, **kwargs):
