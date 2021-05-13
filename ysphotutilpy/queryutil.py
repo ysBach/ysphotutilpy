@@ -21,7 +21,11 @@ __all__ = ["horizons_query",
 
 def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None, step='12h', location='500',
                    id_type='smallbody', interpolate=None, interpolate_x='datetime_jd', k=1, s=0,
-                   output=None, format='csv', **ephkw):
+                   output=None, format='csv',
+                   airmass_lessthan=99, solar_elongation=(0, 180), max_hour_angle=0, rate_cutoff=None,
+                   skip_daylight=False, refraction=False, refsystem='J2000', closest_apparition=False,
+                   no_fragments=False, quantities=','.join([str(i + 1) for i in range(43)]),
+                   cache=True, extra_precision=False):
     """
     Parameters
     ----------
@@ -36,14 +40,14 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
 
     sort_by : None, str or list of str, optional.
         The column keys to sort the table. It is recommended to sort by time, because it seems the
-        default sorting by JPL HORIZONS is based on time, not the ``epochs`` (i.e., ``epochs = [1, 3,
+        default sorting by JPL HORIZONS is based on time, not the `epochs` (i.e., ``epochs = [1, 3,
         2]`` would return an ephemerides table in the order of ``[1, 2, 3]``). Give `None` to skip
         sorting.
 
     start, stop, step: str, optional.
         If ``epochs=None``, it will be set as ``epochs = {'start':start, 'stop':stop, 'step':step}``.
-        If **eithter** ``start`` or ``stop`` is `None`, ``epochs`` is set to `None`, the current
-        time is used for query.
+        If **eithter** `start` or `stop` is `None` or `epochs` is set to `None`, the current time is
+        used for query.
 
     location : str or dict, optional
         Observer's location for ephemerides queries or center body name for orbital element or vector
@@ -79,9 +83,45 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
     format : str, optional.
         The output table format (see ``astropy.io.ascii.write``).
 
-    ephkw : kwargs, optional.
-        See the possible keyword arguments from astroquery:
-        https://astroquery.readthedocs.io/en/latest/api/astroquery.jplhorizons.HorizonsClass.html#astroquery.jplhorizons.HorizonsClass.ephemerides
+    airmass_lessthan : float, optional
+        Defines a maximum airmass for the query, default: 99
+
+    solar_elongation : tuple, optional
+        Permissible solar elongation raqnge: (minimum, maximum); default: (0,180)
+
+    max_hour_angle : float, optional
+        Defines a maximum hour angle for the query, default: 0
+
+    rate_cutoff : float, optional
+        Angular range rate upper limit cutoff in arcsec/h; default: disabled
+
+    skip_daylight : boolean, optional
+        Crop daylight epochs in query, default: False
+
+    refraction : boolean
+        If `True`, coordinates account for a standard atmosphere refraction model; if `False`,
+        coordinates do not account for refraction (airless model);
+        default: `False`
+
+    refsystem : string
+        Coordinate reference system: ``'J2000'`` or ``'B1950'``; default: ``'J2000'``
+
+    closest_apparition : boolean, optional
+        Only applies to comets. This option will choose the closest apparition available in time to the
+        selected epoch; default: False. Do not use this option for non-cometary objects.
+
+    no_fragments : boolean, optional
+        Only applies to comets. Reject all comet fragments from selection; default: False. Do not use
+        this option for non-cometary objects.
+
+    quantities : integer or string, optional
+        Single integer or comma-separated list in the form of a string corresponding to all the
+        quantities to be queried from JPL Horizons using the coding according to the `JPL Horizons User
+        Manual Definition of Observer Table Quantities
+        <https://ssd.jpl.nasa.gov/?horizons_doc#table_quantities>`_; default: all quantities
+
+    extra_precision : boolean, optional
+        Enables extra precision in RA and DEC values; default: False
 
     Returns
     -------
@@ -110,7 +150,22 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
             epochs = dict(start=start, stop=stop, step=step)
 
     obj = Horizons(id=id, epochs=epochs, location=location, id_type=id_type)
-    eph = obj.ephemerides(**ephkw)
+    eph = obj.ephemerides(
+        airmass_lessthan=airmass_lessthan,
+        solar_elongation=solar_elongation,
+        max_hour_angle=max_hour_angle,
+        rate_cutoff=rate_cutoff,
+        skip_daylight=skip_daylight,
+        refraction=refraction,
+        refsystem=refsystem,
+        closest_apparition=closest_apparition,
+        no_fragments=no_fragments,
+        quantities=quantities,
+        cache=cache,
+        extra_precision=extra_precision,
+        get_query_payload=False,
+        get_raw_response=False
+    )
     if interpolate is not None and interpolate_x is not None:
         if isinstance(interpolate, str):
             interpolate = [interpolate]
