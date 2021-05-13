@@ -1,9 +1,11 @@
 from warnings import warn
 
 import numpy as np
+from astropy.modeling import Fittable2DModel, Parameter
+from astropy.modeling.models import Const2D, Gaussian2D
 from astropy.nddata import CCDData, Cutout2D
 from astropy.utils.exceptions import AstropyDeprecationWarning
-from photutils.centroids import GaussianConst2D, centroid_com, fit_2dgaussian
+from photutils.centroids import centroid_com, fit_2dgaussian
 
 from .background import sky_fit
 from .util import Gaussian2D_correct
@@ -30,6 +32,51 @@ def scaling_shift(pos_old, pos_new_naive, max_shift_step=None, verbose=False):
                   + f" shift truncated to {max_shift_step:.3f} pixels.")
 
     return dx, dy, shift
+
+
+class GaussianConst2D(Fittable2DModel):
+    """
+    A model for a 2D Gaussian plus a constant.
+    Parameters
+    ----------
+    constant : float
+        Value of the constant.
+    amplitude : float
+        Amplitude of the Gaussian.
+    x_mean : float
+        Mean of the Gaussian in x.
+    y_mean : float
+        Mean of the Gaussian in y.
+    x_stddev : float
+        Standard deviation of the Gaussian in x. ``x_stddev`` and
+        ``y_stddev`` must be specified unless a covariance matrix
+        (``cov_matrix``) is input.
+    y_stddev : float
+        Standard deviation of the Gaussian in y. ``x_stddev`` and
+        ``y_stddev`` must be specified unless a covariance matrix
+        (``cov_matrix``) is input.
+    theta : float, optional
+        Rotation angle in radians. The rotation angle increases
+        counterclockwise.
+    """
+
+    constant = Parameter(default=1)
+    amplitude = Parameter(default=1)
+    x_mean = Parameter(default=0)
+    y_mean = Parameter(default=0)
+    x_stddev = Parameter(default=1)
+    y_stddev = Parameter(default=1)
+    theta = Parameter(default=0)
+
+    @staticmethod
+    def evaluate(x, y, constant, amplitude, x_mean, y_mean, x_stddev,
+                 y_stddev, theta):
+        """Two dimensional Gaussian plus constant function."""
+
+        model = Const2D(constant)(x, y) + Gaussian2D(amplitude, x_mean,
+                                                     y_mean, x_stddev,
+                                                     y_stddev, theta)(x, y)
+        return model
 
 
 def find_center_2dg(ccd, position_xy, cbox_size=5., csigma=3., ssky=0,
