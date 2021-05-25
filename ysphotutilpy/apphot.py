@@ -127,16 +127,14 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
     #   In this case, the aperture must be flattened into a list.
     if not isinstance(aperture, Aperture):
         aperture = np.array(aperture).flatten()
-    else:
-        aperture = np.atleast_1d(aperture)
 
     flag_bad = True
     nbads = []
     bads = []
     if _mask is None:
         flag_bad = False
-        bads = [0]*aperture.size
-        nbads = [0]*aperture.size
+        bads = [0]*len(aperture)
+        nbads = [0]*len(aperture)
         _mask = np.zeros_like(_arr).astype(bool)
 
     if mask is not None:
