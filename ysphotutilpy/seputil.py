@@ -1,4 +1,4 @@
-'''
+"""
 A collection of convenience functions used with the package sep.
 
 Why use sep, not photutils?
@@ -47,7 +47,7 @@ code:
 >>>     print(f"{c}: {obj[c].values}")
 >>> # x: [8.66666667]
 >>> # y: [7.66666667]
-'''
+"""
 from warnings import warn
 
 import numpy as np
@@ -69,11 +69,11 @@ sep_default_kernel = np.array([[1.0, 2.0, 1.0],
 
 
 def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64, 64), filter_size=(3, 3)):
-    '''
+    """
     Notes
     -----
-    This includes ``sep``'s ``Background``. Equivalent processes in photutils may include
-    ``Background2D``.
+    This includes `sep`'s `Background`. Equivalent processes in photutils may include
+    `Background2D`.
 
     Parameters
     ----------
@@ -84,7 +84,7 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
         Mask array.
 
     maskthresh : float, optional
-        Only in ``sep``. The effective mask will be ``m = (mask.astype(float) >= maskthresh)``::
+        Only in `sep`. The effective mask will be ``m = (mask.astype(float) >= maskthresh)``::
 
           * **sep**: Mask threshold. This is the inclusive upper limit on the mask value in order for
             the corresponding pixel to be unmasked. For boolean arrays, False and True are interpreted
@@ -94,42 +94,42 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
           * **photutils**: In photutils, sigma clipping is used (need check).
 
     filter_threshold : int, optional
-        Name in photutils; ``fthresh`` in the oritinal sep. Default is 0.0 ::
+        Name in photutils; `fthresh` in the oritinal sep. Default is 0.0 ::
 
         * **sep**: Filter threshold. Default is 0.0.
 
         * **photutils**: The threshold value for used for selective median filtering of the
           low-resolution 2D background map.  The median filter will be applied to only the background
-          meshes with values larger than ``filter_threshold``.  Set to `None` to filter all meshes
+          meshes with values larger than `filter_threshold`.  Set to `None` to filter all meshes
           (default).
 
     box_size : int or array_like (int)
-        Name in photutils; ``bh, bw`` in sep. Default is ``(64, 64)``::
+        Name in photutils; `bh`, `bw` in sep. Default is ``(64, 64)``::
 
           * **sep**: Size of background boxes in pixels. Default is 64.
 
-          * **photutils**: The box size along each axis. If ``box_size`` is a scalar then a square box
-            of size ``box_size`` will be used. If ``box_size`` has two elements, they should be in
+          * **photutils**: The box size along each axis. If `box_size` is a scalar then a square box
+            of size `box_size` will be used. If `box_size` has two elements, they should be in
             ``(ny, nx)`` order.  For best results, the box shape should be chosen such that the
-            ``data`` are covered by an integer number of boxes in both dimensions. When this is not the
-            case, see the ``edge_method`` keyword for more options.
+            `data` are covered by an integer number of boxes in both dimensions. When this is not the
+            case, see the `edge_method` keyword for more options.
 
     filter_size : int or array_like (int), optional
-        Name in photutils; ``bh, bw`` in sep. Default is ``(64, 64)``.::
+        Name in photutils; `bh`, `bw` in sep. Default is ``(64, 64)``.::
 
           * **sep**: Filter width and height in boxes. Default is 3.
 
           * **photutils**: The window size of the 2D median filter to apply to the low-resolution
-            background map. If ``filter_size`` is a scalar then a square box of size ``filter_size``
-            will be used. If ``filter_size`` has two elements, they should be in ``(ny, nx)`` order.
+            background map. If `filter_size` is a scalar then a square box of size `filter_size`
+            will be used. If `filter_size` has two elements, they should be in ``(ny, nx)`` order.
             A filter size of ``1`` (or ``(1, 1)``) means no filtering.
 
     Returns
     -------
     bkg : sep.Background
-        Use ``bkg.back()`` and ``bkg.rms()`` to get the background and rms error. All other
-        methods/attributes include ``bkg.subfrom()``, ``bkg.globalback``, and ``bkg.globalrms``.
-    '''
+        Use `bkg.back()` and `bkg.rms()` to get the background and rms error. All other
+        methods/attributes include `bkg.subfrom()`, `bkg.globalback`, and `bkg.globalrms`.
+    """
     # asarrya is needed because sep gives Error for C-contiguous array.
     data = np.asarray(data)
     if mask is not None:
@@ -158,14 +158,16 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
     return bkg
 
 
-def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None,
-                bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5, filter_kernel=sep_default_kernel,
-                filter_type='matched', deblend_nthresh=32, deblend_cont=0.005, clean=True, clean_param=1.0):
+def sep_extract(
+    data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None, sort_by='dist_ref',
+    bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5, filter_kernel=sep_default_kernel,
+    filter_type='matched', deblend_nthresh=32, deblend_cont=0.005, clean=True, clean_param=1.0
+):
     """
     Notes
     -----
-    This includes ``sep``'s `extract``. Equivalent processes in photutils may include
-    ``detect_sources`` and ``source_properties``. Maybe we can use ``extract(data=data, err=err,
+    This includes `sep`'s `extract`. Equivalent processes in photutils may include
+    `detect_sources` and `source_properties`. Maybe we can use ``extract(data=data, err=err,
     thresh=3)`` for a snr > 3 extraction.
 
     Parameters
@@ -174,17 +176,17 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
         The 2D array from which to estimate the background.
 
     thresh : float, optional.
-        Only in sep. Threshold pixel value for detection. If an ``err`` or ``var`` array is **not**
-        given, this is interpreted as an absolute threshold. If ``err`` or ``var`` is given, this is
+        Only in sep. Threshold pixel value for detection. If an `err` or `var` array is **not**
+        given, this is interpreted as an absolute threshold. If `err` or `var` is given, this is
         interpreted as a relative threshold: the absolute threshold at pixel (j, i) will be ``thresh *
         err[j, i]`` or ``thresh * sqrt(var[j, i])``. Note: If you want to give pixel-wise threshold,
-        make the ``err`` with such threshold values and set ``thresh = 1``.
+        make the `err` with such threshold values and set ``thresh = 1``.
 
     bkg : sep.Background object
-        The ``sep.Background`` object used to extract sky and sky rms.
+        The `sep.Background` object used to extract sky and sky rms.
 
     mask : `~numpy.ndarray`, optional
-        Mask array. ``True`` values, or numeric values greater than ``maskthresh``, are considered
+        Mask array. `True` values, or numeric values greater than `maskthresh`, are considered
         masked. Masking a pixel is equivalent to setting data to zero and noise (if present) to
         infinity.
 
@@ -193,12 +195,18 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
 
     err, var : float or `~numpy.ndarray`, optional
         Error *or* variance (specify at most one). This can be used to specify a pixel-by-pixel
-        detection threshold; see ``thresh``.
+        detection threshold; see `thresh`.
 
     pos_ref : `None`, list-like of two floats, optional.
-        If not `None`, it must be the (x, y) position of the reference point. The returned ``obj`` will
+        If not `None`, it must be the (x, y) position of the reference point. The returned `obj` will
         have ``'dist_ref'`` column which is the distance of the object's position (``sqrt((obj["x"] -
-        pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)``) and sorted based on this.
+        pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default (see
+        `sort_by`).
+
+    sort_by : str, optional.
+        The column name to sort the output. By default, a new column is added to the `sep` results,
+        called ``"dist_ref"`` (see `pos_ref`). Otherwise, it should be a name of column in `sep`
+        result.
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
         The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
@@ -209,14 +217,14 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
     gain : float, optional
         Conversion factor between data array units and poisson counts. This does not affect detection;
         it is used only in calculating Poisson noise contribution to uncertainty parameters such as
-        ``errx2``. If not given, no Poisson noise will be added.
+        `errx2`. If not given, no Poisson noise will be added.
 
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
 
     filter_kernel : `~numpy.ndarray` or None, optional
         Filter kernel used for on-the-fly filtering (used to enhance detection). Default is a 3x3
-        array: [[1,2,1], [2,4,2], [1,2,1]]. Set to ``None`` to skip convolution.
+        array: [[1,2,1], [2,4,2], [1,2,1]]. Set to `None` to skip convolution.
 
     filter_type : {'matched', 'conv'}, optional
         Filter treatment. This affects filtering behavior when a noise array is supplied. ``'matched'``
@@ -323,9 +331,9 @@ def sep_extract(data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None
 
 
 def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
-    ''' Calculate FLUX_AUTO
+    """ Calculate FLUX_AUTO
     # https://sep.readthedocs.io/en/v1.0.x/apertures.html#equivalent-of-flux-auto-e-g-mag-auto-in-source-extractor
-    '''
+    """
 
     sepx, sepy = sepext['x'], sepext['y']
     sepa, sepb = sepext['a'], sepext['b']
@@ -394,7 +402,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 
 #     # gauss_fbox : int, float, array-like of such, optional.
 #     #     The fitting box size to fit a Gaussian2D function to the
-#     #     objects found by ``sep``. This is done to automatically set
+#     #     objects found by `sep`. This is done to automatically set
 #     #     aperture sizes of the object.
 
 #     Returns
@@ -402,9 +410,9 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 
 #     Note
 #     ----
-#     This includes ``sep``'s ``extract`` and ``background``.
-#     Equivalent processes in photutils may include ``detect_sources``
-#     and ``source_properties``, and ``Background2D``, respectively.
+#     This includes `sep`'s `extract` and `background`.
+#     Equivalent processes in photutils may include `detect_sources`
+#     and `source_properties`, and `Background2D`, respectively.
 
 #     Example
 #     -------
@@ -416,7 +424,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #         _mask = ccd.mask
 #         if update_header:
 #             try:
-#                 from ysfitsutilpy.hdrutil import add_to_header
+#                 from ysfitsutilpy.hdrutil import add2hdr
 #             except ImportError:
 #                 raise ImportError("ysfitsutilpy is needed for update_header.")
 #     else:
@@ -441,7 +449,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #     _t = Time.now()
 #     bkg = sep_back(_arr, **bkg_kw)
 #     if update_header:
-#         add_to_header(ccd.header, 'h', s_bkg, verbose=verbose, t_ref=_t)
+#         add2hdr(ccd.header, 'h', s_bkg, verbose=verbose, t_ref=_t)
 
 #     thresh_tests = np.sort(np.atleast_1d(thresh_tests))[::-1]
 #     for thresh in thresh_tests:
@@ -454,7 +462,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #         _t = Time.now()
 #         obj, seg = sep_extract(_arr, **ext_kw)
 #         if update_header:
-#             add_to_header(ccd.header, 'h', s_obj, verbose=verbose, t_ref=_t)
+#             add2hdr(ccd.header, 'h', s_obj, verbose=verbose, t_ref=_t)
 
 #         nobj = len(obj)
 #         ccd.header["NOBJ-SEP"] = (nobj, "Number of objects found from SEP.")
@@ -471,6 +479,6 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #             s = ("{} objects found; Only the one closest to the FOV center "
 #                  + "(segmentation map label = {}) will be used.")
 #             s = s.format(nobj, obj['segm_label'].values[0])
-#             add_to_header(ccd.header, 'h', s, verbose=verbose)
+#             add2hdr(ccd.header, 'h', s, verbose=verbose)
 
 #     return bkg, obj, seg
