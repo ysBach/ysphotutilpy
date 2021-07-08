@@ -158,11 +158,10 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
     return bkg
 
 
-def sep_extract(
-    data, thresh, bkg, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None, sort_by='dist_ref',
-    bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5, filter_kernel=sep_default_kernel,
-    filter_type='matched', deblend_nthresh=32, deblend_cont=0.005, clean=True, clean_param=1.0
-):
+def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None,
+                sort_by='dist_ref', bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5,
+                filter_kernel=sep_default_kernel, filter_type='matched', deblend_nthresh=32,
+                deblend_cont=0.005, clean=True, clean_param=1.0):
     """
     Notes
     -----
@@ -182,7 +181,7 @@ def sep_extract(
         err[j, i]`` or ``thresh * sqrt(var[j, i])``. Note: If you want to give pixel-wise threshold,
         make the `err` with such threshold values and set ``thresh = 1``.
 
-    bkg : sep.Background object
+    bkg : sep.Background object or `None`
         The `sep.Background` object used to extract sky and sky rms.
 
     mask : `~numpy.ndarray`, optional
@@ -273,24 +272,30 @@ def sep_extract(
     >>> plt.tight_layout()
     >>> plt.show()
     """
+    if err is not None and var is not None:
+        raise ValueError("Upto one of `err` and `var` can be given.")
+
     # asarrya is needed because sep gives Error for C-contiguous array.
     data = np.asarray(data)
 
     if mask is not None:
         mask = np.asarray(mask).astype(bool)
 
-    if err is None:
-        err = np.zeros_like(data)
+    if bkg is None:
+        data_skysub = data
+        # No need to further update `var` or `err`.
     else:
-        err = np.asarray(err)
-
-    sky = bkg.back()
-    err = np.sqrt(err**2 + bkg.rms()**2)
+        data_skysub = data - bkg.back()
+        if var is not None:  # Then err is None (see above)
+            var = var + bkg.rms()**2
+        elif err is not None:  # Then var is None (see above)
+            err = np.sqrt(err**2 + bkg.rms()**2)
 
     obj, segm = sep.extract(
-        data - sky,
+        data_skysub,
         thresh=thresh,
         err=err,
+        var=var,
         mask=mask,
         maskthresh=maskthresh,
         minarea=minarea,
