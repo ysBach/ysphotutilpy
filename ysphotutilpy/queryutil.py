@@ -21,7 +21,7 @@ __all__ = ["horizons_query",
 
 def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None, step='12h', location='500',
                    id_type='smallbody', interpolate=None, interpolate_x='datetime_jd', k=1, s=0,
-                   output=None, format='csv',
+                   output=None, format='csv', pandas=False,
                    airmass_lessthan=99, solar_elongation=(0, 180), max_hour_angle=0, rate_cutoff=None,
                    skip_daylight=False, refraction=False, refsystem='J2000', closest_apparition=False,
                    no_fragments=False, quantities=','.join([str(i + 1) for i in range(43)]),
@@ -83,11 +83,14 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
     format : str, optional.
         The output table format (see ``astropy.io.ascii.write``).
 
+    pandas: bool, optional.
+        If True, return a pandas DataFrame. Otherwise, return an astropy Table (default).
+
     airmass_lessthan : float, optional
         Defines a maximum airmass for the query, default: 99
 
     solar_elongation : tuple, optional
-        Permissible solar elongation raqnge: (minimum, maximum); default: (0,180)
+        Permissible solar elongation raqnge: (minimum, maximum); default: (0, 180)
 
     max_hour_angle : float, optional
         Defines a maximum hour angle for the query, default: 0
@@ -132,8 +135,7 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
         The queried ephemerides from Horizons
 
     interpolated: dict
-        The interpolation functions for the columns (specified by
-        ``interpolate``).
+        The interpolation functions for the columns (specified by `interpolate`).
 
 
     Note
@@ -176,8 +178,12 @@ def horizons_query(id, epochs=None, sort_by='datetime_jd', start=None, stop=None
     if sort_by is not None:
         eph.sort(sort_by)
 
+    if to_pandas:
+        eph = eph.to_pandas()
+
     if output is not None:
         eph.write(Path(output), format=format)
+
     return obj, eph, interpolated
 
 
