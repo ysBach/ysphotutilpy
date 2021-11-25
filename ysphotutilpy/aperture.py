@@ -183,7 +183,16 @@ def _sanitize_apsize(size=None, fwhm=None, factor=None, name='size', repeat=Fals
         return size
 
 
-def circ_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, f_ap=1.5, f_in=4., f_out=6.):
+def circ_ap_an(
+        positions,
+        r_ap=None,
+        r_in=None,
+        r_out=None,
+        fwhm=None,
+        f_ap=1.5,
+        f_in=4.,
+        f_out=6.
+):
     ''' A convenience function for pixel circular aperture/annulus
     Parameters
     ----------
@@ -221,8 +230,17 @@ def circ_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, f_ap=1.5,
     return ap, an
 
 
-def ellip_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, theta=0.,
-                f_ap=(1.5, 1.5), f_in=(4., 4.), f_out=(6., 6.)):
+def ellip_ap_an(
+        positions,
+        r_ap=None,
+        r_in=None,
+        r_out=None,
+        fwhm=None,
+        theta=0.,
+        f_ap=(1.5, 1.5),
+        f_in=(4., 4.),
+        f_out=(6., 6.)
+):
     ''' A convenience function for pixel elliptical aperture/annulus
     Parameters
     ----------
@@ -278,8 +296,16 @@ def ellip_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, theta=0.
     return ap, an
 
 
-def pill_ap_an(positions, fwhm, trail, theta=0.,
-               f_ap=(1.5, 1.5), f_in=(4., 4.), f_out=(6., 6.), f_w=1.):
+def pill_ap_an(
+        positions,
+        fwhm,
+        trail,
+        theta=0.,
+        f_ap=(1.5, 1.5),
+        f_in=(4., 4.),
+        f_out=(6., 6.),
+        f_w=1.
+):
     ''' A convenience function for pixel elliptical aperture/annulus
     Parameters
     ----------
