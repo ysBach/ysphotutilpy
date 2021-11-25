@@ -1,6 +1,6 @@
 """
-A collection of temporary utilities, and likely be removed if similar functionality can be achieved by
-pre-existing packages.
+A collection of temporary utilities, and likely be removed if similar
+functionality can be achieved by pre-existing packages.
 """
 import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
@@ -29,11 +29,13 @@ def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
     Parameters
     ----------
     factor : float, optional.
-        The factor to convert natural unit (dimensionless) to desired unit. ``factor=100`` will be
-        **multiplied** to convert to %, and will be **divided** to convert the value to natural unit.
+        The factor to convert natural unit (dimensionless) to desired unit.
+        ``factor=100`` will be **multiplied** to convert to %, and will be
+        **divided** to convert the value to natural unit.
 
     already : bool, optional.
-        Whether the input args are already in the desired unit specified by ``factor``.
+        Whether the input args are already in the desired unit specified by
+        ``factor``.
 
     convert2unit : bool, optional.
         Whether to convert the input args to the unit specified by ``factor``.
@@ -41,13 +43,16 @@ def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
 
     Example
     -------
-    This is a converter for per-cent (%) VS natural unit (absolute value <= 1)::
+    This is a converter for per-cent (%) VS natural unit (absolute value <=
+    1)::
 
-        _linear_unit_converter(*args, factor=100, already=already, convert2unit=convert2unit)
+        _linear_unit_converter(*args, factor=100, already=already,
+                               convert2unit=convert2unit)
 
     and this is a converter for degrees VS radian::
 
-        _linear_unit_converter(*args, factor=180/np.pi, already=already, convert2unit=convert2unit)
+        _linear_unit_converter(*args, factor=180/np.pi, already=already,
+                               convert2unit=convert2unit)
 
     '''
     if not already and convert2unit:
@@ -60,14 +65,24 @@ def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
 
 
 def convert_pct(*args, already=False, convert2unit=False):
-    return _linear_unit_converter(*args, factor=100, already=already, convert2unit=convert2unit)
+    return _linear_unit_converter(*args, factor=100, already=already,
+                                  convert2unit=convert2unit)
 
 
 def convert_deg(*args, already=False, convert2unit=False):
-    return _linear_unit_converter(*args, factor=180/np.pi, already=already, convert2unit=convert2unit)
+    return _linear_unit_converter(*args, factor=180/np.pi, already=already,
+                                  convert2unit=convert2unit)
 
 
-def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0], bezel_x=None, bezel_y=None):
+def bezel_mask(
+        xvals,
+        yvals,
+        nx,
+        ny,
+        bezel=[0, 0],
+        bezel_x=None,
+        bezel_y=None
+):
     '''
     Parameters
     ----------
@@ -75,18 +90,21 @@ def bezel_mask(xvals, yvals, nx, ny, bezel=[0, 0], bezel_x=None, bezel_y=None):
         The x and y position values.
 
     nx, ny : int or float
-        The number of x and y pixels (``NAXIS2`` and ``NAXIS1``, respectively from header).
+        The number of x and y pixels (``NAXIS2`` and ``NAXIS1``, respectively
+        from header).
 
     bezel : int, float, array-like, optional
-        The bezel size. If array-like, it should be ``(lower, upper)``. If only this is given and
-        ``bezel_x`` and/or ``bezel_y`` is/are ``None``, it/both will be replaced by ``bezel``. If you
-        want to keep some stars outside the edges, put negative values (e.g., ``-5``).
+        The bezel size. If array-like, it should be ``(lower, upper)``. If only
+        this is given and ``bezel_x`` and/or ``bezel_y`` is/are ``None``,
+        it/both will be replaced by ``bezel``. If you want to keep some stars
+        outside the edges, put negative values (e.g., ``-5``).
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
-        The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
-        Mathematically put, only objects with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
-        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you want to keep some stars outside
-        the edges, put negative values (e.g., ``-5``).
+        The bezel (border width) for x and y axes. If array-like, it should be
+        ``(lower, upper)``. Mathematically put, only objects with center
+        ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx - bezel_x[1] - 0.5)``
+        (similar for y) will be selected. If you want to keep some stars
+        outside the edges, put negative values (e.g., ``-5``).
     '''
     bezel = np.array(bezel)
     if len(bezel) == 1:
@@ -130,8 +148,9 @@ def normalize(num, lower=0, upper=360, b=False):
         Upper limit of range. Default is 360.
 
     b : bool
-        Type of normalization. Default is False. See notes. When b=True, the range must be symmetric
-        about 0. When b=False, the range must be symmetric about 0 or ``lower`` must be equal to 0.
+        Type of normalization. Default is False. See notes. When b=True, the
+        range must be symmetric about 0. When b=False, the range must be
+        symmetric about 0 or ``lower`` must be equal to 0.
 
     Returns
     -------
@@ -145,14 +164,16 @@ def normalize(num, lower=0, upper=360, b=False):
 
     Notes
     -----
-    If the keyword `b == False`, then the normalization is done in the following way. Consider the
-    numbers to be arranged in a circle, with the lower and upper ends sitting on top of each other.
-    Moving past one limit, takes the number into the beginning of the other end. For example, if range
-    is [0 - 360), then 361 becomes 1 and 360 becomes 0. Negative numbers move from higher to lower
-    numbers. So, -1 normalized to [0 - 360) becomes 359.
-    When b=False range must be symmetric about 0 or lower=0. If the keyword `b == True`, then the given
-    number is considered to "bounce" between the two limits. So, -91 normalized to [-90, 90], becomes
-    -89, instead of 89. In this case the range is [lower, upper]. This code is based on the function
+    If the keyword `b == False`, then the normalization is done in the
+    following way. Consider the numbers to be arranged in a circle, with the
+    lower and upper ends sitting on top of each other. Moving past one limit,
+    takes the number into the beginning of the other end. For example, if range
+    is [0 - 360), then 361 becomes 1 and 360 becomes 0. Negative numbers move
+    from higher to lower numbers. So, -1 normalized to [0 - 360) becomes 359.
+    When b=False range must be symmetric about 0 or lower=0. If the keyword `b
+    == True`, then the given number is considered to "bounce" between the two
+    limits. So, -91 normalized to [-90, 90], becomes -89, instead of 89. In
+    this case the range is [lower, upper]. This code is based on the function
     `fmt_delta` of `TPM`. When b=True range must be symmetric about 0.
 
     Examples
@@ -202,10 +223,10 @@ def normalize(num, lower=0, upper=360, b=False):
             raise ValueError('When b=True range must be symmetric about 0.')
 
     from math import floor, ceil
-    # abs(num + upper) and abs(num - lower) are needed, instead of
-    # abs(num), since the lower and upper limits need not be 0. We need
-    # to add half size of the range, so that the final result is lower +
-    # <value> or upper - <value>, respectively.
+    # abs(num + upper) and abs(num - lower) are needed, instead of abs(num),
+    # since the lower and upper limits need not be 0. We need to add half size
+    # of the range, so that the final result is lower + <value> or upper -
+    # <value>, respectively.
     res = num
     if not b:
         res = num
@@ -257,7 +278,8 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
     >>>         plt.pause(0.1)
     You may see some patterns in the residual image, they are < 10**(-13).
     '''
-    # I didn't use ``Gaussian2D`` directly, because GaussianConst2D from photutils may also be used.
+    # I didn't use ``Gaussian2D`` directly, because GaussianConst2D from
+    # photutils may also be used.
     new_model = model.__class__(*model.parameters)
     sig_x = np.abs(model.x_stddev.value)
     sig_y = np.abs(model.y_stddev.value)
