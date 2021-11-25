@@ -202,9 +202,10 @@ def circ_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, f_ap=1.5,
         The FWHM in pixel unit.
 
     f_ap, f_in, f_out: int or float, optional.
-        The factors multiplied to ``fwhm`` to set the aperture radius, inner sky radius, and outer sky
-        radius, respectively. Defaults are ``1.5``, ``4.0``, and ``6.0``, respectively, which are de
-        facto standard values used by classical IRAF users.
+        The factors multiplied to ``fwhm`` to set the aperture radius, inner
+        sky radius, and outer sky radius, respectively. Defaults are ``1.5``,
+        ``4.0``, and ``6.0``, respectively, which are de facto standard values
+        used by classical IRAF users.
 
     Returns
     -------
@@ -226,31 +227,36 @@ def ellip_ap_an(positions, r_ap=None, r_in=None, r_out=None, fwhm=None, theta=0.
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
-        The pixel coordinates of the aperture center(s) in one of the following formats::
+        The pixel coordinates of the aperture center(s) in one of the following
+        formats::
 
           * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
           * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
           * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in pixel units
 
-    r_ap, r_in, r_out: int or float, list or tuple of such, optional
-        The aperture, annular inner, and annular outer radii. If list-like, the 0-th element is
-        regarded as the "semi-major" axis, even though it is smaller than the 1-th element.
+    r_ap, r_in, r_out: int or float, list or tuple of such, optional.
+        The aperture, annular inner, and annular outer radii. If list-like, the
+        0-th element is regarded as the "semi-major" axis, even though it is
+        smaller than the 1-th element. Thus, ``a, b = r_xx[0], r_xx[1]``
 
     fwhm : float
         The FWHM in pixel unit.
 
     theta : float, optional
-        The rotation angle in radians of the ellipse semimajor axis (0-th element of radii or f
-        parameters, not necessarily the longer axis) from the positive ``x`` axis.  The rotation angle
-        increases counterclockwise.  The default is 0.
+        The rotation angle in radians of the ellipse semimajor axis (0-th
+        element of radii or f parameters, not necessarily the longer axis) from
+        the positive ``x`` axis.  The rotation angle increases
+        counterclockwise.
+        Default: ``0``.
 
     f_ap, f_in, f_out: int or float, list or tuple of such, optional
-        The factors multiplied to ``fwhm`` to set the aperture ``a`` and ``b``, inner sky ``a`` and
-        ``b``, and outer sky ``a`` and ``b``, respectively. If scalar, it is assumed to be identical
-        for both ``a`` and ``b`` parameters. Defaults are ``(1.5, 1.5)``, ``(4.0, 4.0)``, and ``(6.0,
-        6.0)``, respectively, which are de facto standard values used by classical IRAF users. If
-        list-like, the 0-th element is regarded as the "semi-major" axis, even though it is smaller
-        than the 1-th element.
+        The factors multiplied to ``fwhm`` to set the aperture ``a`` and ``b``,
+        inner sky ``a`` and ``b``, and outer sky ``a`` and ``b``, respectively.
+        If scalar, it is assumed to be identical for both ``a`` and ``b``
+        parameters. Defaults are ``(1.5, 1.5)``, ``(4.0, 4.0)``, and ``(6.0,
+        6.0)``, respectively, which are de facto standard values used by
+        classical IRAF users. If list-like, the 0-th element is regarded as the
+        "semi-major" axis, even though it is smaller than the 1-th element.
 
     Returns
     -------
@@ -278,40 +284,37 @@ def pill_ap_an(positions, fwhm, trail, theta=0.,
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
-        The pixel coordinates of the aperture center(s) in one of the
-        following formats:
+        The pixel coordinates of the aperture center(s) in one of the following
+        formats:
 
         * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
         * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
-        * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in
-            pixel units
+        * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in pixel units
 
     fwhm : float
         The FWHM in pixel unit.
 
     trail : float
-        The trail length in pixel unit. The trail is assumed to be
-        extended along the ``x`` axis.
+        The trail length in pixel unit. The trail is assumed to be extended
+        along the ``x`` axis.
 
     theta : float, optional
-        The rotation angle in radians of the ellipse semimajor axis from
-        the positive ``x`` axis.  The rotation angle increases
-        counterclockwise.  The default is 0.
+        The rotation angle in radians of the ellipse semimajor axis from the
+        positive ``x`` axis.  The rotation angle increases counterclockwise.
+        Default: ``0``.
 
     f_ap, f_in, f_out: int or float, list or tuple of such, optional
-        The factors multiplied to ``fwhm`` to set the aperture ``a`` and
-        ``b``, inner sky ``a`` and ``b``, and outer sky ``a`` and ``b``,
-        respectively, for the elliptical component of the pill box. If
-        scalar, it is assumed to be identical for both ``a`` and ``b``
-        parameters. Defaults are ``(1.5, 1.5)``, ``(4.0, 4.0)``, and
-        ``(6.0, 6.0)``, respectively, which are de facto standard values
-        used by classical IRAF users.
+        The factors multiplied to ``fwhm`` to set the aperture ``a`` and ``b``,
+        inner sky ``a`` and ``b``, and outer sky ``a`` and ``b``, respectively,
+        for the elliptical component of the pill box. If scalar, it is assumed
+        to be identical for both ``a`` and ``b`` parameters. Defaults are
+        ``(1.5, 1.5)``, ``(4.0, 4.0)``, and ``(6.0, 6.0)``, respectively, which
+        are de facto standard values used by classical IRAF users.
 
     f_w : int or float
-        The factor multiplied to ``trail`` to make a rectangular
-        component of the pill box (both `~PillBoxAperture` and
-        `~PillBoxAnnulus`). Note that this width is identical for both
-        aperture and annulus.
+        The factor multiplied to ``trail`` to make a rectangular component of
+        the pill box (both `~PillBoxAperture` and `~PillBoxAnnulus`). Note that
+        this width is identical for both aperture and annulus.
 
     Returns
     -------
@@ -376,6 +379,7 @@ def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
 """
 
 
+# Follow photutils convention (PEP8 - 72 & 79 chars per line)
 class PillBoxMaskMixin:
     @property
     def _set_aperture_elements(self):

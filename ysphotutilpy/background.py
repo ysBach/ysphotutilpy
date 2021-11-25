@@ -17,7 +17,15 @@ def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
     return sky_fit(ccd, annulus)
 
 
-def sky_fit(ccd, annulus, mask=None, method='mode', mode_option='sex', std_ddof=1, **kwargs):
+def sky_fit(
+        ccd,
+        annulus,
+        mask=None,
+        method='mode',
+        mode_option='sex',
+        std_ddof=1,
+        **kwargs
+):
     """ Estimate the sky value from image and annulus.
     Parameters
     ----------
@@ -119,7 +127,11 @@ def sky_fit(ccd, annulus, mask=None, method='mode', mode_option='sex', std_ddof=
     return skytable
 
 
-def annul2values(ccd, annulus, mask=None):
+def annul2values(
+        ccd,
+        annulus,
+        mask=None
+):
     ''' Extracts the pixel values from the image with annuli
 
     Parameters
@@ -131,6 +143,7 @@ def annul2values(ccd, annulus, mask=None):
     # fill_value: float or nan
     #     The pixels which are masked by ``ccd.mask`` will be replaced with
     #     this value.
+
     Returns
     -------
     values: list of ndarray
