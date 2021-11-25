@@ -93,10 +93,11 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
             except AttributeError:  # i.e., if ccd.mask is None
                 mask = None
         else:
-            try:
-                mask = ccd.mask | additional_mask
-            except (TypeError, AttributeError):  # i.e., if ccd.mask is None:
+            if ccd.mask is None:
                 mask = deepcopy(additional_mask)
+            else:
+                mask = ccd.mask | additional_mask
+            # except (TypeError, AttributeError):  # i.e., if ccd.mask is None:
         return mask
 
     _ccd = ccd.copy()
@@ -127,14 +128,21 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
     #   In this case, the aperture must be flattened into a list.
     if not isinstance(aperture, Aperture):
         aperture = np.array(aperture).flatten()
+        n_apertures = aperture.size
+    else:
+        try:
+            n_apertures = len(aperture)
+        except TypeError:
+            # photutils 0.7+ has .isscalar to test this but I want to accept older photutils too...
+            n_apertures = 1
 
     flag_bad = True
     nbads = []
     bads = []
     if _mask is None:
         flag_bad = False
-        bads = [0]*len(aperture)
-        nbads = [0]*len(aperture)
+        bads = [0]*n_apertures
+        nbads = [0]*n_apertures
         _mask = np.zeros_like(_arr).astype(bool)
 
     if mask is not None:
@@ -164,9 +172,9 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
         n_ap = np.array(n_ap)
     else:
         try:
-            n_ap = np.array([ap.area for ap in aperture])
+            n_ap = np.array([ap.area for ap in aperture]) if n_apertures != 1 else [aperture.area]
         except TypeError:  # prior to photutils 0.7
-            n_ap = np.array([ap.area() for ap in aperture])
+            n_ap = np.array([ap.area() for ap in aperture]) if n_apertures != 1 else [aperture.area()]
 
     _phot = aperture_photometry(_arr, aperture, mask=_mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below will give a lot of headache
@@ -174,8 +182,15 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
     # ysBach 2018-07-26
 
     if flag_bad:
-        for ap in aperture:
-            apmask = ap.to_mask(method='exact')
+        try:
+            for ap in aperture:
+                apmask = ap.to_mask(method='exact')
+                nbad = np.count_nonzero(apmask.multiply(_mask))
+                bad = 1 if nbad > npix_mask_ap else 0
+                nbads.append(nbad)
+                bads.append(bad)
+        except TypeError:  # scalar aperture
+            apmask = aperture.to_mask(method='exact')
             nbad = np.count_nonzero(apmask.multiply(_mask))
             bad = 1 if nbad > npix_mask_ap else 0
             nbads.append(nbad)
@@ -231,11 +246,12 @@ def apphot_annulus(ccd, aperture, annulus=None, t_exposure=None, exposure_key="E
     var_sky = (n_ap * phot['ssky'])**2 / phot['nsky']
 
     phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_sky)
-
+    snr = np.array(phot['source_sum'])/np.array(phot["source_sum_err"])
     phot["mag"] = -2.5*np.log10(phot['source_sum']/t_exposure)
-    phot["merr"] = (2.5/np.log(10)*phot["source_sum_err"]/phot['source_sum'])
+    phot["merr"] = 2.5/np.log(10)*(1/snr)
+    phot["snr"] = snr
     phot["bad"] = bads
-    phot["nbad"] = nbads
+    phot["nbadpix"] = nbads
 
     if pandas:
         return phot.to_pandas()
