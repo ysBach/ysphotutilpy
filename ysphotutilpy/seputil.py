@@ -84,7 +84,7 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
         Mask array.
 
     maskthresh : float, optional
-        Only in `sep`. The effective mask will be ``m = (mask.astype(float) >= maskthresh)``::
+        Only in `sep`. The effective mask will be ``m = (mask.astype(float) > maskthresh)``::
 
           * **sep**: Mask threshold. This is the inclusive upper limit on the mask value in order for
             the corresponding pixel to be unmasked. For boolean arrays, False and True are interpreted
@@ -159,7 +159,7 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
 
 
 def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None,
-                sort_by='dist_ref', bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5,
+                sort_by=None, bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5,
                 filter_kernel=sep_default_kernel, filter_type='matched', deblend_nthresh=32,
                 deblend_cont=0.005, clean=True, clean_param=1.0):
     """
@@ -203,9 +203,9 @@ def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var
         `sort_by`).
 
     sort_by : str, optional.
-        The column name to sort the output. By default, a new column is added to the `sep` results,
-        called ``"dist_ref"`` (see `pos_ref`). Otherwise, it should be a name of column in `sep`
-        result.
+        The column name to sort the output. If `pos_ref` is not `None`, a new column is added to the
+        `sep` results, called ``"dist_ref"`` and `sort_by` is based on this column by default.
+        Otherwise, it should be a name of column in `sep` result.
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
         The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
@@ -305,6 +305,7 @@ def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var
         deblend_cont=deblend_cont,
         clean=clean,
         clean_param=clean_param,
+        gain=gain,
         segmentation_map=True
     )
     obj = pd.DataFrame(obj)
@@ -325,7 +326,10 @@ def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var
             raise ValueError(f"pos_ref must have the size of two (now it is {pos_ref.size}).")
         dist_ref = np.sqrt((obj["x"] - pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)
         obj.insert(loc=1, column='dist_ref', value=dist_ref)
-        obj = obj.sort_values("dist_ref").reset_index(drop=True)
+        sort_by = "dist_ref"
+
+    if sort_by is not None:
+        obj = obj.sort_values(sort_by).reset_index(drop=True)
 
     # Set segm value to 0 (False) if removed by bezel.
     if len(obj) < n_original:
