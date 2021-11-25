@@ -19,7 +19,34 @@ __all__ = ['calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol
 
 def calc_qu_4set(o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
                  do_000=0, do_450=0, do_225=0, do_675=0, de_000=0, de_450=0, de_225=0, de_675=0,
-                 return_pct=False):
+                 out_pct=False, eminuso=True):
+    """ Calculate the q, u, dq, and du of the 4 sets (HWP angles) of O-E rays.
+
+    Parameters
+    ----------
+    o_000, o_450, o_225, o_675 : float, ndarray
+        The o-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
+    e_000, e_450, e_225, e_675 : float, ndarray
+        The e-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
+    do_000, do_450, do_225, do_675 : float, ndarray, optional.
+        The o-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
+    de_000, de_450, de_225, de_675 : float, ndarray, optional.
+        The e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
+    out_pct : bool, optional.
+        If True, the output will be in percentage.
+    eminuso : bool, optional.
+        Whether the q or u values are calculated in the way that "e-ray minus o-ray" convention. For
+        example, ``q = (I_e - I_o)/(I_e + I_o)`` if `eminuso` is `True`, where ``I_e`` and ``I_o`` are
+        the e- and o-ray of 0 degree HWP observation, respectively. This is one of the widely used
+        convention in observational polarimetry in the field of asteroidal studies. The opposite is the
+        usual convention in theoretical physics.
+
+    Returns
+    -------
+    q, u, dq, du : float, ndarray
+        The q, u values and their errors. The unit can be natural (if `out_pct` is `False`) or
+        percentage (if `out_pct` is `True`).
+    """
     s_000 = err_prop(de_000/e_000, do_000/o_000)
     s_450 = err_prop(de_450/e_450, do_450/o_450)
     s_225 = err_prop(de_225/e_225, do_225/o_225)
@@ -27,18 +54,35 @@ def calc_qu_4set(o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
 
     rq = np.sqrt((e_000/o_000)/(e_450/o_450))
     ru = np.sqrt((e_225/o_225)/(e_675/o_675))
-    q = (rq - 1)/(rq + 1)
-    u = (ru - 1)/(ru + 1)
+    sign = 1 if eminuso else -1
+    q = sign*(rq - 1)/(rq + 1)
+    u = sign*(ru - 1)/(ru + 1)
     dq = (rq/(rq + 1)**2)*err_prop(s_000, s_450)
     du = (ru/(ru + 1)**2)*err_prop(s_225, s_675)
-    q, u, dq, du = convert_pct(q, u, dq, du, already=False, convert2unit=return_pct)
+    q, u, dq, du = convert_pct(q, u, dq, du, already=False, convert2unit=out_pct)
     return q, u, dq, du
 
 
 # TODO: make calc_qu_3set, which uses 0, 60, 120 degree data.
+def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, out_pct=False):
+    """ Correct the polarimetric efficiency.
+    Parameters
+    ----------
+    q, u : float, ndarray
+        The q, u values from the polarimetry.
+    dq, du : float, ndarray, optional.
+        The q, u errors from the polarimetry.
+    in_pct : bool, optional.
+        If True, the input will be in percentage.
+    out_pct : bool, optional.
+        If True, the output will be in percentage.
 
-
-def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, return_pct=False):
+    Returns
+    -------
+    q_eff, u_eff, dq_eff, du_eff : float, ndarray
+        The q, u values after the polarimetric efficiency correction and their errors. The unit can be
+        natural (if `out_pct` is `False`) or percentage (if `out_pct` is `True`).
+    """
     q, dq, u, du, p_eff, dp_eff = convert_pct(q, dq, u, du, p_eff, dp_eff, already=in_pct, convert2unit=False)
 
     q_eff = q/p_eff
@@ -48,13 +92,39 @@ def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, return_pct=Fa
     du_eff = np.abs(u_eff)*err_prop(du/u, dp_eff/p_eff)
 
     q_eff, u_eff, dq_eff, du_eff = convert_pct(q_eff, u_eff, dq_eff, du_eff,
-                                               already=False, convert2unit=return_pct)
+                                               already=False, convert2unit=out_pct)
     return q_eff, u_eff, dq_eff, du_eff
 
 
 def correct_off(q, u, dq=0, du=0, rot_q=0, rot_u=0, q_off=0, dq_off=0, u_off=0, du_off=0,
-                in_pct=False, in_deg=False, return_pct=False):
-    '''
+                in_pct=False, in_deg=False, out_pct=False):
+    ''' Correct the instrument-induced polarization due to the offsets.
+    Parameters
+    ----------
+    q, u : float, ndarray
+        The q, u values from the polarimetry.
+    dq, du : float, ndarray, optional.
+        The q, u errors from the polarimetry.
+    rot_q, rot_u : float, ndarray, optional.
+        The instrumental rotation angle of the polarimetric efficiency.
+    q_off, dq_off, u_off, du_off : float, optional.
+        The offset of the q, u values (due to the polarization of the instrument) and corresponding
+        erorrs.
+    in_pct : bool, optional.
+        If True, the input will be in percentage.
+    in_deg : bool, optional.
+        If True, the input will be in degree.
+    out_pct : bool, optional.
+        If True, the output will be in percentage.
+
+    Returns
+    -------
+    q_rot, u_rot, dq_rot, du_rot : float, ndarray
+        The q, u values after the instrumental offset correction and their errors. The unit can be
+        natural (if `out_pct` is `False`) or percentage (if `out_pct` is `True`).
+
+    Notes
+    -----
     Assumed: rotator angle (INSROT-like value) is assumed to have zero error.
     '''
     q, dq, u, du, q_off, dq_off, u_off, du_off = convert_pct(
@@ -73,18 +143,51 @@ def correct_off(q, u, dq=0, du=0, rot_q=0, rot_u=0, q_off=0, dq_off=0, u_off=0, 
     du_rot = err_prop(du, cos2u*dq_off, sin2u*du_off)
 
     q_rot, u_rot, dq_rot, du_rot = convert_pct(q_rot, u_rot, dq_rot, du_rot,
-                                               already=False, convert2unit=return_pct)
+                                               already=False, convert2unit=out_pct)
     return q_rot, u_rot, dq_rot, du_rot
 
 
-def correct_pa(q, u, dq=0, du=0, pa_off=0, dpa_off=0, pa_obs=0, in_pct=False, in_deg=False, return_pct=False):
-    '''
+def correct_pa(q, u, dq=0, du=0, pa_off=0, dpa_off=0, pa_obs=0, pa_ccw=True,
+               in_pct=False, in_deg=False, out_pct=False):
+    '''Convert the q, u values from image coordinate to the celestial one.
+    Note
+    ----
     Assumed: optic's position angle (PA or INST-PA-like value) is assumed to have zero error.
+
+    Parameters
+    ----------
+    q, u : float, ndarray
+        The q, u values from the polarimetry.
+    dq, du : float, ndarray, optional.
+        The q, u errors from the polarimetry.
+    pa_off, dpa_off : float, optional.
+        The offset of the optic's position angle (due to the instrument) and corresponding error.
+    pa_obs : float, ndarray, optional.
+        The position angle of the optics from the observation (usually in the FITS header information).
+    pa_ccw : bool, optional.
+        Whether the position angles (`pa_off` and `pa_obs`) are measured in counter-clockwise direction
+        in the projected plane seen by the observer (i.e., the qraw-uraw (x: q_raw, y: u_raw) plane).
+        If it is `True`, ``offset = pa_off - pa_obs`` will be used. Otherwise, ``offset = -(pa_off -
+        pa_obs)`` will be used.
+    in_pct : bool, optional.
+        If True, the input will be in percentage.
+    in_deg : bool, optional.
+        If True, the input will be in degree.
+    out_pct : bool, optional.
+        If True, the output will be in percentage.
+
+    Returns
+    -------
+    q_inst, u_inst, dq_inst, du_inst : float, ndarray
+        The q, u values after the position angle correction (i.e., in the celestial coordinate rather
+        than the image coordinate) and their errors. The unit can be natural (if `out_pct` is `False`)
+        or percentage (if `out_pct` is `True`).
     '''
     q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
     pa_off, dpa_off, pa_obs = convert_deg(pa_off, dpa_off, pa_obs, already=in_deg, convert2unit=False)
 
-    offset = pa_off - pa_obs
+    sign = 1 if pa_ccw else -1
+    offset = sign*(pa_off - pa_obs)
     cos2o = np.cos(2*offset)
     sin2o = np.sin(2*offset)
     q_inst = cos2o*q + sin2o*u
@@ -94,24 +197,71 @@ def correct_pa(q, u, dq=0, du=0, pa_off=0, dpa_off=0, pa_obs=0, in_pct=False, in
     du_inst = err_prop(sin2o*dq, cos2o*du, 2*cos2o*q*dpa_off, 2*sin2o*u*dpa_off)
 
     q_inst, u_inst, dq_inst, du_inst = convert_pct(q_inst, u_inst, dq_inst, du_inst,
-                                                   already=False, convert2unit=return_pct)
+                                                   already=False, convert2unit=out_pct)
     return q_inst, u_inst, dq_inst, du_inst
 
 
-def calc_pol(q, u, dq=0, du=0, in_pct=False, return_pct=False, return_deg=False):
+def calc_pol(q, u, dq=0, du=0, in_pct=False, out_pct=False, out_deg=False):
+    """ Calculate the polarization degree and error.
+    Parameters
+    ----------
+    q, u : float, ndarray
+        The q, u values from the polarimetry.
+    dq, du : float, ndarray, optional.
+        The q, u errors from the polarimetry.
+    in_pct : bool, optional.
+        If True, the input will be in percentage.
+    out_pct : bool, optional.
+        If True, the output will be in percentage.
+    out_deg : bool, optional.
+        If True, the output will be in degree.
+
+    Returns
+    -------
+    pol, thp, dpol, dthp : float, ndarray
+        The polarization degree, polarization vector angle (angle from the North to East, CCW, of the
+        strongest E-field vector) and error. The unit can be natural (if `out_pct` or `out_deg` is/are
+        `False`) or percentage/degree (if `out_pct` or `out_deg` is/are `True`).
+    """
     q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
     pol = np.sqrt(q**2 + u**2)
     dpol = err_prop(q*dq, u*du)/pol
     thp = 0.5*np.arctan2(u, q)
     dthp = err_prop(q*du, u*dq)/(2*pol**2)
 
-    pol, dpol = convert_pct(pol, dpol, already=False, convert2unit=return_pct)
-    thp, dthp = convert_deg(thp, dthp, already=False, convert2unit=return_deg)
+    pol, dpol = convert_pct(pol, dpol, already=False, convert2unit=out_pct)
+    thp, dthp = convert_deg(thp, dthp, already=False, convert2unit=out_deg)
     return pol, thp, dpol, dthp
 
 
 def calc_pol_r(pol, thp, suntargetpa=0, dpol=0, dthp=0, dsuntargetpa=0, in_pct=False, in_deg=False,
-               return_pct=False, return_deg=False):
+               out_pct=False, out_deg=False):
+    """ Calculate the "proper" polarization degree and error (following B. Lyot's definition).
+
+    Parameters
+    ----------
+    pol, thp : float, ndarray
+        The polarization degree and polarization vector angle (angle from the North to East, CCW, of
+        the strongest E-field vector).
+    suntargetpa : float, optional.
+        The position angle of the sun-target vector (projected to the sky plane) from the observer's
+        position.
+    dpol, dthp : float, ndarray, optional.
+        The errors of the polarization degree and polarization vector angle.
+    dsuntargetpa : float, optional.
+        The error of `suntargetpa` (see above). This is normally 0, unless the orbital element of the
+        solar system body is very uncertain.
+    in_pct, in_deg : bool, optional.
+        If True, the input will be in percentage/degree.
+    out_pct, out_deg : bool, optional.
+        If True, the output will be in percentage/degree.
+
+    Returns
+    -------
+    polr, thr, dpolr, dthr : float, ndarray
+        The "proper" polarization degree, polarization vector angle (angle from the "scattering plane
+        normal vector" to the strongest E-field vector, North to East direction), and their errors.
+    """
     pol, dpol = convert_pct(pol, dpol, already=in_pct, convert2unit=False)
     thp, dthp, suntargetpa, dsuntargetpa = convert_deg(thp, dthp, suntargetpa, dsuntargetpa,
                                                        already=in_deg, convert2unit=False)
@@ -127,8 +277,8 @@ def calc_pol_r(pol, thp, suntargetpa=0, dpol=0, dthp=0, dsuntargetpa=0, in_pct=F
     polr = pol*cos2r
     dpolr = err_prop(dpol*cos2r, pol*(-2*sin2r)*dthp)
     dthr = err_prop(dthp, dsuntargetpa)
-    polr, dpolr = convert_pct(polr, dpolr, already=False, convert2unit=return_pct)
-    thr, dthr = convert_deg(thr, dthr, already=False, convert2unit=return_deg)
+    polr, dpolr = convert_pct(polr, dpolr, already=False, convert2unit=out_pct)
+    thr, dthr = convert_deg(thr, dthr, already=False, convert2unit=out_deg)
 
     return polr, thr, dpolr, dthr
 
