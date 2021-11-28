@@ -3,11 +3,12 @@ A collection of convenience functions used with the package sep.
 
 Why use sep, not photutils?
 ===========================
-Many times the purpose of SExtractor is to mearly **find** objects, not detailed photometry of them.
-Thus,  the calculational speed is an important factor.
+Many times the purpose of SExtractor is to mearly **find** objects, not
+detailed photometry of them. Thus, the calculational speed is an important
+factor.
 
-sep is about 100 times faster in background estimation than photutils from many tests (see sep/bench.py
-of the sep repo):
+sep is about 100 times faster in background estimation than photutils from many
+tests (see sep/bench.py of the sep repo):
 
 ```
 $ python bench.py
@@ -31,14 +32,14 @@ photutils version: 0.7.1
 | ellipses r= 5  exact    |   10.88 us/aper |   63.71 us/aper |   5.85 |
 ```
 
-Maybe more benchmark for extraction is needed (photutils's detect_sources, source_properties), but it's
-already tempting to use sep over photutils given the purpose is only to extract the objects, not
-photometry.
+Maybe more benchmark for extraction is needed (photutils's detect_sources,
+source_properties), but it's already tempting to use sep over photutils given
+the purpose is only to extract the objects, not photometry.
 
 Pixel convention
 ================
-Note that sep also uses same pixel notation as photutils: pixel 0 covers -0.5 to +0.5. Simple test
-code:
+Note that sep also uses same pixel notation as photutils: pixel 0 covers -0.5
+to +0.5. Simple test code:
 >>> test = np.zeros((15, 15))
 >>> test[7, 8] = 1
 >>> test[8, 9] = 2
@@ -68,12 +69,19 @@ sep_default_kernel = np.array([[1.0, 2.0, 1.0],
                                [1.0, 2.0, 1.0]], dtype=np.float32)
 
 
-def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64, 64), filter_size=(3, 3)):
+def sep_back(
+        data,
+        mask=None,
+        maskthresh=0.0,
+        filter_threshold=0.0,
+        box_size=(64, 64),
+        filter_size=(3, 3)
+):
     """
     Notes
     -----
-    This includes `sep`'s `Background`. Equivalent processes in photutils may include
-    `Background2D`.
+    This includes `sep`'s `Background`. Equivalent processes in photutils may
+    include `Background2D`.
 
     Parameters
     ----------
@@ -84,51 +92,53 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
         Mask array.
 
     maskthresh : float, optional
-        Only in `sep`. The effective mask will be ``m = (mask.astype(float) > maskthresh)``::
+        Only in `sep`. The effective mask will be ``m = (mask.astype(float) >
+        maskthresh)``::
 
-          * **sep**: Mask threshold. This is the inclusive upper limit on the mask value in order for
-            the corresponding pixel to be unmasked. For boolean arrays, False and True are interpreted
-            as 0 and 1, respectively. Thus, given a threshold of zero, `True` corresponds to masked and
+          * **sep**: Mask threshold. This is the inclusive upper limit on the
+            mask value in order for the corresponding pixel to be unmasked. For
+            boolean arrays, False and True are interpreted as 0 and 1, resp.
+            Thus, given a threshold of zero, `True` corresponds to masked and
             `False` corresponds to unmasked.
-
           * **photutils**: In photutils, sigma clipping is used (need check).
 
     filter_threshold : int, optional
         Name in photutils; `fthresh` in the oritinal sep. Default is 0.0 ::
 
         * **sep**: Filter threshold. Default is 0.0.
-
-        * **photutils**: The threshold value for used for selective median filtering of the
-          low-resolution 2D background map.  The median filter will be applied to only the background
-          meshes with values larger than `filter_threshold`.  Set to `None` to filter all meshes
-          (default).
+        * **photutils**: The threshold value for used for selective median
+          filtering of the low-resolution 2D background map. The median filter
+          will be applied to only the background meshes with values larger than
+          `filter_threshold`.  Set to `None` to filter all meshes (default).
 
     box_size : int or array_like (int)
         Name in photutils; `bh`, `bw` in sep. Default is ``(64, 64)``::
 
           * **sep**: Size of background boxes in pixels. Default is 64.
-
-          * **photutils**: The box size along each axis. If `box_size` is a scalar then a square box
-            of size `box_size` will be used. If `box_size` has two elements, they should be in
-            ``(ny, nx)`` order.  For best results, the box shape should be chosen such that the
-            `data` are covered by an integer number of boxes in both dimensions. When this is not the
-            case, see the `edge_method` keyword for more options.
+          * **photutils**: The box size along each axis. If `box_size` is a
+            scalar then a square box of size `box_size` will be used. If
+            `box_size` has two elements, they should be in ``(ny, nx)`` order.
+            For best results, the box shape should be chosen such that the
+            `data` are covered by an integer number of boxes in both
+            dimensions. When this is not the case, see the `edge_method`
+            keyword for more options.
 
     filter_size : int or array_like (int), optional
         Name in photutils; `bh`, `bw` in sep. Default is ``(64, 64)``.::
 
           * **sep**: Filter width and height in boxes. Default is 3.
-
-          * **photutils**: The window size of the 2D median filter to apply to the low-resolution
-            background map. If `filter_size` is a scalar then a square box of size `filter_size`
-            will be used. If `filter_size` has two elements, they should be in ``(ny, nx)`` order.
-            A filter size of ``1`` (or ``(1, 1)``) means no filtering.
+          * **photutils**: The window size of the 2D median filter to apply to
+            the low-resolution background map. If `filter_size` is a scalar
+            then a square box of size `filter_size` will be used. If
+            `filter_size` has two elements, they should be in ``(ny, nx)``
+            order. A filter size of ``1`` (or ``(1, 1)``) means no filtering.
 
     Returns
     -------
     bkg : sep.Background
-        Use `bkg.back()` and `bkg.rms()` to get the background and rms error. All other
-        methods/attributes include `bkg.subfrom()`, `bkg.globalback`, and `bkg.globalrms`.
+        Use `bkg.back()` and `bkg.rms()` to get the background and rms error.
+        All other methods/attributes include `bkg.subfrom()`, `bkg.globalback`,
+        and `bkg.globalrms`.
     """
     # asarrya is needed because sep gives Error for C-contiguous array.
     data = np.asarray(data)
@@ -158,16 +168,33 @@ def sep_back(data, mask=None, maskthresh=0.0, filter_threshold=0.0, box_size=(64
     return bkg
 
 
-def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var=None, pos_ref=None,
-                sort_by=None, bezel_x=[0, 0], bezel_y=[0, 0], gain=None, minarea=5,
-                filter_kernel=sep_default_kernel, filter_type='matched', deblend_nthresh=32,
-                deblend_cont=0.005, clean=True, clean_param=1.0):
+def sep_extract(
+        data,
+        thresh,
+        bkg=None,
+        mask=None,
+        maskthresh=0.0,
+        err=None,
+        var=None,
+        pos_ref=None,
+        sort_by=None,
+        bezel_x=[0, 0],
+        bezel_y=[0, 0],
+        gain=None,
+        minarea=5,
+        filter_kernel=sep_default_kernel,
+        filter_type='matched',
+        deblend_nthresh=32,
+        deblend_cont=0.005,
+        clean=True,
+        clean_param=1.0
+):
     """
     Notes
     -----
-    This includes `sep`'s `extract`. Equivalent processes in photutils may include
-    `detect_sources` and `source_properties`. Maybe we can use ``extract(data=data, err=err,
-    thresh=3)`` for a snr > 3 extraction.
+    This includes `sep`'s `extract`. Equivalent processes in photutils may
+    include `detect_sources` and `source_properties`. Maybe we can use
+    ``extract(data=data, err=err, thresh=3)`` for a snr > 3 extraction.
 
     Parameters
     ----------
@@ -175,70 +202,78 @@ def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var
         The 2D array from which to estimate the background.
 
     thresh : float, optional.
-        Only in sep. Threshold pixel value for detection. If an `err` or `var` array is **not**
-        given, this is interpreted as an absolute threshold. If `err` or `var` is given, this is
-        interpreted as a relative threshold: the absolute threshold at pixel (j, i) will be ``thresh *
-        err[j, i]`` or ``thresh * sqrt(var[j, i])``. Note: If you want to give pixel-wise threshold,
-        make the `err` with such threshold values and set ``thresh = 1``.
+        Only in sep. Threshold pixel value for detection. If an `err` or `var`
+        array is **not** given, this is interpreted as an absolute threshold.
+        If `err` or `var` is given, this is interpreted as a relative
+        threshold: the absolute threshold at pixel (j, i) will be ``thresh *
+        err[j, i]`` or ``thresh * sqrt(var[j, i])``. Note: If you want to give
+        pixel-wise threshold, make the `err` with such threshold values and set
+        ``thresh = 1``.
 
     bkg : sep.Background object or `None`
         The `sep.Background` object used to extract sky and sky rms.
 
     mask : `~numpy.ndarray`, optional
-        Mask array. `True` values, or numeric values greater than `maskthresh`, are considered
-        masked. Masking a pixel is equivalent to setting data to zero and noise (if present) to
-        infinity.
+        Mask array. `True` values, or numeric values greater than `maskthresh`,
+        are considered masked. Masking a pixel is equivalent to setting data to
+        zero and noise (if present) to infinity.
 
     maskthresh : float, optional
         Threshold for a pixel to be masked. Default is ``0.0``.
 
     err, var : float or `~numpy.ndarray`, optional
-        Error *or* variance (specify at most one). This can be used to specify a pixel-by-pixel
-        detection threshold; see `thresh`.
+        Error *or* variance (specify at most one). This can be used to specify
+        a pixel-by-pixel detection threshold; see `thresh`.
 
     pos_ref : `None`, list-like of two floats, optional.
-        If not `None`, it must be the (x, y) position of the reference point. The returned `obj` will
-        have ``'dist_ref'`` column which is the distance of the object's position (``sqrt((obj["x"] -
-        pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default (see
+        If not `None`, it must be the (x, y) position of the reference point.
+        The returned `obj` will have ``'dist_ref'`` column which is the
+        distance of the object's position (``sqrt((obj["x"] - pos_ref[0])**2 +
+        (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default (see
         `sort_by`).
 
     sort_by : str, optional.
-        The column name to sort the output. If `pos_ref` is not `None`, a new column is added to the
-        `sep` results, called ``"dist_ref"`` and `sort_by` is based on this column by default.
-        Otherwise, it should be a name of column in `sep` result.
+        The column name to sort the output. If `pos_ref` is not `None`, a new
+        column is added to the `sep` results, called ``"dist_ref"`` and
+        `sort_by` is based on this column by default. Otherwise, it should be a
+        name of column in `sep` result.
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
-        The bezel (border width) for x and y axes. If array-like, it should be ``(lower, upper)``.
-        Mathematically put, only objects with center ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx -
-        bezel_x[1] - 0.5)`` (similar for y) will be selected. If you want to keep some stars outside
-        the edges, put negative values (e.g., ``-5``).
+        The bezel (border width) for x and y axes. If array-like, it should be
+        ``(lower, upper)``. Mathematically put, only objects with center
+        ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx - bezel_x[1] - 0.5)``
+        (similar for y) will be selected. If you want to keep some stars
+        outside the edges, put negative values (e.g., ``-5``).
 
     gain : float, optional
-        Conversion factor between data array units and poisson counts. This does not affect detection;
-        it is used only in calculating Poisson noise contribution to uncertainty parameters such as
-        `errx2`. If not given, no Poisson noise will be added.
+        Conversion factor between data array units and poisson counts. This
+        does not affect detection; it is used only in calculating Poisson noise
+        contribution to uncertainty parameters such as `errx2`. If not given,
+        no Poisson noise will be added.
 
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
 
     filter_kernel : `~numpy.ndarray` or None, optional
-        Filter kernel used for on-the-fly filtering (used to enhance detection). Default is a 3x3
-        array: [[1,2,1], [2,4,2], [1,2,1]]. Set to `None` to skip convolution.
+        Filter kernel used for on-the-fly filtering (used to enhance
+        detection). Default is a 3x3 array: [[1,2,1], [2,4,2], [1,2,1]]. Set to
+        `None` to skip convolution.
 
     filter_type : {'matched', 'conv'}, optional
-        Filter treatment. This affects filtering behavior when a noise array is supplied. ``'matched'``
-        (default) accounts for pixel-to-pixel noise in the filter kernel. ``'conv'`` is simple
-        convolution of the data array, ignoring pixel-to-pixel noise across the kernel.  ``'matched'``
-        should yield better detection of faint sources in areas of rapidly varying noise (such as found
-        in coadded images made from semi-overlapping exposures).  The two options are equivalent when
-        noise is constant.
+        Filter treatment. This affects filtering behavior when a noise array is
+        supplied. ``'matched'`` (default) accounts for pixel-to-pixel noise in
+        the filter kernel. ``'conv'`` is simple convolution of the data array,
+        ignoring pixel-to-pixel noise across the kernel.  ``'matched'`` should
+        yield better detection of faint sources in areas of rapidly varying
+        noise (such as found in coadded images made from semi-overlapping
+        exposures).  The two options are equivalent when noise is constant.
 
     deblend_nthresh : int, optional
         Number of thresholds used for object deblending. Default is 32.
 
     deblend_cont : float, optional
-        Minimum contrast ratio used for object deblending. Default is 0.005. To entirely disable
-        deblending, set to 1.0.
+        Minimum contrast ratio used for object deblending. Default is 0.005. To
+        entirely disable deblending, set to 1.0.
 
     clean : bool, optional
         Perform cleaning? Default is True.
@@ -323,7 +358,9 @@ def sep_extract(data, thresh, bkg=None, mask=None, maskthresh=0.0, err=None, var
     if pos_ref is not None:
         pos_ref = np.array(pos_ref).flatten()
         if pos_ref.size != 2:
-            raise ValueError(f"pos_ref must have the size of two (now it is {pos_ref.size}).")
+            raise ValueError(
+                f"pos_ref must have the size of two (now it is {pos_ref.size})."
+            )
         dist_ref = np.sqrt((obj["x"] - pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)
         obj.insert(loc=1, column='dist_ref', value=dist_ref)
         sort_by = "dist_ref"
