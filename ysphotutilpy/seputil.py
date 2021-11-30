@@ -268,10 +268,10 @@ def sep_extract(
         Filter treatment. This affects filtering behavior when a noise array is
         supplied. ``'matched'`` (default) accounts for pixel-to-pixel noise in
         the filter kernel. ``'conv'`` is simple convolution of the data array,
-        ignoring pixel-to-pixel noise across the kernel.  ``'matched'`` should
+        ignoring pixel-to-pixel noise across the kernel. ``'matched'`` should
         yield better detection of faint sources in areas of rapidly varying
         noise (such as found in coadded images made from semi-overlapping
-        exposures).  The two options are equivalent when noise is constant.
+        exposures). The two options are equivalent when noise is constant.
 
     deblend_nthresh : int, optional
         Number of thresholds used for object deblending. Default is 32.
