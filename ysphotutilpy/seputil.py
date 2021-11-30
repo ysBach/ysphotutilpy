@@ -219,7 +219,12 @@ def sep_extract(
         zero and noise (if present) to infinity.
 
     maskthresh : float, optional
-        Threshold for a pixel to be masked. Default is ``0.0``.
+        Mask threshold. This is the inclusive upper limit on the mask value in
+        order for the corresponding pixel to be unmasked. For boolean arrays,
+        `False` and `True` are interpreted as 0 and 1, respectively. Thus,
+        given a threshold of zero, True corresponds to masked and `False`
+        corresponds to unmasked.
+        Default is ``0.0``.
 
     err, var : float or `~numpy.ndarray`, optional
         Error *or* variance (specify at most one). This can be used to specify
@@ -314,7 +319,7 @@ def sep_extract(
     data = np.asarray(data)
 
     if mask is not None:
-        mask = np.asarray(mask).astype(bool)
+        mask = np.asarray(mask).astype(float)
 
     if bkg is None:
         data_skysub = data
