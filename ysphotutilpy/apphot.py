@@ -29,7 +29,7 @@ def apphot_annulus(
         aparea_exact=False,
         npix_mask_ap=2,
         verbose=False,
-        pandas=False,
+        pandas=True,
         **kwargs
 ):
     ''' Do aperture photometry using annulus.
