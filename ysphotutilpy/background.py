@@ -27,18 +27,20 @@ def sky_fit(
         **kwargs
 ):
     """ Estimate the sky value from image and annulus.
+
     Parameters
     ----------
-    ccd: CCDData
+    ccd: `~astropy.nddata.CCDData`
         The image data to extract sky at given annulus.
+
     annulus: annulus object
         The annulus which will be used to estimate sky values.
-    # fill_value: float or nan
-    #     The pixels which are masked by ``ccd.mask`` will be replaced with
-    #     this value.
-    method : {"mean", "median", "mode"}, optional
-        The method to estimate sky value. You can give options to "mode" case; see ``mode_option``.
-        "mode" is analogous to Mode Estimator Background of photutils.
+
+    method : {"mean", "median", "mode"}, optional.
+        The method to estimate sky value. You can give options to "mode" case;
+        see `mode_option`. "mode" is analogous to Mode Estimator Background
+        of photutils.
+
     mode_option : {"sex", "IRAF", "MMM"}, optional.
         Three options::
 
@@ -47,23 +49,29 @@ def sky_fit(
           * MMM  == (med_factor, mean_factor) = (3, 2)
 
         where ``msky = (med_factor * med) - (mean_factor * mean)``.
+
     std_ddof : int, optional.
         The "delta-degrees of freedom" for sky standard deviation calculation.
-    kwargs : dict
+
+    kwargs : dict, optional.
         The keyword arguments for sigma-clipping.
 
     Returns
     -------
-    skytable: astropy.table.Table
+    skytable: `~astropy.table.Table`
         The table of the followings.
+
     msky : float
         The estimated sky value within the all_sky data, after sigma clipping.
+
     ssky : float
         The sample standard deviation of sky value within the all_sky data,
         after sigma clipping.
+
     nsky : int
         The number of pixels which were used for sky estimation after the
         sigma clipping.
+
     nrej : int
         The number of pixels which are rejected after sigma clipping.
     """
