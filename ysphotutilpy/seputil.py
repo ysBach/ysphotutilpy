@@ -69,6 +69,13 @@ sep_default_kernel = np.array([[1.0, 2.0, 1.0],
                                [1.0, 2.0, 1.0]], dtype=np.float32)
 
 
+def _sanitize_byteorder(data):
+    if data.dtype.byteorder == '>':
+        return data.byteswap().newbyteorder()
+    else:
+        return data
+
+
 def sep_back(
         data,
         mask=None,
@@ -140,8 +147,11 @@ def sep_back(
         All other methods/attributes include `bkg.subfrom()`, `bkg.globalback`,
         and `bkg.globalrms`.
     """
-    # asarrya is needed because sep gives Error for C-contiguous array.
-    data = np.asarray(data)
+    try:
+        data = _sanitize_byteorder(data)
+    except AttributeError:  # if data is in CCDData...
+        data = _sanitize_byteorder(data.data)
+
     if mask is not None:
         mask = np.asarray(mask).astype(bool)
 
@@ -165,6 +175,7 @@ def sep_back(
             bkg = sep.Background(data, **kw)
         except ValueError:  # e.g., int16 not supported
             bkg = sep.Background(data.astype('float32'), **kw)
+
     return bkg
 
 
@@ -315,8 +326,10 @@ def sep_extract(
     if err is not None and var is not None:
         raise ValueError("Upto one of `err` and `var` can be given.")
 
-    # asarrya is needed because sep gives Error for C-contiguous array.
-    data = np.asarray(data)
+    try:
+        data = _sanitize_byteorder(data)
+    except AttributeError:  # if data is in CCDData...
+        data = _sanitize_byteorder(data.data)
 
     if mask is not None:
         mask = np.asarray(mask).astype(float)
