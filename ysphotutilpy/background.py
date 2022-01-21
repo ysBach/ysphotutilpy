@@ -195,9 +195,6 @@ def annul2values(
         # sky_all = mask_im[sky_xy]
         # sky_values = sky_all[~np.isnan(sky_all)]
         # values.append(sky_values)
-        skys_1d = np.array(skys_i[~mask_i].ravel(), dtype=_arr.dtype)
-        values.append(skys_1d)
-    # plt.imshow(nanmask)
-    # plt.imshow(skys_i)
+        values.append(np.array(skys_i[~mask_i].ravel(), dtype=_arr.dtype))
 
     return values
