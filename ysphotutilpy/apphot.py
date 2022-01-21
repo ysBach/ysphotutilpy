@@ -186,16 +186,19 @@ def apphot_annulus(
     if aparea_exact:
         _ones = np.ones_like(_arr)
         _area = aperture_photometry(_ones, aperture, mask=_mask, **kwargs)
-        n_ap = []
-        for c in _area.colnames:
-            if c.startswith("aperture_sum"):
-                n_ap.append(_area[c][0])
-        n_ap = np.array(n_ap)
+        aparea = np.array([_area[c][0] for c in _area.colnames
+                           if c.startswith("aperture_sum")])
     else:
         try:
-            n_ap = np.array([ap.area for ap in aperture]) if n_apertures != 1 else [aperture.area]
+            if n_apertures != 1:
+                aparea = np.array([ap.area for ap in aperture])
+            else:
+                aparea = [aperture.area]
         except TypeError:  # prior to photutils 0.7
-            n_ap = np.array([ap.area() for ap in aperture]) if n_apertures != 1 else [aperture.area()]
+            if n_apertures != 1:
+                aparea = np.array([ap.area() for ap in aperture])
+            else:
+                aparea = [aperture.area()]
 
     _phot = aperture_photometry(_arr, aperture, mask=_mask, error=err, **kwargs)
     # If we use ``_ccd``, photutils deal with the unit, and the lines below
@@ -254,19 +257,19 @@ def apphot_annulus(
     else:
         phot = _phot
 
-    phot['aparea'] = n_ap
-    phot["source_sum"] = phot["aperture_sum"] - n_ap * phot["msky"]
+    phot['aparea'] = aparea
+    phot["source_sum"] = phot["aperture_sum"] - aparea * phot["msky"]
 
     # see, e.g., http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?radprof.hlp
     # Poisson + RDnoise (Poisson includes signal + sky + dark) :
     var_errmap = phot["aperture_sum_err"]**2
-    # Sum of n_ap Gaussians (kind of random walk):
-    var_skyrand = n_ap * phot["ssky"]**2
+    # Sum of aparea Gaussians (kind of random walk):
+    var_skyrand = aparea * phot["ssky"]**2
     # The CLT error (although not correct, let me denote it as "systematic"
     # error for simplicity) of the mean estimation is ssky/sqrt(nsky), and that
-    # is propagated for n_ap pixels, so we have std = n_ap*ssky/sqrt(nsky), so
+    # is propagated for aparea pixels, so we have std = aparea*ssky/sqrt(nsky), so
     # variance is:
-    var_sky = (n_ap * phot['ssky'])**2 / phot['nsky']
+    var_sky = (aparea * phot['ssky'])**2 / phot['nsky']
 
     phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_sky)
     snr = np.array(phot['source_sum'])/np.array(phot["source_sum_err"])
