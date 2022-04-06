@@ -79,7 +79,7 @@ def bezel_mask(
         yvals,
         nx,
         ny,
-        bezel=[0, 0],
+        bezel=(0, 0),
         bezel_x=None,
         bezel_y=None
 ):
