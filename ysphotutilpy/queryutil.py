@@ -9,12 +9,15 @@ from astropy.table import Table, vstack
 from astropy.wcs import WCS
 from astroquery.jplhorizons import Horizons
 from astroquery.vizier import Vizier
+from astroquery.mast import Catalogs
 from scipy.interpolate import UnivariateSpline
+from xarray import Coordinate
 
 from .util import bezel_mask
 
 __all__ = ["horizons_query",
            "HorizonsDiscreteEpochsQuery", "organize_ps1_and_isnear",
+           "MASTQuery",
            "PanSTARRS1", "group_stars", "get_xy", "xyinFOV",
            "panstarrs_query"]
 
@@ -466,9 +469,112 @@ def organize_ps1_and_isnear(
     return isnear
 
 
+class MASTQuery():
+    def __init__(self, catalog, table=None, data_release=None,
+                 ra=None, dec=None, frame="icrs", skycoord=None, radius=None,
+                 columns="*", sort_by=None, **filter_kw):
+        """ MAST Catalog Query (astroquery.mast.Catalogs)
+
+        Parameters
+        ----------
+        catalog : str
+            The name of the catalog. Examples: ``"Galex"``, ``"HSC"``,
+            ``"TIC"``, ``"Gaia"``, ``"Panstarrs"``.
+
+        table, data_release: str
+            The specification of table and data release. Example:
+            ``catalog="Panstarrs", table="mean", data_release="dr2"`` By
+            default, `data_release` is the most recent one, and `table` differs
+            for each catalog.
+
+        ra, dec, radius : float or `~astropy.Quantity`
+            The central RA, DEC and the cone search radius. If not
+            `~astropy.Quantity`, assuming it is in degrees unit.
+
+        skycoord: `~astropy.coordinates.SkyCoord`
+            The coordinate if the user wants higher freedom. `ra` and `dec`
+            will be ignored.
+
+        radius : float or `~astropy.Quantity`
+            The cone search radius. If not `~astropy.Quantity`, assuming it is
+            in degrees unit.
+
+        columns : list of str, '*', optional
+            The columns to be retrieved. ``"*"`` request all the columns.
+
+        sort_by : str, list of tuples, optional.
+            The column(s) to sort by. If a list of tuples, each tuple is
+            direction and column name (e.g., ``[('desc', 'ra')]``, ``[('asc',
+            'ra')]``).
+
+        **filter_kw : dict, optional
+            The column filters for astroquery.vizier.
+            Examples: ``nStackDetections=[("gte", 2)]``
+
+            ..note::
+                To filter the query, criteria per column name are accepted. The
+                AND operation is performed between all column name criteria,
+                and the OR operation is performed within column name criteria.
+                Per each column name parameter, criteria may consist of either
+                a value or a list. The list may consist of a mix of values and
+                tuples of criteria decorator (min, gte, gt, max, lte, lt, like,
+                contains) and value.
+
+            ..warning::
+                The criteria doesn't work sometimes -- better to query all and
+                filter afterwards..
+                https://github.com/astropy/astroquery/issues/2355
+        """
+        if skycoord is not None:
+            skycoord = skycoord.transform_to("icrs")
+            ra = skycoord.ra
+            dec = skycoord.dec
+
+        _params = dict(
+            ra=ra,
+            dec=dec,
+            radius=radius,
+        )
+
+        for k, v in _params.items():
+            if v is None:
+                continue
+            if isinstance(v, u.Quantity):  # MAST uses only degrees unit for RA/DEC/radius
+                _params[k] = v.to(u.deg).value
+
+        self.coordinates = "{} {}".format(_params["ra"], _params["dec"])  # MAST str format...
+        self.radius = _params["radius"]
+        self.catalog = catalog
+        self.table = table
+        self.data_release = data_release
+        self.sort_by = sort_by
+
+        if isinstance(columns, str):
+            if columns in ['*', '**']:
+                self.columns = [columns]
+            else:
+                raise ValueError("If columns is str, it must be one of ['*', '**']")
+        else:
+            self.columns = columns
+
+        self.filters = filter_kw
+
+    def query(self):
+        self.queried = Catalogs.query_criteria(
+            coordinates=self.coordinates,
+            radius=self.radius,
+            catalog=self.catalog,
+            table=self.table,
+            data_release=self.data_release,
+            columns=self.columns,
+            sort_by=self.sort_by,
+            **self.filters
+        )
+
+
 # TODO: Let it accept SkyCoord too
 class PanSTARRS1:
-    def __init__(self, ra, dec, radius=None, inner_radius=None,
+    def __init__(self, ra, dec, frame="icrs", radius=None, inner_radius=None,
                  width=None, height=None, columns=["**", "+_r"],
                  column_filters={}):
         """ Query PanSTARRS @ VizieR using astroquery.vizier
@@ -478,6 +584,10 @@ class PanSTARRS1:
         ra, dec, radius : float or `~astropy.Quantity`
             The central RA, DEC and the cone search radius. If not
             `~astropy.Quantity`, assuming it is in degrees unit.
+
+        frame : str
+            The frame for the coordinates.
+            Default: "icrs"
 
         inner_radius : cfloat or `~astropy.Quantity`
             When set in addition to `radius`, the queried region becomes
@@ -520,7 +630,8 @@ class PanSTARRS1:
             radius=radius,
             inner_radius=inner_radius,
             width=width,
-            height=height
+            height=height,
+            frame=frame
         )
 
         for k, v in _params.items():
@@ -536,6 +647,7 @@ class PanSTARRS1:
         self.inner_radius = _params["inner_radius"]
         self.width = _params["width"]
         self.height = _params["height"]
+        self.frame = _params["frame"]
 
         if isinstance(columns, str):
             if columns in ['*', '**']:
@@ -582,19 +694,9 @@ class PanSTARRS1:
             Whether to do the transformation including distortions (``'all'``)
             or only including only the core WCS transformation (``'wcs'``).
         '''
-        N_old = len(self.queried)
-        bezel = np.atleast_1d(bezel)
-
-        if bezel.shape == (1,):
-            bezel = np.tile(bezel, 2)
-        elif bezel.shape != (2,):
-            raise ValueError(f"bezel must have shape (1,) or (2,). Now {bezel.shape}")
-
         self.queried = xyinFOV(table=self.queried, header=header, wcs=wcs,
                                ra_key="RAJ2000", dec_key="DEJ2000",
                                bezel=bezel, origin=0, mode=mode)
-        N_new = len(self.queried)
-        mask_str(N_new, N_old, f"{bezel}-pixel bezel")
 
     def drop_for_diff_phot(self, del_flags=PS1_DR1_DEL_FLAG,
                            drop_by_Kron=True):
@@ -889,18 +991,25 @@ def xyinFOV(
         table,
         header=None,
         wcs=None,
+        shape=None,
         ra_key='ra',
         dec_key='dec',
+        unit=None,
         bezel=0,
         bezel_x=None,
         bezel_y=None,
         origin=0,
-        mode='all'
+        mode='all',
+        return_mask=False,
+        verbose=1
 ):
     ''' Convert RA/DEC to pixel with rejection at bezels
 
     Parameters
     ----------
+    table : astropy.table.Table or pandas.DataFrame
+        The queried result table.
+
     header : astropy.io.fits.Header, optional
         The header to extract WCS information. One and only one of `header` and
         `wcs` must be given.
@@ -909,11 +1018,16 @@ def xyinFOV(
         The WCS to convert the RA/DEC to XY. One and only one of `header` and
         `wcs` must be given.
 
-    table : astropy.table.Table or pandas.DataFrame
-        The queried result table.
+    shape : 2-element tuple, optional
+        The shape of the image (used to reject stars at bezels). If `header` is
+        given, it is ignored and ``NAXISi`` keywords will be used.
 
     ra_key, dec_key : str, optional
         The column names containing RA/DEC.
+
+    unit : `~astropy.Quantity`, optional
+        The unit of the RA/DEC. If not given, it will be inferred from the
+        table (only if astropy's QTable.)
 
     bezel : int, float, array-like, optional
         The bezel size. If array-like, it should be ``(lower, upper)``. If only
@@ -935,32 +1049,179 @@ def xyinFOV(
         Whether to do the transformation including distortions (``'all'``) or
         only including only the core WCS transformation (``'wcs'``).
     '''
-    if not (header is None) ^ (wcs is None):
-        raise ValueError("One and only one of header and wcs should be given.")
+    bezel = np.atleast_1d(bezel)
+    if bezel.shape == (1,):
+        bezel = np.tile(bezel, 2)
+    elif bezel.shape != (2,):
+        raise ValueError(f"bezel must have shape (1,) or (2,). Now {bezel.shape}")
 
     _tab = table.copy()
+    N_old = len(_tab)
     if isinstance(table, pd.DataFrame):
         _tab = Table.from_pandas(table)
+        # Better to unify as astropy Table, because of the unit in RA/DEC may
+        # be missing if converted to pandas..
     elif not isinstance(table, Table):
         raise TypeError("table must be either astropy Table or pandas DataFrame.")
 
     if wcs is None:
         wcs = WCS(header)
 
-    coo = SkyCoord(_tab[ra_key], _tab[dec_key])
+    if unit is None:
+        coo = SkyCoord(_tab[ra_key], _tab[dec_key])
+    else:
+        coo = SkyCoord(_tab[ra_key], _tab[dec_key], unit=unit)
+
     x, y = coo.to_pixel(wcs=wcs, origin=origin, mode=mode)
-
-    mask = bezel_mask(x, y, header['NAXIS2'], header['NAXIS1'],
-                      bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
-
-    x = x[~mask]
-    y = y[~mask]
-    _tab.remove_rows(mask)
-
     _tab["x"] = x
     _tab["y"] = y
 
+    if header is not None:
+        mask = bezel_mask(x, y, header['NAXIS2'], header['NAXIS1'],
+                          bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
+    elif shape is not None:
+        mask = bezel_mask(x, y, shape[1], shape[0],
+                          bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
+    else:  # If none of them is available, no way to reject stars at bezels.
+        if verbose >= 1:
+            print("No way to reject stars at bezels: provide `header` or `shape`.")
+        if return_mask:
+            return _tab, None
+        return _tab
+
+    _tab.remove_rows(mask)
+
+    N_new = len(_tab)
+    if verbose >= 1:
+        mask_str(N_new, N_old, f"{bezel}-pixel bezel")
+
+    if return_mask:
+        return _tab, mask
+
     return _tab
+
+
+def drop_for_diff_phot_ps(
+        table,
+        service="mast",
+        del_flags=PS1_DR1_DEL_FLAG,
+        drop_by_Kron=True
+):
+    ''' Drop objects which are not good for differential photometry.
+
+    Parameters
+    ----------
+    table : pandas.DataFrame
+        The queried table.
+
+    service : str
+        The service that provides the catalog. For PS1, MAST and Vizier have
+        different column names.
+
+    del_flags : list of int, None, optional
+        The flags to be used for dropping objects based on ``"objInfoFlag"`` of
+        Pan-STARRS1 query. These are the powers of 2 to identify the flag
+        (e.g., 2 means ``2**2`` or flag ``4``). See Note below for each
+        flag. Set it to `None` to keep all the objects based on
+        ``"objInfoFlag"``.
+
+    drop_by_Kron : bool, optional
+        If `True` (default), drop the galaxies based on the Kron magnitude
+        criterion suggested by PS1 (which works good only if i <~ 21):
+        https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
+
+    Note
+    ----
+    H15 means Hernitschek+ 2015ApJ...801...45H.
+        * FEW (1) : Used within relphot; skip star.
+        * POOR (2) : Used within relphot; skip star.
+        * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF
+        position measurement)
+        * HERN_QSO_P60 (8) : identified as likely QSO (H15), P_QSO >= 0.60
+        * HERN_QSO_P05 (16) : identified as possible QSO (H15), P_QSO >= 0.05
+        * HERN_RRL_P60 (32) : identified as likely RR Lyra (H15), P_RRLyra >=
+        0.60
+        * HERN_RRL_P05 (64) : identified as possible RR Lyra (H15), P_RRLyra
+        >= 0.05
+        * HERN_VARIABLE (128) : identified as a variable based on ChiSq (H15)
+        * TRANSIENT (256) : identified as a non-periodic (stationary)
+        transient
+        * HAS_SOLSYS_DET (512) : at least one detection identified with a
+        known solar-system object (asteroid or other).
+        * MOST_SOLSYS_DET (1024 (2^10)) : most detections identified with a
+        known solar-system object (asteroid or other).
+        * LARGE_PM (2048) : star with large proper motion
+        * RAW_AVE (4096) : simple weighted average position was used (no IRLS
+        fitting)
+        * FIT_AVE (8192) : average position was fitted
+        * FIT_PM (16384) : proper motion model was fitted
+        * FIT_PAR (32768) : parallax model was fitted
+        * USE_AVE (65536) : average position used (not PM or PAR)
+        * USE_PM (131072) : proper motion used (not AVE or PAR)
+        * USE_PAR (262144) : parallax used (not AVE or PM)
+        * NO_MEAN_ASTROM (524288) : mean astrometry could not be measured
+        * STACK_FOR_MEAN (1048576 (2^20)) : stack position used for mean
+        astrometry
+        * MEAN_FOR_STACK (2097152) : mean astrometry used for stack position
+        * BAD_PM (4194304) : failure to measure proper-motion model
+        * EXT (8388608) : extended in our data (eg, PS)
+        * EXT_ALT (16777216) : extended in external data (eg, 2MASS)
+        * GOOD (33554432) : good-quality measurement in our data (eg,PS)
+        * GOOD_ALT (67108864) : good-quality measurement in external data
+        (eg, 2MASS)
+        * GOOD_STACK (134217728) : good-quality object in the stack (>1 good
+        stack measurement)
+        * BEST_STACK (268435456) : the primary stack measurements are the
+        best measurements
+        * SUSPECT_STACK (536870912) : suspect object in the stack (no more
+        than 1 good measurement, 2 or more suspect or good stack
+        measurement)
+        * BAD_STACK (1073741824 (2^30)) : poor-quality stack object (no more
+        than 1 good or suspect measurement)
+
+    Among the ``"objInfoFlag"``, the following are better to be dropped because
+    they are surely not usable for differential photometry:
+
+        * 1, 2, 4, 8, 32, 128, 256, 512, 1024, 8388608, 16777216
+
+    or in binary position (``del_flags``),
+
+        * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
+
+    (plus maybe 2048(2^11) because centroiding may not work properly?)
+    '''
+    if service.lower() == "mast":
+        col_flag = "objInfoFlag"
+        # col_imag =
+    elif service.lower() == "vizier":
+        col_flag = "f_objID"
+        col_imag = "imag"
+        col_iKmag = "iKmag"
+
+    N_old = len(table)
+    if del_flags is not None:
+        idx2remove = []
+        for i, row in enumerate(table):
+            b_flag = list(f"{row[col_flag]:031b}")
+            for bin_pos in del_flags:
+                if b_flag[-bin_pos] == '1':
+                    idx2remove.append(i)
+        table.drop(idx2remove, inplace=True)
+
+        N_fobj = len(table)
+        mask_str(N_fobj, N_old, f"{col_flag} ({del_flags})")
+
+        N_old = N_fobj
+
+    if drop_by_Kron:
+        dmag = (table["imag"] - table["iKmag"])
+        mask = (dmag > 0.05)
+        table = table.loc[~mask]
+
+        N_Kron = len(table)
+        mask_str(N_Kron, N_old, "the Kron magnitude criterion")
+
+    return table
 
 
 """
