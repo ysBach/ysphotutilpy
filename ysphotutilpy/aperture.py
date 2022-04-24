@@ -1,14 +1,16 @@
-from typing import Type
 import numpy as np
 from astropy import units as u
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
                        EllipticalAperture, PixelAperture, RectangularAperture,
                        SkyAperture)
 from photutils.aperture import ApertureMask
-from photutils.aperture.attributes import (AngleOrPixelScalarQuantity,
-                                           AngleScalarQuantity, PixelPositions,
+from photutils.aperture.attributes import (AngleScalarQuantity, PixelPositions,
                                            PositiveScalar, Scalar,
                                            SkyCoordPositions)
+try:
+    from photutils.aperture.attributes import ScalarAngleOrPixel
+except ImportError:  # photutils ver < 1.4
+    from photutils.aperture.attributes import AngleOrPixelScalarQuantity as ScalarAngleOrPixel
 
 __all__ = ["cutout_from_ap", "ap_to_cutout_position",
            "circ_ap_an", "ellip_ap_an", "pill_ap_an",
@@ -868,9 +870,9 @@ class SkyPillBoxAperture(SkyAperture):
     """
     _shape_params = ('w', 'a', 'b', 'theta')
     positions = SkyCoordPositions('positions')
-    w = AngleOrPixelScalarQuantity('w')
-    a = AngleOrPixelScalarQuantity('a')
-    b = AngleOrPixelScalarQuantity('b')
+    w = ScalarAngleOrPixel('w')
+    a = ScalarAngleOrPixel('a')
+    b = ScalarAngleOrPixel('b')
     theta = AngleScalarQuantity('theta')
 
     def __init__(self, positions, w, a, b, theta=0.*u.deg):
@@ -912,10 +914,10 @@ class SkyPillBoxAperture(SkyAperture):
 class SkyPillBoxAnnulus(SkyAperture):
     _shape_params = ('w', 'a_in', 'a_out', 'b_out', 'theta')
     positions = SkyCoordPositions('positions')
-    w = AngleOrPixelScalarQuantity('w')
-    a_in = AngleOrPixelScalarQuantity('a_in')
-    a_out = AngleOrPixelScalarQuantity('a_out')
-    b_out = AngleOrPixelScalarQuantity('b_out')
+    w = ScalarAngleOrPixel('w')
+    a_in = ScalarAngleOrPixel('a_in')
+    a_out = ScalarAngleOrPixel('a_out')
+    b_out = ScalarAngleOrPixel('b_out')
     theta = AngleScalarQuantity('theta')
 
     def __init__(self, positions, w, a_in, a_out, b_out, theta=0.*u.deg):
