@@ -10,7 +10,7 @@ install_requires = ['numpy',
                     'astropy >= 2.0',
                     'ccdproc >= 1.3',
                     'matplotlib >= 2',
-                    'photutils >= 0.7',
+                    'photutils >= 1.4',
                     'astroquery >= 0.3.9']
 
 classifiers = ["Intended Audience :: Science/Research",
