@@ -1,16 +1,14 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
 from astropy import units as u
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
                        EllipticalAperture, PixelAperture, RectangularAperture,
                        SkyAperture)
 from photutils.aperture import ApertureMask
-from photutils.aperture.attributes import (AngleScalarQuantity, PixelPositions,
-                                           PositiveScalar, Scalar,
+from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
+                                           ScalarAngle, ScalarAngleOrPixel,
+                                           ScalarAngleOrValue,
                                            SkyCoordPositions)
-try:
-    from photutils.aperture.attributes import ScalarAngleOrPixel
-except ImportError:  # photutils ver < 1.4
-    from photutils.aperture.attributes import AngleOrPixelScalarQuantity as ScalarAngleOrPixel
 
 __all__ = ["cutout_from_ap", "ap_to_cutout_position",
            "circ_ap_an", "ellip_ap_an", "pill_ap_an",
@@ -407,15 +405,24 @@ def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
 """
 
 
-# Follow photutils convention (PEP8 - 72 & 79 chars per line)
+# Pill-Box aperture related str (base descriptions):
+_PBSTRS = dict(
+    w='trailed distance of the pillbox',
+    a='semimajor axis of ellipse part (parallel to the trail direction)',
+    b='semiminor axis of ellipse part (perpendiculuar to the trail direction)',
+    theta_pix=('The counterclockwise rotation angle as an angular Quantity or value in '
+               + 'radians from the positive x axis.'),
+    theta_sky='The position angle in angular units of the trail direction.'
+)
+
+
 class PillBoxMaskMixin:
     @property
     def _set_aperture_elements(self):
         """ Set internal aperture elements.
-        ``self._ap_rect``, ``self.ap_el_1``, ``self.ap_el_2`` and their
-        ``_in`` counterparts are always made by
-        ``np.atleast_2d(self.position)``, so their results are always in
-        the ``N x 2`` shape.
+        ``self._ap_rect``, ``self.ap_el_1``, ``self.ap_el_2`` and their ``_in``
+        counterparts are always made by ``np.atleast_2d(self.position)``, so
+        their results are always in the ``N x 2`` shape.
         """
         if hasattr(self, 'a'):
             w = self.w
@@ -440,39 +447,41 @@ class PillBoxMaskMixin:
 
         # aperture elements for aperture,
         # OUTER aperture elements for annulus:
-        self._ap_rect = RectangularAperture(positions=pos,
-                                            w=w, h=h, theta=theta)
-        self._ap_el_1 = EllipticalAperture(positions=pos - offsets,
-                                           a=a, b=b, theta=theta)
-        self._ap_el_2 = EllipticalAperture(positions=pos + offsets,
-                                           a=a, b=b, theta=theta)
+        self._ap_rect = RectangularAperture(positions=pos, w=w, h=h, theta=theta)
+        self._ap_el_1 = EllipticalAperture(positions=pos - offsets, a=a, b=b, theta=theta)
+        self._ap_el_2 = EllipticalAperture(positions=pos + offsets, a=a, b=b, theta=theta)
 
         if hasattr(self, 'a_in'):  # inner components of annulus
-            self._ap_rect_in = RectangularAperture(positions=pos,
-                                                   w=self.w,
-                                                   h=self.h_in,
-                                                   theta=self.theta)
-            self._ap_el_1_in = EllipticalAperture(positions=pos - offsets,
-                                                  a=self.a_in,
-                                                  b=self.b_in,
-                                                  theta=self.theta)
-            self._ap_el_2_in = EllipticalAperture(positions=pos + offsets,
-                                                  a=self.a_in,
-                                                  b=self.b_in,
-                                                  theta=self.theta)
+            self._ap_rect_in = RectangularAperture(
+                positions=pos,
+                w=self.w,
+                h=self.h_in,
+                theta=self.theta
+            )
+            self._ap_el_1_in = EllipticalAperture(
+                positions=pos - offsets,
+                a=self.a_in,
+                b=self.b_in,
+                theta=self.theta
+            )
+            self._ap_el_2_in = EllipticalAperture(
+                positions=pos + offsets,
+                a=self.a_in,
+                b=self.b_in,
+                theta=self.theta
+            )
 
     @staticmethod
     def _prepare_mask(bbox, ap_r, ap_1, ap_2, method, subpixels, min_mask=0):
         """ Make the pill box mask array.
         Note
         ----
-        To make an ndarray to represent the overlapping mask, the three
-        (a rectangular and two elliptical) apertures are generated, but
-        parallely shifted such that the bounding box has ``ixmin`` and
-        ``iymin`` both zero. Then proper mask is generated as an
-        ndarray. It is then used by ``PillBoxMaskMixin.to_mask`` to make
-        an ``ApertureMask`` object by combining this mask with the
-        original bounding box.
+        To make an ndarray to represent the overlapping mask, the three (a
+        rectangular and two elliptical) apertures are generated, but parallely
+        shifted such that the bounding box has ``ixmin`` and ``iymin`` both
+        zero. Then proper mask is generated as an ndarray. It is then used by
+        ``PillBoxMaskMixin.to_mask`` to make an ``ApertureMask`` object by
+        combining this mask with the original bounding box.
 
         Parameters
         ----------
@@ -483,19 +492,19 @@ class PillBoxMaskMixin:
             The rectangular aperture of a pill box.
 
         ap_1, ap_2 : `~photutils.EllipticalAperture`
-            The elliptical apertures of a pill box. The order of
-            left/right ellipses is not important for this method.
+            The elliptical apertures of a pill box. The order of left/right
+            ellipses is not important for this method.
 
         method : See `~photutils.PillBoxMaskMixin.to_mask`
 
         subpixels : See `~photutils.PillBoxMaskMixin.to_mask`
 
         min_mask : float, optional
-            The mask values smaller than this value is ignored (set to
-            0). This is required because the subtraction of elliptical
-            and rectangular masks give some negative values. One can set
-            it to be ``1/subpixels**2`` because ``RectangularAperture``
-            does not support ``method='exact'`` yet.
+            The mask values smaller than this value is ignored (set to 0). This
+            is required because the subtraction of elliptical and rectangular
+            masks give some negative values. One can set it to be
+            ``1/subpixels**2`` because ``RectangularAperture`` does not support
+            ``method='exact'`` yet.
 
         Returns
         -------
@@ -540,30 +549,29 @@ class PillBoxMaskMixin:
         Parameters
         ----------
         method : {'exact', 'center', 'subpixel'}, optional
-            The method used to determine the overlap of the aperture on
-            the pixel grid.  Not all options are available for all
-            aperture types.  Note that the more precise methods are
-            generally slower.  The following methods are available:
+            The method used to determine the overlap of the aperture on the
+            pixel grid.  Not all options are available for all aperture types.
+            Note that the more precise methods are generally slower.  The
+            following methods are available:
 
                 * ``'exact'`` (default):
-                  The the exact fractional overlap of the aperture and
-                  each pixel is calculated.  The returned mask will
-                  contain values between 0 and 1.
+                  The the exact fractional overlap of the aperture and each
+                  pixel is calculated.  The returned mask will contain values
+                  between 0 and 1.
 
                 * ``'center'``:
                   A pixel is considered to be entirely in or out of the
-                  aperture depending on whether its center is in or out
-                  of the aperture.  The returned mask will contain
-                  values only of 0 (out) and 1 (in).
+                  aperture depending on whether its center is in or out of the
+                  aperture.  The returned mask will contain values only of 0
+                  (out) and 1 (in).
 
                 * ``'subpixel'``:
-                  A pixel is divided into subpixels (see the
-                  ``subpixels`` keyword), each of which are considered
-                  to be entirely in or out of the aperture depending on
-                  whether its center is in or out of the aperture.  If
-                  ``subpixels=1``, this method is equivalent to
-                  ``'center'``.  The returned mask will contain values
-                  between 0 and 1.
+                  A pixel is divided into subpixels (see the `subpixels`
+                  keyword), each of which are considered to be entirely in or
+                  out of the aperture depending on whether its center is in or
+                  out of the aperture.  If ``subpixels=1``, this method is
+                  equivalent to ``'center'``.  The returned mask will contain
+                  values between 0 and 1.
 
         subpixels : int, optional
             For the ``'subpixel'`` method, resample pixels by this factor
@@ -573,9 +581,9 @@ class PillBoxMaskMixin:
         Returns
         -------
         mask : `~photutils.ApertureMask` or list of `~photutils.ApertureMask`
-            A mask for the aperture.  If the aperture is scalar then a
-            single `~photutils.ApertureMask` is returned, otherwise a
-            list of `~photutils.ApertureMask` is returned.
+            A mask for the aperture.  If the aperture is scalar then a single
+            `~photutils.ApertureMask` is returned, otherwise a list of
+            `~photutils.ApertureMask` is returned.
         """
         _, subpixels = self._translate_mask_mode(method, subpixels)
         min_mask = min(1.e-6, 1/(subpixels**2))
@@ -590,19 +598,26 @@ class PillBoxMaskMixin:
                                                          self._ap_rect,
                                                          self._ap_el_1,
                                                          self._ap_el_2)):
-            mask = self._prepare_mask(bbox, ap_r=ap_r, ap_1=ap_1, ap_2=ap_2,
-                                      method=method,
-                                      subpixels=subpixels,
-                                      min_mask=min_mask)
+            mask = self._prepare_mask(
+                bbox,
+                ap_r=ap_r,
+                ap_1=ap_1,
+                ap_2=ap_2,
+                method=method,
+                subpixels=subpixels,
+                min_mask=min_mask
+            )
 
             if is_annulus:
-                mask -= self._prepare_mask(bbox,
-                                           ap_r=self._ap_rect_in[i],
-                                           ap_1=self._ap_el_1_in[i],
-                                           ap_2=self._ap_el_2_in[i],
-                                           method=method,
-                                           subpixels=subpixels,
-                                           min_mask=min_mask)
+                mask -= self._prepare_mask(
+                    bbox,
+                    ap_r=self._ap_rect_in[i],
+                    ap_1=self._ap_el_1_in[i],
+                    ap_2=self._ap_el_2_in[i],
+                    method=method,
+                    subpixels=subpixels,
+                    min_mask=min_mask
+                )
 
             masks.append(ApertureMask(mask, bbox))
 
@@ -649,12 +664,12 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
     positions (see the ``positions`` input).
 
     """
-    _shape_params = ('w', 'a', 'b', 'theta')
-    positions = PixelPositions('positions')
-    w = PositiveScalar('w')
-    a = PositiveScalar('a')
-    b = PositiveScalar('b')
-    theta = Scalar('theta')
+    _params = ('positions', 'w', 'a', 'b', 'theta')
+    positions = PixelPositions('The center pixel position(s).')
+    w = PositiveScalar(f"The {_PBSTRS['w']} in pixels.")
+    a = PositiveScalar(f"The {_PBSTRS['a']} in pixels.")
+    b = PositiveScalar(f"The {_PBSTRS['b']} in pixels.")
+    theta = ScalarAngleOrValue(_PBSTRS["theta_pix"])
 
     def __init__(self, positions, w, a, b, theta=0.):
         self.positions = positions
@@ -699,23 +714,30 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         import matplotlib.patches as mpatches
 
         # xy_positions is already atleast_2d'ed.
-        xy_positions, patch_kwargs = self._define_patch_params(
-            origin=origin, indices=indices, **kwargs)
+        xy_positions, patch_kwargs = self._define_patch_params(origin=origin, **kwargs)
+        # There used to be `indices=indices` in this function, but it gives an
+        # error (AttributeError: 'PathPatch' object has no property 'indices').
+        # Without this, it works perfectly. I am not sure what happened...
+        # -2022-04-25 23:26:12 (KST: GMT+09:00) ysBach
 
         patches = []
         theta_deg = self.theta * 180. / np.pi
 
         for xy_position in xy_positions:
             # The ellipse on the "right" whan theta = 0
-            ellipse_1 = mpatches.Ellipse(xy_position + self.offset,
-                                         2.*self.a,
-                                         2.*self.b,
-                                         theta_deg)
+            ellipse_1 = mpatches.Ellipse(
+                xy_position + self.offset,
+                2.*self.a,
+                2.*self.b,
+                theta_deg
+            )
             # The ellipse on the "left" whan theta = 0
-            ellipse_2 = mpatches.Ellipse(xy_position - self.offset,
-                                         2.*self.a,
-                                         2.*self.b,
-                                         theta_deg)
+            ellipse_2 = mpatches.Ellipse(
+                xy_position - self.offset,
+                2.*self.a,
+                2.*self.b,
+                theta_deg
+            )
             p = self._pill_patches(ellipse_1, ellipse_2, **patch_kwargs)
 
             patches.append(p)
@@ -736,16 +758,15 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
             The world coordinate system (WCS) transformation to use.
 
         mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions
-            (``'all'``; default) or only including only the core WCS
-            transformation (``'wcs'``).
+            Whether to do the transformation including distortions (``'all'``;
+            default) or only including only the core WCS transformation
+            (``'wcs'``).
 
         Returns
         -------
         aperture : `SkyPillBoxAperture` object
             A `SkyPillBoxAperture` object.
         """
-
         sky_params = self._to_sky_params(wcs, mode=mode)
         return SkyPillBoxAperture(**sky_params)
 
@@ -753,13 +774,13 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
 class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
     """
     """
-    _shape_params = ('w', 'a_in', 'a_out', 'b_out', 'theta')
-    positions = PixelPositions('positions')
-    w = PositiveScalar('w')
-    a_in = PositiveScalar('a_in')
-    a_out = PositiveScalar('a_out')
-    b_out = PositiveScalar('b_out')
-    theta = Scalar('theta')
+    _params = ('positions', 'w', 'a_in', 'a_out', 'b_out', 'theta')
+    positions = PixelPositions('The center pixel position(s).')
+    w = PositiveScalar(f"The {_PBSTRS['w']} in pixels.")
+    a_in = PositiveScalar(f"The inner {_PBSTRS['a']} in pixels.")
+    a_out = PositiveScalar(f"The outer {_PBSTRS['a']} in pixels.")
+    b_out = PositiveScalar(f"The outer {_PBSTRS['b']} in pixels.")
+    theta = ScalarAngleOrValue(_PBSTRS['theta_pix'])
 
     def __init__(self, positions, w, a_in, a_out, b_out, theta=0.):
         self.positions = positions
@@ -801,36 +822,48 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
 
     def _to_patch(self, origin=(0, 0), indices=None, **kwargs):
         import matplotlib.patches as mpatches
+
         # xy_positions is already atleast_2d'ed.
-        xy_positions, patch_kwargs = self._define_patch_params(
-            origin=origin, indices=indices, **kwargs)
+        xy_positions, patch_kwargs = self._define_patch_params(origin=origin, **kwargs)
+        # There used to be `indices=indices` in this function, but it gives an
+        # error (AttributeError: 'PathPatch' object has no property 'indices').
+        # Without this, it works perfectly. I am not sure what happened...
+        # -2022-04-25 23:26:12 (KST: GMT+09:00) ysBach
 
         patches = []
         theta_deg = self.theta * 180. / np.pi
 
         for xy_position in xy_positions:
             # The ellipse on the "right" whan theta = 0
-            ellipse_1_in = mpatches.Ellipse(xy_position + self.offset,
-                                            2.*self.a_in,
-                                            2.*self.b_in,
-                                            theta_deg)
+            ellipse_1_in = mpatches.Ellipse(
+                xy_position + self.offset,
+                2.*self.a_in,
+                2.*self.b_in,
+                theta_deg
+            )
             # The ellipse on the "left" whan theta = 0
-            ellipse_2_in = mpatches.Ellipse(xy_position - self.offset,
-                                            2.*self.a_in,
-                                            2.*self.b_in,
-                                            theta_deg)
+            ellipse_2_in = mpatches.Ellipse(
+                xy_position - self.offset,
+                2.*self.a_in,
+                2.*self.b_in,
+                theta_deg
+            )
             p_inner = self._pill_patches(ellipse_1_in, ellipse_2_in)
 
             # The ellipse on the "right" whan theta = 0
-            ellipse_1_out = mpatches.Ellipse(xy_position + self.offset,
-                                             2.*self.a_out,
-                                             2.*self.b_out,
-                                             theta_deg)
+            ellipse_1_out = mpatches.Ellipse(
+                xy_position + self.offset,
+                2.*self.a_out,
+                2.*self.b_out,
+                theta_deg
+            )
             # The ellipse on the "left" whan theta = 0
-            ellipse_2_out = mpatches.Ellipse(xy_position - self.offset,
-                                             2.*self.a_out,
-                                             2.*self.b_out,
-                                             theta_deg)
+            ellipse_2_out = mpatches.Ellipse(
+                xy_position - self.offset,
+                2.*self.a_out,
+                2.*self.b_out,
+                theta_deg
+            )
             p_outer = self._pill_patches(ellipse_1_out, ellipse_2_out)
 
             p = self._make_annulus_path(p_inner, p_outer)
@@ -852,9 +885,9 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
             The world coordinate system (WCS) transformation to use.
 
         mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions
-            (``'all'``; default) or only including only the core WCS
-            transformation (``'wcs'``).
+            Whether to do the transformation including distortions (``'all'``;
+            default) or only including only the core WCS transformation
+            (``'wcs'``).
 
         Returns
         -------
@@ -868,18 +901,16 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
 class SkyPillBoxAperture(SkyAperture):
     """ A pill box aperture defined in sky coordinates.
     """
-    _shape_params = ('w', 'a', 'b', 'theta')
-    positions = SkyCoordPositions('positions')
-    w = ScalarAngleOrPixel('w')
-    a = ScalarAngleOrPixel('a')
-    b = ScalarAngleOrPixel('b')
-    theta = AngleScalarQuantity('theta')
+    _params = ('positions', 'w', 'a', 'b', 'theta')
+    positions = SkyCoordPositions("'The center position(s) in sky coordinates.'")
+    w = ScalarAngleOrPixel(f"The {_PBSTRS['w']} in angular units.")
+    a = ScalarAngleOrPixel(f"The {_PBSTRS['a']} in angular units.")
+    b = ScalarAngleOrPixel(f"The {_PBSTRS['b']} in angular units.")
+    theta = ScalarAngle(_PBSTRS['theta_sky'])
 
     def __init__(self, positions, w, a, b, theta=0.*u.deg):
-        if not (w.unit.physical_type == a.unit.physical_type
-                == b.unit.physical_type):
-            raise ValueError("'w', 'a', and 'b' should all be angles or "
-                             "in pixels")
+        if not (w.unit.physical_type == a.unit.physical_type == b.unit.physical_type):
+            raise ValueError("'w', 'a', and 'b' should all be angles or in pixels")
 
         self.positions = positions
         self.w = w
@@ -889,8 +920,8 @@ class SkyPillBoxAperture(SkyAperture):
 
     def to_pixel(self, wcs, mode='all'):
         """
-        Convert the aperture to an `PillBoxAperture` object defined
-        in pixel coordinates.
+        Convert the aperture to an `PillBoxAperture` object defined in pixel
+        coordinates.
 
         Parameters
         ----------
@@ -898,9 +929,9 @@ class SkyPillBoxAperture(SkyAperture):
             The world coordinate system (WCS) transformation to use.
 
         mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions
-            (``'all'``; default) or only including only the core WCS
-            transformation (``'wcs'``).
+            Whether to do the transformation including distortions (``'all'``;
+            default) or only including only the core WCS transformation
+            (``'wcs'``).
 
         Returns
         -------
@@ -914,15 +945,17 @@ class SkyPillBoxAperture(SkyAperture):
 class SkyPillBoxAnnulus(SkyAperture):
     _shape_params = ('w', 'a_in', 'a_out', 'b_out', 'theta')
     positions = SkyCoordPositions('positions')
-    w = ScalarAngleOrPixel('w')
-    a_in = ScalarAngleOrPixel('a_in')
-    a_out = ScalarAngleOrPixel('a_out')
-    b_out = ScalarAngleOrPixel('b_out')
-    theta = AngleScalarQuantity('theta')
+    w = ScalarAngleOrPixel(f"The {_PBSTRS['w']} in angular units.")
+    a_in = ScalarAngleOrPixel(f"The inner {_PBSTRS['a']} in angular units.")
+    b_in = ScalarAngleOrPixel(f"The inner {_PBSTRS['b']} in angular units.")
+    b_out = ScalarAngleOrPixel(f"The outer {_PBSTRS['b']} in angular units.")
+    theta = ScalarAngle(_PBSTRS['theta_sky'])
 
     def __init__(self, positions, w, a_in, a_out, b_out, theta=0.*u.deg):
-        if not (w.unit.physical_type == a_in.unit.physical_type
-                == a_out.unit.physical_type == b_out.unit.physical_type):
+        if not (w.unit.physical_type
+                == a_in.unit.physical_type
+                == a_out.unit.physical_type
+                == b_out.unit.physical_type):
             raise ValueError("'w', 'a_in', 'a_out', and 'b_out' should all be "
                              "angles or in pixels")
 
