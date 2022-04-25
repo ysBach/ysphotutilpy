@@ -631,7 +631,6 @@ class PanSTARRS1:
             inner_radius=inner_radius,
             width=width,
             height=height,
-            frame=frame
         )
 
         for k, v in _params.items():
@@ -647,7 +646,7 @@ class PanSTARRS1:
         self.inner_radius = _params["inner_radius"]
         self.width = _params["width"]
         self.height = _params["height"]
-        self.frame = _params["frame"]
+        self.frame = frame
 
         if isinstance(columns, str):
             if columns in ['*', '**']:
