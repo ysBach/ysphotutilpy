@@ -661,7 +661,7 @@ class PanSTARRS1:
     def query(self):
         vquery = Vizier(columns=self.columns, column_filters=self.column_filters, row_limit=-1)
 
-        field = SkyCoord(ra=self.ra, dec=self.dec, frame='icrs')
+        field = SkyCoord(ra=self.ra, dec=self.dec, frame=self.frame)
 
         self.queried = vquery.query_region(field,
                                            radius=self.radius,
