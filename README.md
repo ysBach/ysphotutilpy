@@ -16,7 +16,7 @@ $ pip install -e .
 
 For (1): I always include a proper "snapshot" of this package to the publication, so any backward incompatible changes won't affect the reproducibility of the published results.
 
-For (2): Each semester, students will try to download/install the newest versions of other packages (especially ``ccdproc``, ``photutils``, etc). But these packages sometimes introduce "breaking changes" to their source codes, and thus, I have to modify my codes to "work" with the newest versions of such packages (``photutils`` is notorious in that sense). Thus, backward incompatible changes are inevitable for me.
+For (2): Each semester, students will try to download/install the newest versions of other packages (especially ``ccdproc``, ``photutils``, etc). But these packages sometimes introduce "breaking changes" to their source codes, and thus, I have to modify my codes to "work" with the newest versions of such packages (e.g., as of 2022 Apr, I suddenly had to drop ``photutils <= 1.3`` due to its internal API change in version 1.4). Thus, backward incompatible changes are inevitable for me.
 
 My justification is that this is not an "officially recommended" package by, e.g., STScI, but rather it is just a personal toolbox. Even for the name of this package, I tried not to occupy "photutilpy", which must be used by better-organized ones (such as photutils).
 
