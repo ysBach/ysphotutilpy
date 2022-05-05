@@ -986,6 +986,7 @@ def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
     return xy
 
 
+# TODO: let it use something like `header_or_wcs`
 def xyinFOV(
         table,
         header=None,
@@ -1000,6 +1001,8 @@ def xyinFOV(
         origin=0,
         mode='all',
         return_mask=False,
+        col_x="x",
+        col_y="y",
         verbose=1
 ):
     ''' Convert RA/DEC to pixel with rejection at bezels
@@ -1018,8 +1021,8 @@ def xyinFOV(
         `wcs` must be given.
 
     shape : 2-element tuple, optional
-        The shape of the image (used to reject stars at bezels). If `header` is
-        given, it is ignored and ``NAXISi`` keywords will be used.
+        The shape of the image (used to reject stars at bezels). If `header` or
+        `wcs` is given, it is ignored and ``NAXISi`` keywords will be used.
 
     ra_key, dec_key : str, optional
         The column names containing RA/DEC.
@@ -1047,6 +1050,9 @@ def xyinFOV(
     mode: 'all' or 'wcs', optional
         Whether to do the transformation including distortions (``'all'``) or
         only including only the core WCS transformation (``'wcs'``).
+
+    col_x, col_y : str, optional
+        The column names for x and y positions.
     '''
     bezel = np.atleast_1d(bezel)
     if bezel.shape == (1,):
@@ -1072,22 +1078,24 @@ def xyinFOV(
         coo = SkyCoord(_tab[ra_key], _tab[dec_key], unit=unit)
 
     x, y = coo.to_pixel(wcs=wcs, origin=origin, mode=mode)
-    _tab["x"] = x
-    _tab["y"] = y
+    _tab[col_x] = x
+    _tab[col_y] = y
 
-    if header is not None:
-        mask = bezel_mask(x, y, header['NAXIS2'], header['NAXIS1'],
-                          bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
-    elif shape is not None:
-        mask = bezel_mask(x, y, shape[1], shape[0],
-                          bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
-    else:  # If none of them is available, no way to reject stars at bezels.
-        if verbose >= 1:
-            print("No way to reject stars at bezels: provide `header` or `shape`.")
-        if return_mask:
-            return _tab, None
-        return _tab
+    if shape is not None:
+        nx, ny = shape[1], shape[0]
+    else:
+        if header is not None:
+            nx, ny = header["NAXIS2"], header["NAXIS1"]
+        elif wcs is not None:
+            nx, ny = wcs._naxis
+        else:  # If none of them is available, no way to reject stars at bezels.
+            if verbose >= 1:
+                print("No way to reject stars at bezels: provide `header` or `shape`.")
+            if return_mask:
+                return _tab, None
+            return _tab
 
+    mask = bezel_mask(x, y, nx, ny, bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
     _tab.remove_rows(mask)
 
     N_new = len(_tab)
