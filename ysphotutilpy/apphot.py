@@ -26,6 +26,7 @@ def apphot_annulus(
         error=None,
         mask=None,
         sky_keys={},
+        sky_min=None,
         aparea_exact=False,
         npix_mask_ap=2,
         verbose=False,
@@ -58,10 +59,15 @@ def apphot_annulus(
         kwargs of `sky_fit`. Mostly one doesn't change the default setting,
         so I intentionally made it to be dict rather than usual kwargs, etc.
 
+    sky_min : float
+        The minimum value of the sky to be used for sky subtraction.
+
     aparea_exact : bool, optional
         Whether to calculate the aperture area (``'aparea'`` column) exactly or
-        not. If `True`, the area outside the image **and** those specified by
-        mask are not counted. Default is `False`.
+        not. If `True`, the area outside the image (aperture goes outside the
+        CCD) **and** those specified by mask (aperture contains masked pixels)
+        are not counted in the ``aparea`` value. It is important to prevent
+        *oversubtracting* sky values. Default is `False`.
 
     npix_mask_ap : int, optional.
         If the number of masked pixels in the aperture is equal to or greater
@@ -184,6 +190,9 @@ def apphot_annulus(
             err = np.zeros_like(_arr)
 
     if aparea_exact:
+        # What this does is basically identical to area_overlap:
+        # https://photutils.readthedocs.io/en/stable/api/photutils.aperture.PixelAperture.html#photutils.aperture.PixelAperture.area_overlap
+        # I am just afraid of testing the code.
         _ones = np.ones_like(_arr)
         _area = aperture_photometry(_ones, aperture, mask=_mask, **kwargs)
         aparea = np.array([_area[c][0] for c in _area.colnames
@@ -257,6 +266,9 @@ def apphot_annulus(
     else:
         phot = _phot
 
+    if sky_min is not None:
+        phot["msky"][phot["msky"] < sky_min] = sky_min
+
     phot['aparea'] = aparea
     phot["source_sum"] = phot["aperture_sum"] - aparea * phot["msky"]
 
@@ -269,9 +281,11 @@ def apphot_annulus(
     # error for simplicity) of the mean estimation is ssky/sqrt(nsky), and that
     # is propagated for aparea pixels, so we have std = aparea*ssky/sqrt(nsky), so
     # variance is:
-    var_sky = (aparea * phot['ssky'])**2 / phot['nsky']
+    # var_sky = (aparea * phot['ssky'])**2 / phot['nsky']
+    # This error term is used in IRAF APPHOT, but this is wrong and thus
+    # ignored here.
 
-    phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand + var_sky)
+    phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand)
     snr = np.array(phot['source_sum'])/np.array(phot["source_sum_err"])
     phot["mag"] = -2.5*np.log10(phot['source_sum']/t_exposure)
     phot["merr"] = 2.5/np.log(10)*(1/snr)
