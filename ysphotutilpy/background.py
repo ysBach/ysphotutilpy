@@ -93,36 +93,22 @@ def sky_fit(
         if nrej > nsky:  # rejected > survived
             warn('More than half of the pixels rejected.')
 
-        if method == 'mean':
-            skydict["msky"] = np.mean(sky_clip)
-
-        elif method == 'median':
-            skydict["msky"] = np.median(sky_clip)
-
-        elif method == 'mode':
+        if method.lower() == 'mode':
             mean = np.mean(sky_clip)
             med = np.median(sky_clip)
-
-            if mode_option == 'IRAF':
-                if (mean < med):
-                    msky = mean
-                else:
-                    msky = 3 * med - 2 * mean
-                skydict["msky"] = msky
-
-            elif mode_option == 'MMM':
-                msky = 3 * med - 2 * mean
-                skydict["msky"] = msky
-
-            elif mode_option == 'sex':
-                if (mean - med) / std > 0.3:
-                    msky = med
-                else:
-                    msky = (2.5 * med) - (1.5 * mean)
-                skydict["msky"] = msky
-
+            if mode_option.lower() == 'sex':
+                skydict["msky"] = med if (mean - med)/std > 0.3 else (2.5*med) - (1.5*mean)
+            elif mode_option.lower() == 'iraf':
+                skydict["msky"] = mean if (mean < med) else 3*med - 2*mean
+            elif mode_option.lower() == 'mmm':
+                skydict["msky"] = 3*med - 2*mean
             else:
                 raise ValueError('mode_option not understood')
+        elif method.lower() == 'mean':
+            skydict["msky"] = np.mean(sky_clip)
+        elif method.lower() == 'median':
+            skydict["msky"] = np.median(sky_clip)
+
 
         skydict['ssky'] = std
         skydict['nsky'] = nsky
