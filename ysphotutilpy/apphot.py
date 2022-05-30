@@ -25,7 +25,7 @@ def apphot_annulus(
         exposure_key="EXPTIME",
         error=None,
         mask=None,
-        sky_keys={},
+        sky_keys=None,
         sky_min=None,
         aparea_exact=False,
         npix_mask_ap=2,
@@ -56,8 +56,10 @@ def apphot_annulus(
         error map to be propagated to magnitued error.
 
     sky_keys : dict
-        kwargs of `sky_fit`. Mostly one doesn't change the default setting,
-        so I intentionally made it to be dict rather than usual kwargs, etc.
+        args/kwargs of `sky_fit`. If `None`(default), 3-sigma 5-iters clipping
+        with ``ddof=1`` is performed, and then the modal sky value is estimated
+        by SExtractor estimator (mode = 2.5median - 1.5mean). To use different
+        parameters, give those kwargs to `sky_keys` as dict.
 
     sky_min : float
         The minimum value of the sky to be used for sky subtraction.
@@ -231,7 +233,11 @@ def apphot_annulus(
             bads.append(bad)
 
     if annulus is not None:
-        skys = sky_fit(_arr, annulus, mask=_mask, **sky_keys)
+        if sky_keys is None:
+            skys = sky_fit(_arr, annulus, mask=_mask, method='mode',
+                           mode_option='sex', sigma=3, maxiters=5, std_ddof=1)
+        else:
+            skys = sky_fit(_arr, annulus, mask=_mask, **sky_keys)
         for c in skys.colnames:
             _phot[c] = [skys[c][0]]
     else:
