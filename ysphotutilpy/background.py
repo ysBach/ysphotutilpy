@@ -85,8 +85,8 @@ def sky_fit(
         skydict = {}
         sky_clip = sigma_clip(sky, masked=False, stdfunc=_sstd, **kwargs)
         std = np.std(sky_clip, ddof=std_ddof)
-        nsky = sky.size
-        nrej = nsky - sky_clip.size
+        nrej = sky.size - sky_clip.size
+        nsky = sky.size - nrej
         if nrej < 0:
             raise ValueError('nrej < 0: check the code')
 
