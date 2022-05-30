@@ -158,14 +158,11 @@ def annul2values(
         The list of pixel values. Length is the same as the number of annuli in
         ``annulus``.
     '''
-    values = []
-
     if isinstance(ccd, CCDData):
         _ccd = ccd.copy()
         _arr = _ccd.data
         _mask = _ccd.mask
-
-    else:  # ndarray
+    else:  # ndarrayk
         _arr = np.array(ccd)
         _mask = None
 
@@ -182,19 +179,21 @@ def annul2values(
     except AttributeError:
         pass
 
-    for i, an_mask in enumerate(an_masks):
-        # result identical to an.data itself, but just for safety...
-        in_an = (an_mask.data == 1).astype(float)  # float for NaN below
-        # replace to NaN for in_an=0, because sometimes pixel itself is 0...
-        in_an[in_an == 0] = np.nan
-        skys_i = an_mask.multiply(_arr, fill_value=np.nan) * in_an
-        ccdmask_i = an_mask.multiply(_mask, fill_value=False)
-        mask_i = (np.isnan(skys_i) + ccdmask_i).astype(bool)
-        # skys_i = an.multiply(_arr, fill_value=np.nan)
-        # sky_xy = np.nonzero(an.data)
-        # sky_all = mask_im[sky_xy]
-        # sky_values = sky_all[~np.isnan(sky_all)]
-        # values.append(sky_values)
-        values.append(np.array(skys_i[~mask_i].ravel(), dtype=_arr.dtype))
+    # FIXME: use the new an_mask.get_values() introduced in 2021 Feb
+    # values = []
+    # for i, an_mask in enumerate(an_masks):
+    #     # result identical to an.data itself, but just for safety...
+    #     in_an = (an_mask.data == 1).astype(float)  # float for NaN below
+    #     # replace to NaN for in_an=0, because sometimes pixel itself is 0...
+    #     in_an[in_an == 0] = np.nan
+    #     skys_i = an_mask.multiply(_arr, fill_value=np.nan) * in_an
+    #     ccdmask_i = an_mask.multiply(_mask, fill_value=False)
+    #     mask_i = (np.isnan(skys_i) + ccdmask_i).astype(bool)
+    #     # skys_i = an.multiply(_arr, fill_value=np.nan)
+    #     # sky_xy = np.nonzero(an.data)
+    #     # sky_all = mask_im[sky_xy]
+    #     # sky_values = sky_all[~np.isnan(sky_all)]
+    #     # values.append(sky_values)
+    #     values.append(np.array(skys_i[~mask_i].ravel(), dtype=_arr.dtype))
 
-    return values
+    return [am.get_values(_arr, _mask) for am in an_masks]
