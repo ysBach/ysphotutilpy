@@ -11,6 +11,7 @@ sep is about 100 times faster in background estimation than photutils from many
 tests (see sep/bench.py of the sep repo):
 
 ```
+# MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
 $ python bench.py
 test image shape: (1024, 1024)
 test image dtype: float32
@@ -30,6 +31,55 @@ photutils version: 0.7.1
 | circles  r= 5  exact    |    3.89 us/aper |   45.76 us/aper |  11.76 |
 | ellipses r= 5  subpix=5 |    3.89 us/aper |   75.29 us/aper |  19.37 |
 | ellipses r= 5  exact    |   10.88 us/aper |   63.71 us/aper |   5.85 |
+```
+
+photutils 1.4 and sep 1.2.0:
+```
+# MBP 14" [2021, macOS 12.2.1, M1Pro(6P+2E/G16c/N16c/32G)]
+# -- ANACONDA INTEL
+test image shape: (1024, 1024)
+test image dtype: float32
+measure background:  10.18 ms
+subtract background:   2.10 ms
+background array:   3.80 ms
+rms array:   2.81 ms
+extract:  65.67 ms  [1167 objects]
+
+sep version:       1.2.0
+photutils version: 1.4.1.dev19+g3e7460c3
+
+| test                    | sep             | photutils       | ratio  |
+|-------------------------|-----------------|-----------------|--------|
+| 1024^2 image background |         8.60 ms |        38.81 ms |   4.51 |
+| circles  r= 5  subpix=5 |    1.94 us/aper |   40.75 us/aper |  21.01 |
+| circles  r= 5  exact    |    2.24 us/aper |   31.40 us/aper |  14.01 |
+| ellipses r= 5  subpix=5 |    2.41 us/aper |   34.44 us/aper |  14.31 |
+| ellipses r= 5  exact    |    5.42 us/aper |   45.10 us/aper |   8.33 |
+```
+
+```
+# MBP 14" [2021, macOS 12.2.1, M1Pro(6P+2E/G16c/N16c/32G)]
+# -- MINIFORGE ARM64 (default numpy installation)
+# Miniforge with ``conda install numpy "blas=*=*accelerate*"`` had almost identical timings
+# (+- 10%) whith this.
+test image shape: (1024, 1024)
+test image dtype: float32
+measure background:   7.28 ms
+subtract background:   3.48 ms
+background array:   4.22 ms
+rms array:   3.70 ms
+extract:  32.39 ms  [1167 objects]
+
+sep version:       1.2.0
+photutils version: 1.4.1.dev19+g3e7460c3
+
+| test                    | sep             | photutils       | ratio  |
+|-------------------------|-----------------|-----------------|--------|
+| 1024^2 image background |         7.20 ms |        36.58 ms |   5.08 |
+| circles  r= 5  subpix=5 |    1.19 us/aper |   21.41 us/aper |  18.05 |
+| circles  r= 5  exact    |    1.55 us/aper |   18.39 us/aper |  11.88 |
+| ellipses r= 5  subpix=5 |    1.60 us/aper |   21.48 us/aper |  13.45 |
+| ellipses r= 5  exact    |    3.90 us/aper |   29.29 us/aper |   7.51 |
 ```
 
 Maybe more benchmark for extraction is needed (photutils's detect_sources,
@@ -193,6 +243,7 @@ def sep_extract(
         bezel_y=[0, 0],
         gain=None,
         minarea=5,
+        maxarea=None,
         filter_kernel=sep_default_kernel,
         filter_type='matched',
         deblend_nthresh=32,
@@ -221,7 +272,7 @@ def sep_extract(
         pixel-wise threshold, make the `err` with such threshold values and set
         ``thresh = 1``.
 
-    bkg : sep.Background object or `None`
+    bkg : sep.Background object, numeric, ndarray or `None`
         The `sep.Background` object used to extract sky and sky rms.
 
     mask : `~numpy.ndarray`, optional
@@ -264,11 +315,15 @@ def sep_extract(
     gain : float, optional
         Conversion factor between data array units and poisson counts. This
         does not affect detection; it is used only in calculating Poisson noise
-        contribution to uncertainty parameters such as `errx2`. If not given,
+        contribution to uncertainty param(eters such as `errx2`. If not given,
         no Poisson noise will be added.
 
     minarea : int, optional
         Minimum number of pixels required for an object. Default is 5.
+
+    maxarea : int, optional
+        Maximum number of pixels required for an object. It is useful to reject
+        any artifact (too low threshold) or extended source. Default is `None`.
 
     filter_kernel : `~numpy.ndarray` or None, optional
         Filter kernel used for on-the-fly filtering (used to enhance
@@ -337,6 +392,9 @@ def sep_extract(
     if bkg is None:
         data_skysub = data
         # No need to further update `var` or `err`.
+    elif isinstance(bkg, (int, float, np.ndarray)):
+        data_skysub = data - bkg
+        # No need to further update `var` or `err`.
     else:
         data_skysub = data - bkg.back()
         if var is not None:  # Then err is None (see above)
@@ -366,11 +424,15 @@ def sep_extract(
 
     ny, nx = data.shape
     mask = bezel_mask(obj['x'], obj['y'], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
+    if maxarea is not None:
+        mask = mask & (obj["npix"] <= maxarea)
     obj = obj[~mask]
 
+    # use 1-indexing for the ``segm_label``
     obj = obj.reset_index()
     obj = obj.rename(columns={'index': 'segm_label'})
     obj['segm_label'] += 1
+    # log the original input threshold
     obj.insert(loc=1, column='thresh_raw', value=thresh)
 
     if pos_ref is not None:
