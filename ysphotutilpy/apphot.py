@@ -239,7 +239,7 @@ def apphot_annulus(
         else:
             skys = sky_fit(_arr, annulus, mask=_mask, **sky_keys)
         for c in skys.colnames:
-            _phot[c] = [skys[c][0]]
+            _phot[c] = skys[c]
     else:
         _phot['msky'] = 0
         _phot['nsky'] = 1
