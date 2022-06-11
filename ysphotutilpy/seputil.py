@@ -169,7 +169,7 @@ def sep_back(
           `filter_threshold`.  Set to `None` to filter all meshes (default).
 
     box_size : int or array_like (int)
-        Name in photutils; `bh`, `bw` in sep. Default is ``(64, 64)``::
+        Name in photutils; `bh`, `bw` order in sep. Default is ``(64, 64)``::
 
           * **sep**: Size of background boxes in pixels. Default is 64.
           * **photutils**: The box size along each axis. If `box_size` is a
@@ -181,7 +181,7 @@ def sep_back(
             keyword for more options.
 
     filter_size : int or array_like (int), optional
-        Name in photutils; `bh`, `bw` in sep. Default is ``(64, 64)``.::
+        Name in photutils; `fh`, `fw` order in sep. Default is ``(3, 3)``.::
 
           * **sep**: Filter width and height in boxes. Default is 3.
           * **photutils**: The window size of the 2D median filter to apply to
