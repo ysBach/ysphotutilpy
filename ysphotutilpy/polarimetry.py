@@ -17,6 +17,98 @@ __all__ = ['calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol
            'LinPolOE4', 'proper_pol']
 
 
+def calc_stokes(
+        o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
+        do_000=0, do_450=0, do_225=0, do_675=0,
+        de_000=0, de_450=0, de_225=0, de_675=0,
+        p_eff=1, dp_eff=0,
+        rot_q=0, rot_u=0, q_off=0, u_off=0, dq_off=0, du_off=0,
+        pa_off=0, dpa_off=0, pa_obs=0, pa_ccw=True,
+        use_pct=False,
+        use_deg=False,
+        eminuso=True,
+):
+    """A one-line calculator of Stokes' parameters in 4-set linear polarimetry.
+
+    Parameters
+    ----------
+    o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675 : float, ndarray
+        The o-ray or e-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
+    do_000, do_450, do_225, do_675, de_000, de_450, de_225, de_675 : float, ndarray, optional.
+        The o-ray or e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
+    p_eff, dp_eff : float, optional.
+        The polarimetric efficiency and its error.
+    rot_q, rot_u : float, ndarray, optional.
+        The instrumental rotation angle of the polarimetric efficiency.
+    q_off, dq_off, u_off, du_off : float, optional.
+        The offset of the q, u values (due to the polarization of the
+        instrument) and corresponding erorrs.
+     pa_off, dpa_off : float, optional.
+        The offset of the optic's position angle (due to the instrument) and
+        corresponding error.
+    pa_obs : float, ndarray, optional.
+        The position angle of the optics from the observation (usually in the
+        FITS header information).
+    pa_ccw : bool, optional.
+        Whether the position angles (`pa_off` and `pa_obs`) are measured in
+        counter-clockwise direction in the projected plane seen by the observer
+        (i.e., the qraw-uraw (x: q_raw, y: u_raw) plane). If it is `True`,
+        ``offset = pa_off - pa_obs`` will be used. Otherwise, ``offset =
+        -(pa_off - pa_obs)`` will be used.
+        Default: `True`.
+    use_pct, use_deg : bool, optional.
+        Whether to return percentage/degrees or natural unit. If `True`,
+        `p_eff`, `dp_eff`, `q_off`, `u_off`, `dq_off`, `du_off` must be in
+        percentage and `rot_q`, `rot_u`, `pa_off`, `dpa_off`, `pa_obs` must be
+        in degrees.
+    eminuso : bool, optional.
+        Whether the q or u values are calculated in the way that "e-ray minus
+        o-ray" convention. (See Notes)
+        Default: `True`.
+
+    Returns
+    -------
+    pol, thp, dpol, dthp : float, ndarray
+        The polarization degree, polarization vector angle (angle from the
+        North to East, CCW, of the strongest E-field vector) and error. The
+        unit can be natural (if `use_pct` or `use_deg` is/are `False`) or
+        percentage/degree (if `use_pct` or `use_deg` is/are `True`).
+
+    Notes
+    -----
+    Why not o-ray minus e-ray, but e-ray minus o-ray is the default? For
+    example, ``q = (I_e-I_o) / (I_e+I_o)`` if `eminuso` is `True`, where
+    ``I_e`` and ``I_o`` are the e- and o-ray of 0 degree HWP observation,
+    respectively. This is one of the widely used convention in observational
+    polarimetry in solar system studies. In the real calculation, ``I_e =
+    sqrt(e_000*o_045)`` and ``I_o = sqrt(o_000*e_045)`` are used to cancel out
+    the effect of "systematic error by flat fielding". The opposite is the
+    usual convention in physical sciences ("o-ray minus e-ray" convention).
+    They differ by this way (opposite sign in the q and u values, i.e.,
+    "polarization angle" convention is 90-degree offset) because the
+    observers/experimenters are interested in the polarization angle with
+    respect to the scattering plane normal vector, while the theoreticians are
+    simply interested in the polarization angle with respect to the scattering
+    plane.
+
+    """
+    qu_dqu_raw = calc_qu_4set(o_000=o_000, o_450=o_450, o_225=o_225, o_675=o_675,
+                              e_000=e_000, e_450=e_450, e_225=e_225, e_675=e_675,
+                              do_000=do_000, do_450=do_450, do_225=do_225, do_675=do_675,
+                              de_000=de_000, de_450=de_450, de_225=de_225, de_675=de_675,
+                              out_pct=use_pct, eminuso=eminuso)
+    qu_dqu_eff = correct_eff(*qu_dqu_raw, p_eff=p_eff, dp_eff=dp_eff,
+                             in_pct=use_pct, out_pct=use_pct)
+    qu_dqu_off = correct_off(*qu_dqu_eff, rot_q=rot_q, rot_u=rot_u,
+                             q_off=q_off, u_off=u_off, dq_off=dq_off, du_off=du_off,
+                             in_pct=use_pct, in_deg=use_deg, out_pct=use_pct)
+    qu_dqu_pa = correct_pa(*qu_dqu_off, pa_off=pa_off, dpa_off=dpa_off, pa_obs=pa_obs,
+                           pa_ccw=pa_ccw, in_pct=use_pct, in_deg=use_deg, out_pct=use_pct)
+    pu_dpu = calc_pol(*qu_dqu_pa, in_pct=use_pct, out_pct=use_pct, out_deg=use_deg)
+
+    return pu_dpu
+
+
 def calc_qu_4set(
         o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
         do_000=0, do_450=0, do_225=0, do_675=0,
