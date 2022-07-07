@@ -130,9 +130,9 @@ def annul2values(
 
     Parameters
     ----------
-    ccd: CCDData
+    ccd : CCDData, ndarray
         The image which the annuli in ``annulus`` are to be applied.
-    annulus: ~photutils aperture object
+    annulus : `~photutils.Aperture` object
         The annuli to be used to extract the pixel values.
     # fill_value: float or nan
     #     The pixels which are masked by ``ccd.mask`` will be replaced with
