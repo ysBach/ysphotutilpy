@@ -34,6 +34,7 @@ def calc_qu_4set(
         The o-ray or e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
     out_pct : bool, optional.
         If `True`, the output will be in percentage.
+        Default: `False`.
     eminuso : bool, optional.
         Whether the q or u values are calculated in the way that "e-ray minus
         o-ray" convention. (See Notes)
@@ -94,10 +95,14 @@ def correct_eff(
         The q, u values from the polarimetry.
     dq, du : float, ndarray, optional.
         The q, u errors from the polarimetry.
+    p_eff, dp_eff : float, optional.
+        The polarimetric efficiency and its error.
     in_pct : bool, optional.
         If True, the input will be in percentage.
+        Default: `False`.
     out_pct : bool, optional.
         If True, the output will be in percentage.
+        Default: `False`.
 
     Returns
     -------
@@ -144,10 +149,13 @@ def correct_off(
         instrument) and corresponding erorrs.
     in_pct : bool, optional.
         If True, the input will be in percentage.
+        Default: `False`.
     in_deg : bool, optional.
         If True, the input will be in degree.
+        Default: `False`.
     out_pct : bool, optional.
         If True, the output will be in percentage.
+        Default: `False`.
 
     Returns
     -------
@@ -215,12 +223,16 @@ def correct_pa(
         (i.e., the qraw-uraw (x: q_raw, y: u_raw) plane). If it is `True`,
         ``offset = pa_off - pa_obs`` will be used. Otherwise, ``offset =
         -(pa_off - pa_obs)`` will be used.
+        Default: `True`.
     in_pct : bool, optional.
         If True, the input will be in percentage.
+        Default: `False`.
     in_deg : bool, optional.
         If True, the input will be in degree.
+        Default: `False`.
     out_pct : bool, optional.
         If True, the output will be in percentage.
+        Default: `False`.
 
     Returns
     -------
@@ -265,10 +277,13 @@ def calc_pol(
         The q, u errors from the polarimetry.
     in_pct : bool, optional.
         If True, the input will be in percentage.
+        Default: `False`.
     out_pct : bool, optional.
         If True, the output will be in percentage.
+        Default: `False`.
     out_deg : bool, optional.
         If True, the output will be in degree.
+        Default: `False`.
 
     Returns
     -------
@@ -318,8 +333,10 @@ def calc_pol_r(
         orbital element of the solar system body is very uncertain.
     in_pct, in_deg : bool, optional.
         If True, the input will be in percentage/degree.
+        Default: `False`.
     out_pct, out_deg : bool, optional.
         If True, the output will be in percentage/degree.
+        Default: `False`.
 
     Returns
     -------
