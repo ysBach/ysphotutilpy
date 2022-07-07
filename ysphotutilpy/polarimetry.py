@@ -28,19 +28,15 @@ def calc_qu_4set(
 
     Parameters
     ----------
-    o_000, o_450, o_225, o_675 : float, ndarray
-        The o-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
-    e_000, e_450, e_225, e_675 : float, ndarray
-        The e-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
-    do_000, do_450, do_225, do_675 : float, ndarray, optional.
-        The o-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
-    de_000, de_450, de_225, de_675 : float, ndarray, optional.
-        The e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
+    o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675 : float, ndarray
+        The o-ray or e-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
+    do_000, do_450, do_225, do_675, de_000, de_450, de_225, de_675 : float, ndarray, optional.
+        The o-ray or e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
     out_pct : bool, optional.
-        If True, the output will be in percentage.
+        If `True`, the output will be in percentage.
     eminuso : bool, optional.
         Whether the q or u values are calculated in the way that "e-ray minus
-        o-ray" convention. (See note)
+        o-ray" convention. (See Notes)
         Default: `True`.
 
     Notes
@@ -185,10 +181,7 @@ def correct_off(
 
 
 def correct_pa(
-        q,
-        u,
-        dq=0,
-        du=0,
+        q, u, dq=0, du=0,
         pa_off=0,
         dpa_off=0,
         pa_obs=0,
@@ -239,7 +232,8 @@ def correct_pa(
     '''
     q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
     pa_off, dpa_off, pa_obs = convert_deg(
-        pa_off, dpa_off, pa_obs, already=in_deg, convert2unit=False)
+        pa_off, dpa_off, pa_obs, already=in_deg, convert2unit=False
+    )
 
     sign = 1 if pa_ccw else -1
     offset = sign*(pa_off - pa_obs)
@@ -257,10 +251,7 @@ def correct_pa(
 
 
 def calc_pol(
-        q,
-        u,
-        dq=0,
-        du=0,
+        q, u, dq=0, du=0,
         in_pct=False,
         out_pct=False,
         out_deg=False
@@ -299,11 +290,10 @@ def calc_pol(
 
 
 def calc_pol_r(
-        pol,
-        thp,
-        suntargetpa=0,
+        pol, thp,
         dpol=0,
         dthp=0,
+        suntargetpa=0,
         dsuntargetpa=0,
         in_pct=False,
         in_deg=False,
@@ -318,11 +308,11 @@ def calc_pol_r(
     pol, thp : float, ndarray
         The polarization degree and polarization vector angle (angle from the
         North to East, CCW, of the strongest E-field vector).
+    dpol, dthp : float, ndarray, optional.
+        The errors of the polarization degree and polarization vector angle.
     suntargetpa : float, optional.
         The position angle of the sun-target vector (projected to the sky
         plane) from the observer's position.
-    dpol, dthp : float, ndarray, optional.
-        The errors of the polarization degree and polarization vector angle.
     dsuntargetpa : float, optional.
         The error of `suntargetpa` (see above). This is normally 0, unless the
         orbital element of the solar system body is very uncertain.

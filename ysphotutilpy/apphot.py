@@ -106,8 +106,8 @@ def apphot_annulus(
         additional_mask : mask-like, None
             The mask to be propagated.
 
-        Note
-        ----
+        Notes
+        -----
         The original ``ccd.mask`` is not modified. To do so,
         >>> ccd.mask = propagate_ccdmask(ccd, additional_mask=mask2)
         '''

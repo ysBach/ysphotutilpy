@@ -183,8 +183,8 @@ def horizons_query(
         `interpolate`).
 
 
-    Note
-    ----
+    Notes
+    -----
     It uses ``scipy.interpolate.UnivariateSpline``.
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.UnivariateSpline.html
     """
@@ -620,8 +620,8 @@ class PanSTARRS1:
         queried : astropy.table object
             The queried result.
 
-        Note
-        ----
+        Notes
+        -----
         All columns: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=II/349
         """
         _params = dict(
@@ -705,7 +705,7 @@ class PanSTARRS1:
         del_flags : list of int, None, optional
             The flags to be used for dropping objects based on ``"f_objID"`` of
             Pan-STARRS1 query. These are the powers of 2 to identify the flag
-            (e.g., 2 means ``2**2`` or flag ``4``). See Note below for each
+            (e.g., 2 means ``2**2`` or flag ``4``). See Notes below for each
             flag. Set it to `None` to keep all the objects based on
             ``"f_objID"``.
 
@@ -714,8 +714,8 @@ class PanSTARRS1:
             criterion suggested by PS1 (which works good only if i <~ 21):
             https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
 
-        Note
-        ----
+        Notes
+        -----
         H15 means Hernitschek+ 2015ApJ...801...45H.
           * FEW (1) : Used within relphot; skip star.
           * POOR (2) : Used within relphot; skip star.
@@ -848,8 +848,9 @@ class PanSTARRS1:
 
     def check_nearby(self, minsep, maxmag=None, filter_names=["r"]):
         ''' Checkes whether there is any nearby object.
-        Note
-        ----
+
+        Notes
+        -----
         It checks the ``"_r"`` column of the ``PanSTARRS1`` queried result.
         Therefore, the query center should be the position where you want to
         check for any nearby object.
@@ -1128,7 +1129,7 @@ def drop_for_diff_phot_ps(
     del_flags : list of int, None, optional
         The flags to be used for dropping objects based on ``"objInfoFlag"`` of
         Pan-STARRS1 query. These are the powers of 2 to identify the flag
-        (e.g., 2 means ``2**2`` or flag ``4``). See Note below for each
+        (e.g., 2 means ``2**2`` or flag ``4``). See Notes below for each
         flag. Set it to `None` to keep all the objects based on
         ``"objInfoFlag"``.
 
@@ -1137,8 +1138,8 @@ def drop_for_diff_phot_ps(
         criterion suggested by PS1 (which works good only if i <~ 21):
         https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
 
-    Note
-    ----
+    Notes
+    -----
     H15 means Hernitschek+ 2015ApJ...801...45H.
         * FEW (1) : Used within relphot; skip star.
         * POOR (2) : Used within relphot; skip star.

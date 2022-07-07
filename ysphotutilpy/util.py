@@ -336,8 +336,9 @@ def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **
 
 def fit_Gaussian2D(data, model_init, correct=True, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
     """ Identical to fit_astropy_model but for Gaussian2D correct.
-    Note
-    ----
+
+    Notes
+    -----
     photutils.centroids.GaussianConst2D is also usable.
     """
     fitted, fitter = fit_astropy_model(data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs)
