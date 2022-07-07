@@ -18,22 +18,9 @@ __all__ = ['calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol
 
 
 def calc_qu_4set(
-        o_000,
-        o_450,
-        o_225,
-        o_675,
-        e_000,
-        e_450,
-        e_225,
-        e_675,
-        do_000=0,
-        do_450=0,
-        do_225=0,
-        do_675=0,
-        de_000=0,
-        de_450=0,
-        de_225=0,
-        de_675=0,
+        o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
+        do_000=0, do_450=0, do_225=0, do_675=0,
+        de_000=0, de_450=0, de_225=0, de_675=0,
         out_pct=False,
         eminuso=True
 ):
@@ -53,11 +40,25 @@ def calc_qu_4set(
         If True, the output will be in percentage.
     eminuso : bool, optional.
         Whether the q or u values are calculated in the way that "e-ray minus
-        o-ray" convention. For example, ``q = (I_e - I_o)/(I_e + I_o)`` if
-        `eminuso` is `True`, where ``I_e`` and ``I_o`` are the e- and o-ray of
-        0 degree HWP observation, respectively. This is one of the widely used
-        convention in observational polarimetry in the field of asteroidal
-        studies. The opposite is the usual convention in theoretical physics.
+        o-ray" convention. (See note)
+        Default: `True`.
+
+    Notes
+    -----
+    Why not o-ray minus e-ray, but e-ray minus o-ray is the default? For
+    example, ``q = (I_e-I_o) / (I_e+I_o)`` if `eminuso` is `True`, where
+    ``I_e`` and ``I_o`` are the e- and o-ray of 0 degree HWP observation,
+    respectively. This is one of the widely used convention in observational
+    polarimetry in solar system studies. In the real calculation, ``I_e =
+    sqrt(e_000*o_045)`` and ``I_o = sqrt(o_000*e_045)`` are used to cancel out
+    the effect of "systematic error by flat fielding". The opposite is the
+    usual convention in physical sciences ("o-ray minus e-ray" convention).
+    They differ by this way (opposite sign in the q and u values, i.e.,
+    "polarization angle" convention is 90-degree offset) because the
+    observers/experimenters are interested in the polarization angle with
+    respect to the scattering plane normal vector, while the theoreticians are
+    simply interested in the polarization angle with respect to the scattering
+    plane.
 
     Returns
     -------
@@ -83,10 +84,7 @@ def calc_qu_4set(
 
 # TODO: make calc_qu_3set, which uses 0, 60, 120 degree data.
 def correct_eff(
-        q,
-        u,
-        dq=0,
-        du=0,
+        q, u, dq=0, du=0,
         p_eff=1,
         dp_eff=0,
         in_pct=False,
@@ -127,16 +125,10 @@ def correct_eff(
 
 
 def correct_off(
-        q,
-        u,
-        dq=0,
-        du=0,
-        rot_q=0,
-        rot_u=0,
-        q_off=0,
-        dq_off=0,
-        u_off=0,
-        du_off=0,
+        q, u, dq=0, du=0,
+        rot_q=0, rot_u=0,
+        q_off=0, u_off=0,
+        dq_off=0, du_off=0,
         in_pct=False,
         in_deg=False,
         out_pct=False
@@ -206,8 +198,9 @@ def correct_pa(
         out_pct=False
 ):
     '''Convert the q, u values from image coordinate to the celestial one.
-    Note
-    ----
+
+    Notes
+    -----
     Assumed: optic's position angle (PA or INST-PA-like value) is assumed to
     have zero error.
 
