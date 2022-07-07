@@ -239,6 +239,7 @@ def sep_extract(
         var=None,
         pos_ref=None,
         sort_by=None,
+        sort_ascending=True,
         bezel_x=[0, 0],
         bezel_y=[0, 0],
         gain=None,
@@ -304,6 +305,10 @@ def sep_extract(
         column is added to the `sep` results, called ``"dist_ref"`` and
         `sort_by` is based on this column by default. Otherwise, it should be a
         name of column in `sep` result.
+
+    sort_ascending : bool, optional.
+        Sort ascending vs. descending. Specify list for multiple sort orders.
+        If this is a list of bools, must match the length of the `sort_by`.
 
     bezel_x, bezel_y : int, float, 2-array-like, optional
         The bezel (border width) for x and y axes. If array-like, it should be
@@ -446,7 +451,7 @@ def sep_extract(
         sort_by = "dist_ref"
 
     if sort_by is not None:
-        obj = obj.sort_values(sort_by).reset_index(drop=True)
+        obj = obj.sort_values(sort_by, ascending=sort_ascending).reset_index(drop=True)
 
     # Set segm value to 0 (False) if removed by bezel.
     if len(obj) < n_original:
