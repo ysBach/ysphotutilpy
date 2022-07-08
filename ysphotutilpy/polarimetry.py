@@ -13,8 +13,8 @@ Primitive naming:
 import numpy as np
 from .util import err_prop, convert_pct, convert_deg
 
-__all__ = ['calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol', 'calc_pol_r',
-           'LinPolOE4', 'proper_pol']
+__all__ = ["calc_stokes", "calc_pol_r"
+           'calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol']
 
 
 def calc_stokes(
@@ -90,6 +90,10 @@ def calc_stokes(
     respect to the scattering plane normal vector, while the theoreticians are
     simply interested in the polarization angle with respect to the scattering
     plane.
+
+    Examples
+    --------
+    >>> calc_stokes(1, 1, 1, 1, 2, 1, 1, 2,)
 
     """
     qu_dqu_raw = calc_qu_4set(o_000=o_000, o_450=o_450, o_225=o_225, o_675=o_675,
