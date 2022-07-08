@@ -474,8 +474,8 @@ class PillBoxMaskMixin:
     @staticmethod
     def _prepare_mask(bbox, ap_r, ap_1, ap_2, method, subpixels, min_mask=0):
         """ Make the pill box mask array.
-        Note
-        ----
+        Notes
+        -----
         To make an ndarray to represent the overlapping mask, the three (a
         rectangular and two elliptical) apertures are generated, but parallely
         shifted such that the bounding box has ``ixmin`` and ``iymin`` both
