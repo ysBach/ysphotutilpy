@@ -13,7 +13,7 @@ Primitive naming:
 import numpy as np
 from .util import err_prop, convert_pct, convert_deg
 
-__all__ = ["calc_stokes", "calc_pol_r"
+__all__ = ["calc_stokes", "calc_pol_r",
            'calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol']
 
 
