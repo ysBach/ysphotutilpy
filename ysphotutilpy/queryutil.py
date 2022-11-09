@@ -353,7 +353,7 @@ def organize_ps1_and_isnear(
         ps1,
         header=None,
         bezel=0,
-        nearby_obj_minsep=0*u.deg,
+        nearby_obj_minsep=None,
         group_crit_separation=0,
         select_filter_kw={},
         del_flags=PS1_DR1_DEL_FLAG,
@@ -444,7 +444,10 @@ def organize_ps1_and_isnear(
     # remove columns that are of no interest
     ps1.select_filters(**select_filter_kw)
 
-    ps1.queried["_r"] = ps1.queried["_r"].to(u.arcsec)
+    try:
+        ps1.queried["_r"] = ps1.queried["_r"].to(u.arcsec)
+    except u.UnitConversionError: # assuming deg
+        ps1.queried["_r"] = ps1.queried["_r"]*3600
     ps1.queried["_r"].format = "%.3f"
 
     if calc_JC:
@@ -865,6 +868,9 @@ class PanSTARRS1:
             this magnitude (Mean PSF magnitude) will be accepted even though it
             is nearby the search center.
         '''
+        if minsep is None:
+            return False
+
         if isinstance(minsep, (float, int)):
             warn("minsep is not Quantity. Assuming degree unit.")
             minsep = minsep * u.deg
@@ -879,7 +885,10 @@ class PanSTARRS1:
         if maxmag is not None:
             for filt in filter_names:
                 chktab = chktab[chktab[filt] <= maxmag]
-        minsep = minsep.to(chktab["_r"].unit).value
+        try:
+            minsep = minsep.to(chktab["_r"].unit).value
+        except u.UnitConversionError:  # assume degrees
+            minsep = minsep.to(u.deg).value
         isnear = (np.array(chktab["_r"]).min() <= minsep)
         return isnear
 

@@ -36,6 +36,122 @@ def _scaling_shift(pos_old, pos_new_naive, max_shift_step=None, verbose=False):
     return dx, dy, shift
 
 
+def _centroiding_iteration(
+        ccd, position_xy,
+        centroider=centroid_com,
+        cbox_size=5.,
+        csigma=3.,
+        max_shift_step=None,
+        ssky=0,
+        verbose=False
+):
+    ''' Find the intensity-weighted centroid of the image iteratively
+
+    Returns
+    -------
+    ccd : `~astropy.nddata.CCDData`
+        The full CCD image.
+
+    position_xy : float
+        The centroided location in the original image coordinate in image
+        XY.
+
+    cbox_size : float or int, optional
+        The size of the box to find the centroid. Recommended to use 2.5 to 4.0
+        times the seeing FWHM. Minimally about 5 pixel is recommended. If
+        extended source (e.g., comet), recommend larger cbox.
+        See:
+        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars
+
+    csigma : float or int, optional
+        The parameter to use in sigma-clipping. Using pixels only above 3-simga
+        level for centroiding is recommended. See Ma+2009, Optics Express, 17,
+        8525.
+
+    ssky : float, optional
+        The sample standard deviation of the sky or background. It will be used
+        instead of `sky_annulus` if `sky_annulus` is `None`. The pixels above
+        the local minima (of the array of size `cbox_size`) plus
+        ``csigma*ssky`` will be used for centroid, following the default of
+        IRAF's ``noao.digiphot.apphot``:
+        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars.hlp
+
+    sky_annulus : `~photutils.Aperture` annulus object
+        The annulus to estimate the sky. All `_shape_params` of the object will
+        be kept, while positions will be updated according to the new
+        centroids. The initial input, therefore, does not need to have the
+        position information (automatically initialized by `position_xy`). If
+        `None` (default), the constant `ssky` value will be used instead.
+
+    sky_kw : dict, optional.
+        The keyword arguments of `.backgroud.sky_fit`.
+
+    tol_shift : float
+        The absolute tolerance for the shift. If the shift in centroid after
+        iteration is smaller than this, iteration stops.
+
+    max_shift: float
+        The maximum acceptable shift. If shift is larger than this, raises
+        warning.
+
+    max_shift_step : float, None, optional
+        The maximum acceptable shift for each iteration. If the shift (call it
+        ``naive_shift``) is larger than this, the actual shift will be
+        `max_shift_step` towards the direction identical to `naive_shift`. If
+        `None` (default), no such truncation is done.
+
+    error : CCDData or ndarray
+        The 1-sigma uncertainty map used for fitting.
+
+    verbose : bool
+        Whether to print how many iterations were needed for the centroiding.
+
+    shift : float
+        The total distance between the initial guess and the fitted
+        centroid, i.e., the distance between `(xc_img, yc_img)` and
+        `position_xy`.
+    '''
+
+    # x_init, y_init = position_xy
+    cutccd = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
+    ssky = np.std(cutccd.data, ddof=1) if ssky is None else ssky
+    cthresh = np.min(cutccd.data) + csigma * ssky
+
+    # using pixels only above med + 3*std for centroiding is recommended.
+    # See Ma+2009, Optics Express, 17, 8525
+    # -- I doubt this... YPBach 2019-07-08 10:43:54 (KST: GMT+09:00)
+
+    mask = (cutccd.data <= cthresh)
+
+    if verbose:
+        n_all = np.size(mask)
+        n_rej = np.count_nonzero(mask.astype(int))
+        print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
+              + f"from min ({np.min(cutccd.data):.3f}) "
+                + f"+ csigma ({csigma}) * ssky ({ssky:.3f})]")
+
+    if ccd.mask is not None:
+        mask += Cutout2D(ccd.mask, position=position_xy, size=cbox_size).data
+
+    x_c_cut, y_c_cut = centroider(data=cutccd.data, mask=mask)
+    # The position is in the cutout image coordinate, e.g., (3, 3).
+
+    # x_c, y_c = cutccd.to_original_position((x_c_cut, y_c_cut))
+    # convert the cutout image coordinate to original coordinate.
+    # e.g., (3, 3) becomes something like (137, 189)
+
+    pos_new_naive = cutccd.to_original_position((x_c_cut, y_c_cut))
+    # convert the cutout image coordinate to original coordinate.
+    # e.g., (3, 3) becomes something like (137, 189)
+
+    dx, dy, shift = _scaling_shift(position_xy, pos_new_naive,
+                                   max_shift_step=max_shift_step,
+                                   verbose=verbose)
+    pos_new = (position_xy[0] + dx, position_xy[1] + dy)
+
+    return pos_new, shift
+
+
 def _fit_2dgaussian(data, error=None, mask=None):
     """
     Fit a 2D Gaussian plus a constant to a 2D image.
@@ -448,6 +564,7 @@ def find_centroid(
         cbox_size=5.,
         csigma=3.,
         ssky=0,
+        sky_annulus=None,
         tol_shift=1.e-4,
         max_shift=1,
         max_shift_step=None,
@@ -456,7 +573,15 @@ def find_centroid(
 ):
     ''' Find the intensity-weighted centroid iteratively.
 
-    Simply run `centroiding_iteration` function iteratively for `maxiters`
+    Notes
+    -----
+    Cut out small box region around the initial position, subtract "background"
+    which is set to be the minimum pixel value within that box, and then find
+    the centroid of the box using the pixels with value >= ``csigma*ssky``.
+    Setting `ssky` 0 to use all the pixels, very small value to reject only the
+    minimum pixel, or `None` to be estimated from the pixels within the box.
+
+    Simply run `_centroiding_iteration` function iteratively for `maxiters`
     times. Given the initial guess of centroid position in image xy coordinate,
     it finds the intensity-weighted centroid (center of mass) after rejecting
     pixels by sigma-clipping.
@@ -468,6 +593,9 @@ def find_centroid(
 
     position_xy : array-like
         The position of the initial guess in image XY coordinate.
+
+    centroider : callable
+        The centroider function (Dafault uses `photutils.centroid_com`).
 
     cbox_size : float or int, optional
         The size of the box to find the centroid. Recommended to use 2.5 to 4.0
@@ -487,6 +615,9 @@ def find_centroid(
         ``csigma*ssky`` will be used for centroid, following the default of
         IRAF's ``noao.digiphot.apphot``.
         http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars.hlp
+        If `None`, the sample standard deviation from the pixels within the box
+        is used (sometimes dangerous to reject all pixels wihtin the box, so
+        reduce `csigma`).
 
     tol_shift : float
         The absolute tolerance for the shift. If the shift in centroid after
@@ -502,8 +633,12 @@ def find_centroid(
         `max_shift_step` towards the direction identical to ``naive_shift``. If
         `None` (default), no such truncation is done.
 
-    verbose : bool
+    verbose : int
         Whether to print how many iterations were needed for the centroiding.
+
+          * 0: No information is printed.
+          * 1: Print the initial and final centroid information.
+          * 2: Also print the information at each iteration.
 
     full : bool
         Whether to return the original and final cutout images.
@@ -513,61 +648,6 @@ def find_centroid(
     com_xy : list
         The iteratively found centroid position.
     '''
-
-    def _centroiding_iteration(ccd, position_xy, centroider=centroid_com,
-                               cbox_size=5., csigma=3.,
-                               max_shift_step=None, ssky=0, verbose=False):
-        ''' Find the intensity-weighted centroid of the image iteratively
-
-        Returns
-        -------
-        position_xy : float
-            The centroided location in the original image coordinate in image
-            XY.
-
-        shift : float
-            The total distance between the initial guess and the fitted
-            centroid, i.e., the distance between `(xc_img, yc_img)` and
-            `position_xy`.
-        '''
-
-        x_init, y_init = position_xy
-        cutccd = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
-        cthresh = np.min(cutccd.data) + csigma * ssky
-        # using pixels only above med + 3*std for centroiding is recommended.
-        # See Ma+2009, Optics Express, 17, 8525
-        # -- I doubt this... YPBach 2019-07-08 10:43:54 (KST: GMT+09:00)
-
-        mask = (cutccd.data < cthresh)
-
-        if verbose:
-            n_all = np.size(mask)
-            n_rej = np.count_nonzero(mask.astype(int))
-            print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
-                  + f"from min ({np.min(cutccd.data):.3f}) "
-                  + f"+ csigma ({csigma}) * ssky ({ssky:.3f})]")
-
-        if ccd.mask is not None:
-            mask += ccd.mask
-
-        x_c_cut, y_c_cut = centroider(data=cutccd.data, mask=mask)
-        # The position is in the cutout image coordinate, e.g., (3, 3).
-
-        x_c, y_c = cutccd.to_original_position((x_c_cut, y_c_cut))
-        # convert the cutout image coordinate to original coordinate.
-        # e.g., (3, 3) becomes something like (137, 189)
-
-        pos_new_naive = cutccd.to_original_position((x_c_cut, y_c_cut))
-        # convert the cutout image coordinate to original coordinate.
-        # e.g., (3, 3) becomes something like (137, 189)
-
-        dx, dy, shift = _scaling_shift(position_xy, pos_new_naive,
-                                       max_shift_step=max_shift_step,
-                                       verbose=verbose)
-        pos_new = (position_xy[0] + dx, position_xy[1] + dy)
-
-        return pos_new, shift
-
     if not isinstance(ccd, CCDData):
         _ccd = CCDData(ccd, unit='adu')  # Just a dummy
     else:
@@ -578,29 +658,30 @@ def find_centroid(
     yc_iter = [position_xy[1]]
     shift = []
     d = 0
-    if verbose:
+    if verbose >= 1:
         print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]")
         print(f"\t(max iteration {maxiters:d}, shift tolerance {tol_shift})")
 
     for i_iter in range(maxiters):
         xy_old = (xc_iter[-1], yc_iter[-1])
-        if verbose:
+        if verbose >= 2:
             print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
         (x, y), d = _centroiding_iteration(ccd=_ccd,
                                            position_xy=xy_old,
+                                           centroider=centroider,
                                            cbox_size=cbox_size,
                                            csigma=csigma,
                                            ssky=ssky,
                                            max_shift_step=max_shift_step,
-                                           verbose=verbose)
+                                           verbose=verbose >= 2)
         xc_iter.append(x)
         yc_iter.append(y)
         shift.append(d)
         if d < tol_shift:
-            if verbose:
+            if verbose >= 2:
                 print(f"Finishing iteration (shift {d:.5f} < tol_shift).")
             break
-        if verbose:
+        if verbose >= 2:
             print(f"\t({x:.2f}, {y:.2f}), shifted {d:.2f}")
 
     newpos = [xc_iter[-1], yc_iter[-1]]
@@ -608,7 +689,7 @@ def find_centroid(
     dy = y - position_xy[1]
     total = np.sqrt(dx**2 + dy**2)
 
-    if verbose:
+    if verbose >= 1:
         print(f"Final shift: dx={dx:+.2f}, dy={dy:+.2f}, total={total:.2f}")
 
     if total > max_shift:
