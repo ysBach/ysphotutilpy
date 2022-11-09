@@ -9,8 +9,10 @@ Install by
 $ cd <where you want to download this package>
 $ git clone https://github.com/ysBach/ysphotutilpy
 $ cd ysphotutilpy
-$ pip install -e .
+$ git pull && pip install -e .
 ```
+From the second time, **just run the last line**.
+
 
 **NOTE**: Please understand this package may undergo severe backward-incompatible changes. This is a package I use for (1) my own research and (2) education (see, e.g., [SNU_AOclass](https://github.com/ysBach/SNU_AOclass/)).
 
