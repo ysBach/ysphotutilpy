@@ -1,17 +1,18 @@
-from multiprocessing.sharedctypes import Value
 import numpy as np
 from astropy import units as u
+from astropy.nddata import CCDData
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
                        EllipticalAperture, PixelAperture, RectangularAperture,
                        SkyAperture)
 from photutils.aperture import ApertureMask
 from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
-                                           ScalarAngle, ScalarAngleOrPixel,
+                                           ScalarAngle, PositiveScalarAngle,
                                            ScalarAngleOrValue,
                                            SkyCoordPositions)
 
 __all__ = ["cutout_from_ap", "ap_to_cutout_position",
            "circ_ap_an", "ellip_ap_an", "pill_ap_an",
+           "radprof_pix",
            "PillBoxMaskMixin", "PillBoxAperture", "PillBoxAnnulus",
            "SkyPillBoxAperture", "SkyPillBoxAnnulus"]
 
@@ -380,6 +381,42 @@ def pill_ap_an(
                         theta=theta)
     return ap, an
 
+
+def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False):
+    """Get radial profile (pixel values) of an object from n-D image.
+
+    Parameters
+    ----------
+    img : CCDData or ndarray
+        The image to be profiled.
+    pos : array_like
+        The xy coordinates of the center of the object (0-indexing).
+    rmax : int, optional
+        The maximum radius to be profiled.
+    """
+    if isinstance(img, CCDData):
+        img = img.data
+    elif not isinstance(img, np.ndarray):
+        raise TypeError(f'img must be a CCDData or ndarray (now {type(img) = })')
+
+    offset = np.array([int(max(0, _p - rmax)) for _p in pos])  # flooring by `int`
+    slices = [slice(_o, min(_n, int(_p+rmax)+1))               # ceiling by `int` and +1
+              for _o, _p, _n in zip(offset[::-1], pos[::-1], img.shape)]
+    cut = img[tuple(slices)]
+    pos_cut = np.array(pos) - offset
+    grids = np.meshgrid(*[np.arange(_n) for _n in cut.shape])
+    dists = np.sqrt(np.sum([(g - p)**2 for g, p in zip(grids, pos_cut[::-1])], axis=0)).T
+    mask = (dists > rmax) if mask is None else ((dists > rmax) | mask)
+    if sort_dist:
+        sort_idx = np.argsort(dists[~mask])
+        return dists[~mask][sort_idx], cut[~mask][sort_idx]
+    return dists[~mask], cut[~mask]
+
+
+def radprof_an(img, pos, rmax=10, dr=1, method="center"):
+    """Get radial profile (annulus average) of an object from n-D image.
+    """
+    pass
 
 """
 def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
@@ -903,9 +940,9 @@ class SkyPillBoxAperture(SkyAperture):
     """
     _params = ('positions', 'w', 'a', 'b', 'theta')
     positions = SkyCoordPositions("'The center position(s) in sky coordinates.'")
-    w = ScalarAngleOrPixel(f"The {_PBSTRS['w']} in angular units.")
-    a = ScalarAngleOrPixel(f"The {_PBSTRS['a']} in angular units.")
-    b = ScalarAngleOrPixel(f"The {_PBSTRS['b']} in angular units.")
+    w = PositiveScalarAngle(f"The {_PBSTRS['w']} in angular units.")
+    a = PositiveScalarAngle(f"The {_PBSTRS['a']} in angular units.")
+    b = PositiveScalarAngle(f"The {_PBSTRS['b']} in angular units.")
     theta = ScalarAngle(_PBSTRS['theta_sky'])
 
     def __init__(self, positions, w, a, b, theta=0.*u.deg):
@@ -945,10 +982,10 @@ class SkyPillBoxAperture(SkyAperture):
 class SkyPillBoxAnnulus(SkyAperture):
     _shape_params = ('w', 'a_in', 'a_out', 'b_out', 'theta')
     positions = SkyCoordPositions('positions')
-    w = ScalarAngleOrPixel(f"The {_PBSTRS['w']} in angular units.")
-    a_in = ScalarAngleOrPixel(f"The inner {_PBSTRS['a']} in angular units.")
-    b_in = ScalarAngleOrPixel(f"The inner {_PBSTRS['b']} in angular units.")
-    b_out = ScalarAngleOrPixel(f"The outer {_PBSTRS['b']} in angular units.")
+    w = PositiveScalarAngle(f"The {_PBSTRS['w']} in angular units.")
+    a_in = PositiveScalarAngle(f"The inner {_PBSTRS['a']} in angular units.")
+    b_in = PositiveScalarAngle(f"The inner {_PBSTRS['b']} in angular units.")
+    b_out = PositiveScalarAngle(f"The outer {_PBSTRS['b']} in angular units.")
     theta = ScalarAngle(_PBSTRS['theta_sky'])
 
     def __init__(self, positions, w, a_in, a_out, b_out, theta=0.*u.deg):
