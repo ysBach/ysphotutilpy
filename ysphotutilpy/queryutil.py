@@ -7,6 +7,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, vstack
 from astropy.wcs import WCS
+from astropy.io.fits import Header
 from astroquery.jplhorizons import Horizons
 from astroquery.vizier import Vizier
 from astroquery.mast import Catalogs
@@ -211,7 +212,6 @@ def horizons_query(
         cache=cache,
         extra_precision=extra_precision,
         get_query_payload=False,
-        get_raw_response=False
     )
     if interpolate is not None and interpolate_x is not None:
         if isinstance(interpolate, str):
@@ -351,11 +351,11 @@ PS1_DR1_DEL_FLAG = [
 
 def organize_ps1_and_isnear(
         ps1,
-        header=None,
+        header_or_wcs=None,
         bezel=0,
         nearby_obj_minsep=None,
         group_crit_separation=0,
-        select_filter_kw={},
+        select_filter_kw=None,
         del_flags=PS1_DR1_DEL_FLAG,
         drop_by_Kron=True,
         calc_JC=True
@@ -367,9 +367,10 @@ def organize_ps1_and_isnear(
     ps1 : `~PanSTARRS1`
         The `~PanSTARRS1` object.
 
-    header : `astropy.header.Header`, None, optional
-        The header to extract WCS related information. If `None` (default), it
-        will not drop any stars based on the field of view criterion.
+    header_or_wcs : `astropy.header.Header`, `astropy.wcs.WCS`, optional
+        The header to extract WCS related information or WCS object. If `None`
+        (default), it will not drop any stars based on the field of view
+        criterion.
 
     bezel : int, float, optional
         The bezel used to select stars inside the field of view.
@@ -385,9 +386,9 @@ def organize_ps1_and_isnear(
     select_filter_kw : dict, optional
         The kwargs for `~PanSTARRS1.select_filter()` method.
 
-    del_flags : list of int, optional
+    del_flags : list of int, None, optional
         The flags to be used for dropping objects based on ``"f_objID"`` of
-        Pan-STARRS1 query.
+        Pan-STARRS1 query. Set to `None` to skip this step.
 
     drop_by_Kron : bool, optional
         If `True` (default), drop the galaxies based on the Kron magnitude
@@ -427,22 +428,25 @@ def organize_ps1_and_isnear(
     # Select only those within FOV & bezel.
     # If you wanna keep those outside the edges, just set negative
     # ``bezel``.
-    if header is not None:
-        ps1.select_xyinFOV(header=header, bezel=bezel)
+    if header_or_wcs is not None:
+        ps1.select_xyinFOV(header_or_wcs, bezel=bezel)
 
     # Check whether any object is near our target
     isnear = ps1.check_nearby(minsep=nearby_obj_minsep)
     if isnear:
         warn("There are objects near the target!")
 
-    # Drop objects near to each other
-    ps1.drop_star_groups(crit_separation=group_crit_separation)
+    if group_crit_separation > 0:
+        # Drop objects near to each other
+        ps1.drop_star_groups(crit_separation=group_crit_separation)
 
-    # Drop for preparing differential photometry
-    ps1.drop_for_diff_phot(del_flags=del_flags, drop_by_Kron=drop_by_Kron)
+    if del_flags is not None or drop_by_Kron:
+        # Drop for preparing differential photometry
+        ps1.drop_for_diff_phot(del_flags=del_flags, drop_by_Kron=drop_by_Kron)
 
-    # remove columns that are of no interest
-    ps1.select_filters(**select_filter_kw)
+    if select_filter_kw:
+        # remove columns that are of no interest
+        ps1.select_filters(**select_filter_kw)
 
     try:
         ps1.queried["_r"] = ps1.queried["_r"].to(u.arcsec)
@@ -675,17 +679,12 @@ class PanSTARRS1:
 
         return self.queried
 
-    def select_xyinFOV(self, header=None, wcs=None, bezel=0, mode='all'):
+    def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode='all'):
         ''' Convert RA/DEC to xy (add columns) with rejection at bezels.
         Parameters
         ----------
-        header : astropy.io.fits.Header, optional
-            The header to extract WCS information. One and only one of `header`
-            and `wcs` must be given.
-
-        wcs : astropy.wcs.WCS, optional
-            The WCS to convert the RA/DEC to XY. One and only one of `header`
-            and `wcs` must be given.
+        header_or_wcs : `astropy.io.fits.Header`, `astropy.wcs.WCS`, optional
+            The header to extract WCS information or WCS object.
 
         bezel: int or float, optional
             The bezel size to exclude stars at the image edges. If you want to
@@ -696,7 +695,7 @@ class PanSTARRS1:
             Whether to do the transformation including distortions (``'all'``)
             or only including only the core WCS transformation (``'wcs'``).
         '''
-        self.queried = xyinFOV(table=self.queried, header=header, wcs=wcs,
+        self.queried = xyinFOV(table=self.queried, header_or_wcs=header_or_wcs,
                                ra_key="RAJ2000", dec_key="DEJ2000",
                                bezel=bezel, origin=0, mode=mode)
 
@@ -968,13 +967,13 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
         return grouped_rows
 
 
-def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
+def get_xy(header_or_wcs, ra, dec, unit=u.deg, origin=0, mode='all'):
     ''' Get image XY from the header WCS
 
     Parameters
     ----------
-    header : astropy.io.fits.Header or pandas.DataFrame
-        The header to extract WCS information.
+    header : astropy.io.fits.Header or astropy.wcs.WCS
+        The header to extract WCS information or WCS object.
 
     ra, dec: float or Quantity or array-like of such
         The coordinates to get XY position. If Quantity, ``unit`` will likely
@@ -990,16 +989,16 @@ def get_xy(header, ra, dec, unit=u.deg, origin=0, mode='all'):
         Whether to do the transformation including distortions (``'all'``) or
         only including only the core WCS transformation (``'wcs'``).
     '''
-    w = WCS(header)
     coo = SkyCoord(ra, dec, unit=unit)
-    xy = SkyCoord.to_pixel(coo, wcs=w, origin=origin, mode=mode)
-    return xy
+    if isinstance(header_or_wcs, WCS):
+        return SkyCoord.to_pixel(coo, wcs=header_or_wcs, origin=origin, mode=mode)
+    elif isinstance(header_or_wcs, Header):
+        return SkyCoord.to_pixel(coo, wcs=WCS(header_or_wcs), origin=origin, mode=mode)
 
 
-# TODO: let it use something like `header_or_wcs`
 def xyinFOV(
         table,
-        header=None,
+        header_or_wcs=None,
         wcs=None,
         shape=None,
         ra_key='ra',
@@ -1022,17 +1021,12 @@ def xyinFOV(
     table : astropy.table.Table or pandas.DataFrame
         The queried result table.
 
-    header : astropy.io.fits.Header, optional
-        The header to extract WCS information. One and only one of `header` and
-        `wcs` must be given.
-
-    wcs : astropy.wcs.WCS, optional
-        The WCS to convert the RA/DEC to XY. One and only one of `header` and
-        `wcs` must be given.
+    header_or_wcs : astropy.io.fits.Header, optional
+        The header to extract WCS information or WCS object.
 
     shape : 2-element tuple, optional
-        The shape of the image (used to reject stars at bezels). If `header` or
-        `wcs` is given, it is ignored and ``NAXISi`` keywords will be used.
+        The shape of the image (used to reject stars at bezels). If this is
+        given, header or WCS information will be ignored.
 
     ra_key, dec_key : str, optional
         The column names containing RA/DEC.
@@ -1079,8 +1073,22 @@ def xyinFOV(
     elif not isinstance(table, Table):
         raise TypeError("table must be either astropy Table or pandas DataFrame.")
 
-    if wcs is None:
-        wcs = WCS(header)
+    if shape is not None:
+        nx, ny = shape[1], shape[0]
+    elif isinstance(header_or_wcs, Header):
+        wcs = WCS(header_or_wcs)
+        nx, ny = header_or_wcs["NAXIS2"], header_or_wcs["NAXIS1"]
+    elif isinstance(header_or_wcs, WCS):
+        wcs = header_or_wcs
+        nx, ny = wcs._naxis
+    elif header_or_wcs is None:
+        if verbose >= 1:
+            print("No way to reject stars at bezels: provide `header` or `shape`.")
+        if return_mask:
+            return _tab, None
+        return _tab
+    else:
+        raise TypeError("header_or_wcs must be either astropy Header or WCS (or None).")
 
     if unit is None:
         coo = SkyCoord(_tab[ra_key], _tab[dec_key])
@@ -1090,20 +1098,6 @@ def xyinFOV(
     x, y = coo.to_pixel(wcs=wcs, origin=origin, mode=mode)
     _tab[col_x] = x
     _tab[col_y] = y
-
-    if shape is not None:
-        nx, ny = shape[1], shape[0]
-    else:
-        if header is not None:
-            nx, ny = header["NAXIS2"], header["NAXIS1"]
-        elif wcs is not None:
-            nx, ny = wcs._naxis
-        else:  # If none of them is available, no way to reject stars at bezels.
-            if verbose >= 1:
-                print("No way to reject stars at bezels: provide `header` or `shape`.")
-            if return_mask:
-                return _tab, None
-            return _tab
 
     mask = bezel_mask(x, y, nx, ny, bezel=bezel, bezel_x=bezel_x, bezel_y=bezel_y)
     _tab.remove_rows(mask)
