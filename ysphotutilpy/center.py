@@ -42,6 +42,7 @@ def _centroiding_iteration(
         cbox_size=5.,
         csigma=3.,
         max_shift_step=None,
+        msky=None,
         ssky=0,
         verbose=False
 ):
@@ -61,38 +62,22 @@ def _centroiding_iteration(
         times the seeing FWHM. Minimally about 5 pixel is recommended. If
         extended source (e.g., comet), recommend larger cbox.
         See:
-        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars
+        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     csigma : float or int, optional
         The parameter to use in sigma-clipping. Using pixels only above 3-simga
         level for centroiding is recommended. See Ma+2009, Optics Express, 17,
         8525.
 
+    msky : float, optional
+        The approximate value of the sky or background. If `None` (default),
+        it will be estimated from the minimum of the array of size `cbox_size`.
+
     ssky : float, optional
-        The sample standard deviation of the sky or background. It will be used
-        instead of `sky_annulus` if `sky_annulus` is `None`. The pixels above
-        the local minima (of the array of size `cbox_size`) plus
-        ``csigma*ssky`` will be used for centroid, following the default of
-        IRAF's ``noao.digiphot.apphot``:
-        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars.hlp
-
-    sky_annulus : `~photutils.Aperture` annulus object
-        The annulus to estimate the sky. All `_shape_params` of the object will
-        be kept, while positions will be updated according to the new
-        centroids. The initial input, therefore, does not need to have the
-        position information (automatically initialized by `position_xy`). If
-        `None` (default), the constant `ssky` value will be used instead.
-
-    sky_kw : dict, optional.
-        The keyword arguments of `.backgroud.sky_fit`.
-
-    tol_shift : float
-        The absolute tolerance for the shift. If the shift in centroid after
-        iteration is smaller than this, iteration stops.
-
-    max_shift: float
-        The maximum acceptable shift. If shift is larger than this, raises
-        warning.
+        The sample standard deviation of the sky or background. The pixels
+        above ``msky + csigma*ssky`` will be used for centroid, following the
+        default of IRAF's ``noao.digiphot.apphot``:
+        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     max_shift_step : float, None, optional
         The maximum acceptable shift for each iteration. If the shift (call it
@@ -115,7 +100,13 @@ def _centroiding_iteration(
     # x_init, y_init = position_xy
     cutccd = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
     ssky = np.std(cutccd.data, ddof=1) if ssky is None else ssky
-    cthresh = np.min(cutccd.data) + csigma * ssky
+    _mindata = np.min(cutccd.data)
+    if msky is not None and msky > _mindata:
+        if verbose:
+            print(f"msky ({msky:.3f}) < min(cutccd.data) ({_mindata:.3f}). Using min(data)")
+        msky = _mindata
+
+    cthresh = msky + csigma * ssky
 
     # using pixels only above med + 3*std for centroiding is recommended.
     # See Ma+2009, Optics Express, 17, 8525
@@ -127,13 +118,12 @@ def _centroiding_iteration(
         n_all = np.size(mask)
         n_rej = np.count_nonzero(mask.astype(int))
         print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
-              + f"from min ({np.min(cutccd.data):.3f}) "
-                + f"+ csigma ({csigma}) * ssky ({ssky:.3f})]")
+              + f"from sky ({msky:.3f}) + csigma ({csigma}) * ssky ({ssky:.3f})]")
 
     if ccd.mask is not None:
         mask += Cutout2D(ccd.mask, position=position_xy, size=cbox_size).data
 
-    x_c_cut, y_c_cut = centroider(data=cutccd.data, mask=mask)
+    x_c_cut, y_c_cut = centroider(data=cutccd.data - msky, mask=mask)
     # The position is in the cutout image coordinate, e.g., (3, 3).
 
     # x_c, y_c = cutccd.to_original_position((x_c_cut, y_c_cut))
@@ -288,6 +278,7 @@ def find_center_2dg(
         position_xy,
         cbox_size=5.,
         csigma=3.,
+        msky=None,
         ssky=0,
         sky_annulus=None,
         sky_kw={},
@@ -315,7 +306,7 @@ def find_center_2dg(
         times the seeing FWHM. Minimally about 5 pixel is recommended. If
         extended source (e.g., comet), recommend larger cbox.
         See:
-        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars
+        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     csigma : float or int, optional
         The parameter to use in sigma-clipping. Using pixels only above 3-simga
@@ -328,7 +319,7 @@ def find_center_2dg(
         the local minima (of the array of size `cbox_size`) plus
         ``csigma*ssky`` will be used for centroid, following the default of
         IRAF's ``noao.digiphot.apphot``:
-        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars.hlp
+        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     sky_annulus : `~photutils.Aperture` annulus object
         The annulus to estimate the sky. All `_shape_params` of the object will
@@ -390,7 +381,7 @@ def find_center_2dg(
         ANNULUS = None
 
     def _center_2dg_iteration(ccd, position_xy, cbox_size=5., csigma=3.,
-                              max_shift_step=None, ssky=0,
+                              max_shift_step=None, msky=None, ssky=0,
                               error=None, verbose=False):
         ''' Find the intensity-weighted centroid of the image iteratively
 
@@ -411,9 +402,13 @@ def find_center_2dg(
 
         if ANNULUS is not None:
             ANNULUS.positions = position_xy
-            ssky = sky_fit(ccd=ccd, annulus=ANNULUS, **sky_kw)["ssky"][0]
+            _sky = sky_fit(ccd=ccd, annulus=ANNULUS, **sky_kw, to_table=False)
+            ssky = _sky["ssky"]
+            msky = _sky["msky"]
+        elif msky is None:
+            msky = np.min(cut.data)
 
-        cthresh = np.min(cut.data) + csigma * ssky
+        cthresh = msky + csigma * ssky
         mask = (cut.data < cthresh)
         # using pixels only above med + 3*std for centroiding is recommended.
         # See Ma+2009, Optics Express, 17, 8525
@@ -496,6 +491,7 @@ def find_center_2dg(
                                     position_xy=xy_old,
                                     cbox_size=cbox_size,
                                     csigma=csigma,
+                                    msky=msky,
                                     ssky=ssky,
                                     error=_error,
                                     max_shift_step=max_shift_step,
@@ -563,8 +559,8 @@ def find_centroid(
         maxiters=5,
         cbox_size=5.,
         csigma=3.,
+        msky=None,
         ssky=0,
-        sky_annulus=None,
         tol_shift=1.e-4,
         max_shift=1,
         max_shift_step=None,
@@ -602,22 +598,24 @@ def find_centroid(
         times the seeing FWHM.  Minimally about 5 pixel is recommended. If
         extended source (e.g., comet), recommend larger cbox.
         See:
-        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars
+        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     csigma : float or int, optional
         The parameter to use in sigma-clipping. Using pixels only above 3-simga
         level for centroiding is recommended. See Ma+2009, Optics Express, 17,
         8525.
 
-    ssky : float, optional
-        The sample standard deviation of the sky or background. The pixels
-        above the local minima (of the array of size `cbox_size`) plus
-        ``csigma*ssky`` will be used for centroid, following the default of
-        IRAF's ``noao.digiphot.apphot``.
-        http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?centerpars.hlp
-        If `None`, the sample standard deviation from the pixels within the box
-        is used (sometimes dangerous to reject all pixels wihtin the box, so
-        reduce `csigma`).
+    msky, ssky : float, optional
+        The estimated sky level (preferrably modal value) and the sample
+        standard deviation of the sky or background. Only the pixels above
+        certain threshold ``msky + csigma*ssky`` will be used for centroiding,
+        following the default of IRAF's ``noao.digiphot.apphot``:
+        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html.
+        If `None`, `msky` is the minimum pixel value within the `cbox_size`,
+        and `ssky` is the sample standard deviation from the `cbox_size`.
+        It is assumed that the `position_xy` is already quite close to the
+        centroid, so both `msky` and `ssky` are not needed to be updated at
+        every iteration.
 
     tol_shift : float
         The absolute tolerance for the shift. If the shift in centroid after
@@ -671,6 +669,7 @@ def find_centroid(
                                            centroider=centroider,
                                            cbox_size=cbox_size,
                                            csigma=csigma,
+                                           msky=msky,
                                            ssky=ssky,
                                            max_shift_step=max_shift_step,
                                            verbose=verbose >= 2)
