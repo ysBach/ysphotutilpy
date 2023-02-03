@@ -24,6 +24,7 @@ def sky_fit(
         method='mode',
         mode_option='sex',
         std_ddof=1,
+        to_table=True,
         **kwargs
 ):
     """ Estimate the sky value from image and annulus.
@@ -53,27 +54,32 @@ def sky_fit(
     std_ddof : int, optional.
         The "delta-degrees of freedom" for sky standard deviation calculation.
 
+    to_table : bool, optional.
+        If True, the output will be a `~astropy.table.Table` object. Otherwise,
+        return a `dict`.
+
     kwargs : dict, optional.
         The keyword arguments for sigma-clipping.
 
     Returns
     -------
-    skytable: `~astropy.table.Table`
-        The table of the followings.
+    skytable: `~astropy.table.Table` or dict
+        The table or dict of the followings.
 
-    msky : float
-        The estimated sky value within the all_sky data, after sigma clipping.
+        msky : float
+            The estimated sky value within the all_sky data, after sigma clipping.
 
-    ssky : float
-        The sample standard deviation of sky value within the all_sky data,
-        after sigma clipping.
+        ssky : float
+            The sample standard deviation of sky value within the all_sky data,
+            after sigma clipping.
 
-    nsky : int
-        The number of pixels which were used for sky estimation after the
-        sigma clipping.
+        nsky : int
+            The number of pixels which were used for sky estimation after the
+            sigma clipping.
 
-    nrej : int
-        The number of pixels which are rejected after sigma clipping.
+        nrej : int
+            The number of pixels which are rejected after sigma clipping.
+
     """
     def _sstd(arr, ddof=0, axis=None):
         return np.sqrt(arr.size/(arr.size - ddof))*bn.nanstd(arr, axis=axis)
@@ -114,11 +120,9 @@ def sky_fit(
         skydict['nsky'] = nsky
         skydict['nrej'] = nrej
         skydicts.append(skydict)
-    skytable = Table(skydicts)
-    # skytable["msky"].unit = u.adu / u.pix
-    # skytable["ssky"].unit = u.adu / u.pix
-    # skytable["nrej"].unit = u.pix
-    return skytable
+    if to_table:
+        return Table(skydicts)
+    return skydict
 
 
 def annul2values(
