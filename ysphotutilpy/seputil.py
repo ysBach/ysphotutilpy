@@ -104,7 +104,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 
-from .util import bezel_mask
+from .util import bezel_mask, gaussian_kernel
 
 try:
     import sep
@@ -332,8 +332,10 @@ def sep_extract(
 
     filter_kernel : `~numpy.ndarray` or None, optional
         Filter kernel used for on-the-fly filtering (used to enhance
-        detection). Default is a 3x3 array: [[1,2,1], [2,4,2], [1,2,1]]. Set to
-        `None` to skip convolution.
+        detection). Default is a 3x3 array: [[1,2,1], [2,4,2], [1,2,1]]. If
+        float, a circular Gaussian kernel of that sigma will be used (kernel
+        size = 2sigma by 2sigma, i.e., +/- 1-sigma). Set to `None` to skip
+        convolution.
 
     filter_type : {'matched', 'conv'}, optional
         Filter treatment. This affects filtering behavior when a noise array is
@@ -383,6 +385,12 @@ def sep_extract(
     >>> plt.tight_layout()
     >>> plt.show()
     """
+    def _gaussian_kernel(sig):
+        if isinstance(sig, (int, float)):
+            return gaussian_kernel(sigma=sig, nsigma=max(1, 3/sig), normalize_area=False)
+        else:
+            return sig
+
     if err is not None and var is not None:
         raise ValueError("Upto one of `err` and `var` can be given.")
 
@@ -415,7 +423,7 @@ def sep_extract(
         mask=mask,
         maskthresh=maskthresh,
         minarea=minarea,
-        filter_kernel=filter_kernel,
+        filter_kernel=_gaussian_kernel(filter_kernel),
         filter_type=filter_type,
         deblend_nthresh=deblend_nthresh,
         deblend_cont=deblend_cont,
@@ -434,9 +442,10 @@ def sep_extract(
     obj = obj[~mask]
 
     # use 1-indexing for the ``segm_label``
-    obj = obj.reset_index()
-    obj = obj.rename(columns={'index': 'segm_label'})
-    obj['segm_label'] += 1
+    # obj = obj.reset_index(drop=True)
+    # obj = obj.rename(columns={'index': 'segm_label'})
+    # obj['segm_label'] += 1
+    obj["segm_label"] = np.arange(1, len(obj)+1).astype(int)
     # log the original input threshold
     obj.insert(loc=1, column='thresh_raw', value=thresh)
 
