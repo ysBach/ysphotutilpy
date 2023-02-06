@@ -445,7 +445,7 @@ def sep_extract(
     # obj = obj.reset_index(drop=True)
     # obj = obj.rename(columns={'index': 'segm_label'})
     # obj['segm_label'] += 1
-    obj["segm_label"] = np.arange(1, len(obj)+1).astype(int)
+    obj.insert(loc=0, column="segm_label", value=np.arange(1, len(obj)+1).astype(int))
     # log the original input threshold
     obj.insert(loc=1, column='thresh_raw', value=thresh)
 
