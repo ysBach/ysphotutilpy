@@ -4,10 +4,11 @@ functionality can be achieved by pre-existing packages.
 """
 import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
+from astropy.modeling.functional_models import Gaussian2D
 
 __all__ = ["sqsum", "err_prop", "_linear_unit_converter", "convert_pct", "convert_deg",
            "bezel_mask", "Gaussian2D_correct",
-           "fit_astropy_model", "fit_Gaussian2D"]
+           "fit_astropy_model", "fit_Gaussian2D", "gaussian_kernel"]
 
 
 def sqsum(*args):
@@ -18,10 +19,7 @@ def sqsum(*args):
 
 
 def err_prop(*errs):
-    var = 0
-    for e in errs:
-        var += e**2
-    return np.sqrt(var)
+    return np.sqrt(sqsum(*errs))
 
 
 def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
@@ -308,8 +306,8 @@ def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **
         The data to fit the model.
 
     sigma : ndarray, None, optional
-        The Gaussian error-bar of each pixel. In ``astropy``, we must give ``weights=1/sigma``, which
-        can be confusing.
+        The Gaussian error-bar of each pixel. In ``astropy``, we must give
+        ``weights=1/sigma``, which can be confusing.
 
     fitter : astropy fitter
         The fitter that will be used to fit.
@@ -334,14 +332,16 @@ def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **
     return fitted, fitter
 
 
-def fit_Gaussian2D(data, model_init, correct=True, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
+def fit_Gaussian2D(data, model_init, correct=True, sigma=None,
+                   fitter=LevMarLSQFitter(), **kwargs):
     """ Identical to fit_astropy_model but for Gaussian2D correct.
 
     Notes
     -----
     photutils.centroids.GaussianConst2D is also usable.
     """
-    fitted, fitter = fit_astropy_model(data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs)
+    fitted, fitter = fit_astropy_model(
+        data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs)
     if correct:
         fitted = Gaussian2D_correct(fitted)
     return fitted, fitter
@@ -478,3 +478,51 @@ def fit_2dmoffat(data, error=None, mask=None):
 
     return gfit
 '''
+
+
+def gaussian_kernel(fwhm=None, sigma=None, theta=0, nsigma=5, normalize_area=False):
+    """ Generates a 2D array of Gaussian, usable a kernel.
+
+    Parameters
+    ----------
+    fwhm, sigma : float, array-like, optional.
+        The full-width at half-maximum (FWHM) and standard deviation (sigma) of
+        the Gaussian. One and only one of these should be given. If array-like,
+        it should be ``(sigma_or_fwhm_x, sigma_or_fwhm_y)``. If only one value
+        is given, it will be used for both x and y.
+
+    theta : float, optional.
+        The rotation angle of the Gaussian in degrees.
+
+    nsigma : int or float, optional.
+        The number of sigma to be used for the kernel size. The kernel size
+        will be ``ceil(nsigma*sigma)`` along each direction. If variable size
+        is desired, use size-2 array (e.g., ``nsigma=(5, 10)`` to make 5-sigma
+        along the x- and 10-sigma along the y-direction).
+
+    normalize_area : bool, optional.
+        Whether to normalize the area of the Gaussian to 1. If ``False``, the
+        amplitude will be 1. If ``True``, the amplitude will be
+        1/(2*pi*sigma_x*sigma_y).
+
+    Returns
+    -------
+    gauss : array-like
+        The 2D Gaussian kernel of shape ``(ceil(nsigma[0]*sigma[0]),
+        ceil(nsigma[1]*sigma[1])``.
+    """
+    if ((fwhm is None) + (sigma is None)) != 1:
+        raise ValueError("One and only one of `fwhm` and `sigma` should be given.")
+    elif fwhm is not None:
+        sigma = fwhm/(2*np.sqrt(2*np.log(2)))
+    sigma = np.atleast_1d(sigma)
+    if len(sigma) == 1:
+        sigma = np.repeat(sigma, 2)
+    _amp = 1/(2*np.pi*sigma[0]*sigma[1]) if normalize_area else 1
+    gauss = Gaussian2D(
+        amplitude=_amp, x_mean=0, y_mean=0,
+        x_stddev=sigma[0], y_stddev=sigma[1], theta=theta
+    )
+    shape = np.ceil(nsigma*sigma[::-1]).astype(int)
+
+    return gauss(*np.ogrid[-shape[0]/2:shape[0]/2+1, -shape[1]/2:shape[1]/2+1])
