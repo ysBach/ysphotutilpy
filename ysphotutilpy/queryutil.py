@@ -1307,7 +1307,7 @@ def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
 
         fullname : bool
             If True, use the full name of the flag (e.g., "POOR" instead of
-            "2"). Default is True.
+            "2", "HERN_RRL_P05" instead of "64"). Default is True.
 
         sep : str
             Separator for the flag.
@@ -1359,17 +1359,6 @@ def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
             measurement)
           * BAD_STACK (1073741824 (2^30)) : poor-quality stack object (no more
             than 1 good or suspect measurement)
-
-        Among the ``"f_objID"``, the following are better to be dropped because
-        they are surely not usable for differential photometry:
-
-            * 1, 2, 4, 8, 32, 128, 256, 512, 1024, 8388608, 16777216
-
-        or in binary position (``del_flags``),
-
-            * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
-
-        (plus maybe 2048(2^11) because centroiding may not work properly?)
         '''
     from more_itertools import locate
 
@@ -1410,6 +1399,10 @@ def sdss2BV(g, r, gerr=None, rerr=None):
     dV = np.sqrt((1.5784 * gerr)**2 + (0.5784 * rerr)**2 + 0.0052**2)
     return V, dV
 """
+
+
+
+
 
 
 def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
