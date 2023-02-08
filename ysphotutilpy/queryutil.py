@@ -12,7 +12,6 @@ from astroquery.jplhorizons import Horizons
 from astroquery.vizier import Vizier
 from astroquery.mast import Catalogs
 from scipy.interpolate import UnivariateSpline
-from xarray import Coordinate
 
 from .util import bezel_mask
 
@@ -20,7 +19,58 @@ __all__ = ["horizons_query",
            "HorizonsDiscreteEpochsQuery", "organize_ps1_and_isnear",
            "MASTQuery",
            "PanSTARRS1", "group_stars", "get_xy", "xyinFOV",
-           "panstarrs_query"]
+           "panstarrs_query",
+           "add_reabable_flag"]
+
+
+# H15 means Hernitschek+ 2015ApJ...801...45H.
+PS1FLAGS = {
+    "FEW": "Used within relphot; skip star.",
+    "POOR": "Used within relphot; skip star.",
+    "ICRF_QSO": "object IDed with known ICRF quasar (may have ICRF position measurement)",
+    "HERN_QSO_P60": "identified as likely QSO (H15), P_QSO >= 0.60",
+    "HERN_QSO_P05": "identified as possible QSO (H15), P_QSO >= 0.05",
+    "HERN_RRL_P60": "identified as likely RR Lyra (H15), P_RRLyra >= 0.60",
+    "HERN_RRL_P05": "identified as possible RR Lyra (H15), P_RRLyra >= 0.05",
+    "HERN_VARIABLE": "identified as a variable based on ChiSq (H15)",
+    "TRANSIENT": "identified as a non-periodic (stationary) transient",
+    "HAS_SOLSYS_DET": "at least one detection identified with a known solar-system object (asteroid or other).",
+    "MOST_SOLSYS_DET": "most detections identified with a known solar-system object (asteroid or other).",
+    "LARGE_PM": "star with large proper motion",
+    "RAW_AVE": "simple weighted average position was used (no IRLS fitting)",
+    "FIT_AVE": "average position was fitted",
+    "FIT_PM": "proper motion model was fitted",
+    "FIT_PAR": "parallax model was fitted",
+    "USE_AVE": "average position used (not PM or PAR)",
+    "USE_PM": "proper motion used (not AVE or PAR)",
+    "USE_PAR": "parallax used (not AVE or PM)",
+    "NO_MEAN_ASTROM": "mean astrometry could not be measured",
+    "STACK_FOR_MEAN": "stack position used for mean astrometry",
+    "MEAN_FOR_STACK": "mean astrometry used for stack position",
+    "BAD_PM": "failure to measure proper-motion model",
+    "EXT": "extended in our data (eg, PS)",
+    "EXT_ALT": "extended in external data (eg, 2MASS)",
+    "GOOD": "good-quality measurement in our data (eg,PS)",
+    "GOOD_ALT": "good-quality measurement in external data (eg, 2MASS)",
+    "GOOD_STACK": "good-quality object in the stack (>1 good stack measurement)",
+    "BEST_STACK": "the primary stack measurements are the best measurements",
+    "SUSPECT_STACK": "suspect object in the stack (no more than 1 good measurement, 2 or more suspect or good stack measurement)",
+    "BAD_STACK": "poor-quality stack object (no more than 1 good or suspect measurement)"
+}
+PS1FLAG_KEYS = list(PS1FLAGS.keys())
+PS1_DR1_DEL_FLAG = [
+    0,   # FEW: Used within relphot; skip star.
+    1,   # POOR: Used within relphot; skip star.
+    2,   # ICRF_QSO: object IDed with known ICRF quasar
+    3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
+    5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
+    7,   # HERN_VARIABLE: identified as a variable based on ChiSq
+    8,   # TRANSIENT: identified as a non-periodic (stationary) transient
+    9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
+    10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
+    23,  # EXT: extended in our data (eg, PS)
+    24   # EXT_ALT: extended in external data (eg, 2MASS)
+]
 
 
 def horizons_query(
@@ -334,21 +384,6 @@ class HorizonsDiscreteEpochsQuery:
         return self.query_table
 
 
-PS1_DR1_DEL_FLAG = [
-    0,   # FEW: Used within relphot; skip star.
-    1,   # POOR: Used within relphot; skip star.
-    2,   # ICRF_QSO: object IDed with known ICRF quasar
-    3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
-    5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
-    7,   # HERN_VARIABLE: identified as a variable based on ChiSq
-    8,   # TRANSIENT: identified as a non-periodic (stationary) transient
-    9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
-    10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
-    23,  # EXT: extended in our data (eg, PS)
-    24   # EXT_ALT: extended in external data (eg, 2MASS)
-]
-
-
 def organize_ps1_and_isnear(
         ps1,
         header_or_wcs=None,
@@ -358,7 +393,8 @@ def organize_ps1_and_isnear(
         select_filter_kw=None,
         del_flags=PS1_DR1_DEL_FLAG,
         drop_by_Kron=True,
-        calc_JC=True
+        calc_JC=True,
+        verbose=1
 ):
     ''' Organizes the PanSTARRS1 object and check nearby objects.
 
@@ -429,7 +465,7 @@ def organize_ps1_and_isnear(
     # If you wanna keep those outside the edges, just set negative
     # ``bezel``.
     if header_or_wcs is not None:
-        ps1.select_xyinFOV(header_or_wcs, bezel=bezel)
+        ps1.select_xyinFOV(header_or_wcs, bezel=bezel, verbose=verbose)
 
     # Check whether any object is near our target
     isnear = ps1.check_nearby(minsep=nearby_obj_minsep)
@@ -438,19 +474,21 @@ def organize_ps1_and_isnear(
 
     if group_crit_separation > 0:
         # Drop objects near to each other
-        ps1.drop_star_groups(crit_separation=group_crit_separation)
+        ps1.drop_star_groups(crit_separation=group_crit_separation, verbose=verbose)
 
     if del_flags is not None or drop_by_Kron:
         # Drop for preparing differential photometry
-        ps1.drop_for_diff_phot(del_flags=del_flags, drop_by_Kron=drop_by_Kron)
+        ps1.drop_for_diff_phot(
+            del_flags=del_flags, drop_by_Kron=drop_by_Kron, verbose=verbose
+        )
 
     if select_filter_kw:
         # remove columns that are of no interest
-        ps1.select_filters(**select_filter_kw)
+        ps1.select_filters(**select_filter_kw, verbose=verbose)
 
     try:
         ps1.queried["_r"] = ps1.queried["_r"].to(u.arcsec)
-    except u.UnitConversionError: # assuming deg
+    except u.UnitConversionError:  # assuming deg
         ps1.queried["_r"] = ps1.queried["_r"]*3600
     ps1.queried["_r"].format = "%.3f"
 
@@ -577,6 +615,7 @@ class MASTQuery():
             sort_by=self.sort_by,
             **self.filters
         )
+        self.queried["objID"] = str(int(self.queried["objID"]))
 
 
 # TODO: Let it accept SkyCoord too
@@ -679,7 +718,7 @@ class PanSTARRS1:
 
         return self.queried
 
-    def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode='all'):
+    def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode='all', verbose=1):
         ''' Convert RA/DEC to xy (add columns) with rejection at bezels.
         Parameters
         ----------
@@ -697,10 +736,10 @@ class PanSTARRS1:
         '''
         self.queried = xyinFOV(table=self.queried, header_or_wcs=header_or_wcs,
                                ra_key="RAJ2000", dec_key="DEJ2000",
-                               bezel=bezel, origin=0, mode=mode)
+                               bezel=bezel, origin=0, mode=mode, verbose=verbose)
 
     def drop_for_diff_phot(self, del_flags=PS1_DR1_DEL_FLAG,
-                           drop_by_Kron=True):
+                           drop_by_Kron=True, verbose=1):
         ''' Drop objects which are not good for differential photometry.
         Parameters
         ----------
@@ -779,6 +818,7 @@ class PanSTARRS1:
         N_old = len(self.queried)
         if del_flags is not None:
             idx2remove = []
+            # TODO: Use more_itertools.locate
             for i, row in enumerate(self.queried):
                 b_flag = list(f"{row['f_objID']:031b}")
                 for bin_pos in del_flags:
@@ -787,7 +827,8 @@ class PanSTARRS1:
             self.queried.remove_rows(idx2remove)
 
             N_fobj = len(self.queried)
-            mask_str(N_fobj, N_old, f"f_objID ({del_flags})")
+            if verbose:
+                mask_str(N_fobj, N_old, f"f_objID ({del_flags})")
 
             N_old = N_fobj
 
@@ -797,13 +838,15 @@ class PanSTARRS1:
             self.queried = self.queried[~mask]
 
             N_Kron = len(self.queried)
-            mask_str(N_Kron, N_old, "the Kron magnitude criterion")
+            if verbose:
+                mask_str(N_Kron, N_old, "the Kron magnitude criterion")
 
     def select_filters(
             self,
             filter_names=["g", "r", "i"],
             keep_columns=["_r", "objID", "f_objID", "RAJ2000", "DEJ2000", "x", "y"],
-            n_mins=[0, 0, 0]
+            n_mins=[0, 0, 0],
+            verbose=1
     ):
         ''' Abridges the columns depending on the specified filters.
         '''
@@ -842,11 +885,15 @@ class PanSTARRS1:
         N_old = len(self.queried)
 
         for i, filt in enumerate(filter_names):
-            mask = np.array(self.queried[f"o_{filt}mag"]) < n_mins[i]
-            self.queried = self.queried[~mask]
+            try:
+                mask = np.array(self.queried[f"o_{filt}mag"]) < n_mins[i]
+                self.queried = self.queried[~mask]
+            except KeyError:
+                continue
 
         N_new = len(self.queried)
-        mask_str(N_new, N_old, f"o_{filter_names}mag >= {n_mins}")
+        if verbose:
+            mask_str(N_new, N_old, f"o_{filter_names}mag >= {n_mins}")
 
     def check_nearby(self, minsep, maxmag=None, filter_names=["r"]):
         ''' Checkes whether there is any nearby object.
@@ -891,14 +938,15 @@ class PanSTARRS1:
         isnear = (np.array(chktab["_r"]).min() <= minsep)
         return isnear
 
-    def drop_star_groups(self, crit_separation):
+    def drop_star_groups(self, crit_separation, verbose=1):
         N_old = len(self.queried)
         grouped_rows = group_stars(table=self.queried, crit_separation=crit_separation,
                                    xcol="x", ycol="y", index_only=True)
         self.queried.remove_rows(grouped_rows)
         N_new = len(self.queried)
-        mask_str(N_new, N_old,
-                 (f"DAOGROUP with {crit_separation:.3f}-pixel critical separation."))
+        if verbose:
+            mask_str(N_new, N_old,
+                     (f"DAOGROUP with {crit_separation:.3f}-pixel critical separation."))
 
 
 def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
@@ -953,9 +1001,16 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
 
     tab[xcol].name = "x_0"
     tab[ycol].name = "y_0"
-    gtab = DAOGroup(crit_separation=crit_separation)(tab).group_by("group_id")
+    try:
+        gtab = DAOGroup(crit_separation=crit_separation)(tab).group_by("group_id")
+    except IndexError:  # empyy tab (len(tab) == 0)
+        gtab = tab
+        gtab["group_id"] = []
+        gtab["id"] = []
 
     if not index_only:
+        gtab["x_0"].name = xcol
+        gtab["y_0"].name = ycol
         return gtab
     else:
         gid, gnum = np.unique(gtab["group_id"], return_counts=True)
@@ -1116,7 +1171,8 @@ def drop_for_diff_phot_ps(
         table,
         service="mast",
         del_flags=PS1_DR1_DEL_FLAG,
-        drop_by_Kron=True
+        drop_by_Kron=True,
+        verbose=1
 ):
     ''' Drop objects which are not good for differential photometry.
 
@@ -1220,7 +1276,8 @@ def drop_for_diff_phot_ps(
         table.drop(idx2remove, inplace=True)
 
         N_fobj = len(table)
-        mask_str(N_fobj, N_old, f"{col_flag} ({del_flags})")
+        if verbose:
+            mask_str(N_fobj, N_old, f"{col_flag} ({del_flags})")
 
         N_old = N_fobj
 
@@ -1230,9 +1287,105 @@ def drop_for_diff_phot_ps(
         table = table.loc[~mask]
 
         N_Kron = len(table)
-        mask_str(N_Kron, N_old, "the Kron magnitude criterion")
+        if verbose:
+            mask_str(N_Kron, N_old, "the Kron magnitude criterion")
 
     return table
+
+
+def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
+    ''' Parse the flat and make human readable flag.
+        Parameters
+        ----------
+        table : astropy.table.Table
+            Table with the flag column (either ``"objInfoFlag"`` or
+            ``"f_objID"`` (from MAST or VizieR, respectively).
+
+        newcol : str
+            Name of the new column with the human readable flag. The result
+            will be `sep` separated string (e.g., "POOR & HAS_SOLSYS_DET").
+
+        fullname : bool
+            If True, use the full name of the flag (e.g., "POOR" instead of
+            "2"). Default is True.
+
+        sep : str
+            Separator for the flag.
+
+        Notes
+        -----
+          * FEW (1) : Used within relphot; skip star.
+          * POOR (2) : Used within relphot; skip star.
+          * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF
+            position measurement)
+          * HERN_QSO_P60 (8) : identified as likely QSO (H15), P_QSO >= 0.60
+          * HERN_QSO_P05 (16) : identified as possible QSO (H15), P_QSO >= 0.05
+          * HERN_RRL_P60 (32) : identified as likely RR Lyra (H15), P_RRLyra >=
+            0.60
+          * HERN_RRL_P05 (64) : identified as possible RR Lyra (H15), P_RRLyra
+            >= 0.05
+          * HERN_VARIABLE (128) : identified as a variable based on ChiSq (H15)
+          * TRANSIENT (256) : identified as a non-periodic (stationary)
+            transient
+          * HAS_SOLSYS_DET (512) : at least one detection identified with a
+            known solar-system object (asteroid or other).
+          * MOST_SOLSYS_DET (1024 (2^10)) : most detections identified with a
+            known solar-system object (asteroid or other).
+          * LARGE_PM (2048) : star with large proper motion
+          * RAW_AVE (4096) : simple weighted average position was used (no IRLS
+            fitting)
+          * FIT_AVE (8192) : average position was fitted
+          * FIT_PM (16384) : proper motion model was fitted
+          * FIT_PAR (32768) : parallax model was fitted
+          * USE_AVE (65536) : average position used (not PM or PAR)
+          * USE_PM (131072) : proper motion used (not AVE or PAR)
+          * USE_PAR (262144) : parallax used (not AVE or PM)
+          * NO_MEAN_ASTROM (524288) : mean astrometry could not be measured
+          * STACK_FOR_MEAN (1048576 (2^20)) : stack position used for mean
+            astrometry
+          * MEAN_FOR_STACK (2097152) : mean astrometry used for stack position
+          * BAD_PM (4194304) : failure to measure proper-motion model
+          * EXT (8388608) : extended in our data (eg, PS)
+          * EXT_ALT (16777216) : extended in external data (eg, 2MASS)
+          * GOOD (33554432) : good-quality measurement in our data (eg,PS)
+          * GOOD_ALT (67108864) : good-quality measurement in external data
+            (eg, 2MASS)
+          * GOOD_STACK (134217728) : good-quality object in the stack (>1 good
+            stack measurement)
+          * BEST_STACK (268435456) : the primary stack measurements are the
+            best measurements
+          * SUSPECT_STACK (536870912) : suspect object in the stack (no more
+            than 1 good measurement, 2 or more suspect or good stack
+            measurement)
+          * BAD_STACK (1073741824 (2^30)) : poor-quality stack object (no more
+            than 1 good or suspect measurement)
+
+        Among the ``"f_objID"``, the following are better to be dropped because
+        they are surely not usable for differential photometry:
+
+            * 1, 2, 4, 8, 32, 128, 256, 512, 1024, 8388608, 16777216
+
+        or in binary position (``del_flags``),
+
+            * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
+
+        (plus maybe 2048(2^11) because centroiding may not work properly?)
+        '''
+    from more_itertools import locate
+
+    if "f_objID" in table.colnames:  # VizieR
+        col_flag = "f_objID"
+    else:  # MAST
+        col_flag = "objInfoFlag"
+
+    contents = []
+    for row in table:
+        _flags = []
+        _idxs = list(locate(f"{row[col_flag]:031b}"[::-1], lambda x: x == '1'))
+        for _idx in _idxs:
+            _flags.append(PS1FLAG_KEYS[_idx] if fullname else str(_idx))
+        contents.append(sep.join(_flags))
+    table[newcol] = contents
 
 
 """
@@ -1264,7 +1417,7 @@ def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
     """
     DEPRECATED
     """
-    print("panstarrs_query is deprecated. Use PanSTARRS1.")
+    warn("DEPRECATED: Use PanSTARRS1 class instead.", DeprecationWarning, stacklevel=2)
     ps1 = PanSTARRS1(ra=ra_deg*u.deg, dec=dec_deg*u.deg,
                      radius=radius, inner_radius=inner_radius,
                      width=width, height=height,
