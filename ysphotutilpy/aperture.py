@@ -1,12 +1,12 @@
 import numpy as np
 from astropy import units as u
-from astropy.nddata import CCDData
+from astropy.nddata import CCDData, Cutout2D
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
                        EllipticalAperture, PixelAperture, RectangularAperture,
                        SkyAperture)
 from photutils.aperture import ApertureMask
 from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
-                                           ScalarAngle, PositiveScalarAngle,
+                                           PositiveScalarAngle, ScalarAngle,
                                            ScalarAngleOrValue,
                                            SkyCoordPositions)
 
@@ -27,7 +27,6 @@ def cutout_from_ap(ap, ccd):
     ccd : `astropy.nddata.CCDData` or ndarray
         The ccd to be cutout.
     '''
-    from astropy.nddata import CCDData, Cutout2D
     if not isinstance(ccd, CCDData):
         ccd = CCDData(ccd, unit="adu")  # dummy unit
 
