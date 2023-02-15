@@ -1,16 +1,19 @@
-from warnings import warn
+from io import StringIO
 from pathlib import Path
+from warnings import warn
 
 import numpy as np
 import pandas as pd
+import requests
 from astropy import units as u
 from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.io.fits import Header
 from astropy.table import Table, vstack
 from astropy.wcs import WCS
-from astropy.io.fits import Header
 from astroquery.jplhorizons import Horizons
-from astroquery.vizier import Vizier
 from astroquery.mast import Catalogs
+from astroquery.vizier import Vizier
 from scipy.interpolate import UnivariateSpline
 
 from .util import bezel_mask
@@ -20,7 +23,7 @@ __all__ = ["horizons_query",
            "MASTQuery",
            "PanSTARRS1", "group_stars", "get_xy", "xyinFOV",
            "panstarrs_query",
-           "add_reabable_flag"]
+           "add_reabable_flag", "ps1filenames", "ps1saveim"]
 
 
 # H15 means Hernitschek+ 2015ApJ...801...45H.
@@ -102,7 +105,7 @@ def horizons_query(
         cache=True,
         extra_precision=False
 ):
-    """
+    """ Designed for query to JPL HORIZONS with dict-like or small epochs.
     Parameters
     ----------
     id : str, required
@@ -289,7 +292,7 @@ def mask_str(n_new, n_old, msg):
 
 class HorizonsDiscreteEpochsQuery:
     def __init__(self, targetname, location, epochs, id_type="smallbody"):
-        '''
+        ''' Designed to query JPL Horizons for a **large** list of epochs.
         Parameters
         ----------
         id : str
@@ -1401,9 +1404,91 @@ def sdss2BV(g, r, gerr=None, rerr=None):
 """
 
 
+def ps1filenames(ra, dec, size, filters="grizy", file_type="fits", image_type="stack",
+                 ps1filenamesurl="https://ps1images.stsci.edu/cgi-bin/ps1filenames.py",
+                 fitscuturl="https://ps1images.stsci.edu/cgi-bin/fitscut.cgi"):
+    """Query ps1filenames.py service for multiple positions to get image urls.
+
+    Parameters
+    ----------
+    ra, dec : float, array-like, or Quantity
+        List of positions. If in float, assumed to be in degrees.
+
+    size : int or Quantity
+        Image size in pixels (0.25 arcsec/pixel). If a Quantity, it should be
+        in angular units.
+
+    filters : str
+        String with filters to include. (g, r, i, z, y). Default is "grizy".
+
+    file_type : str
+        Data format (options are "fits", "jpg", or "png"). Default is "fits".
+
+    image_type : str
+        List of any of the acceptable image types. Default is "stack"; other
+        common choices include "warp" (single-epoch images), "stack.wt"
+        (weight image), "stack.mask", "stack.exp" (exposure time), "stack.num"
+        (number of exposures), "warp.wt", and "warp.mask". This parameter can
+        be a list of strings or a comma-separated string.
+
+        ..note::
+            Weight map is the variance map
+            (https://outerspace.stsci.edu/display/PANSTARRS/PS1+Weight+image)
+
+    ps1filenamesurl, fitscuturl: str
+        URL for the ps1filenames.py service and FITS cutout sevice. Likely the
+        user will not need to change these.
+
+    Returns
+    -------
+    tab: pd.DataFrame
+        The DataFrame with the results
+    """
+    if file_type not in ("jpg", "png", "fits"):
+        raise ValueError("file_type must be one of jpg, png, fits")
+
+    # if image_type is a list, convert to a comma-separated string
+    if not isinstance(image_type, str):
+        image_type = ",".join(image_type)
+
+    if isinstance(ra, u.Quantity):
+        ra = ra.to(u.deg).value
+    ra = np.atleast_1d(ra)
+
+    if isinstance(dec, u.Quantity):
+        dec = dec.to(u.deg).value
+    dec = np.atleast_1d(dec)
+
+    if isinstance(size, u.Quantity):
+        size = int(size.to(u.arcsec).value / 0.25)
+    size = int(size)
+
+    # put the positions in an in-memory file object
+    cbuf = StringIO()
+    cbuf.write('\n'.join(
+        ["{} {}".format(ra, dec) for (ra, dec) in zip(ra, dec)]
+    ))
+    cbuf.seek(0)
+    # use requests.post to pass in positions as a file
+    r = requests.post(ps1filenamesurl, data=dict(filters=filters, type=image_type),
+                      files=dict(file=cbuf))
+    r.raise_for_status()
+    tab = pd.read_csv(StringIO(r.text), sep=' ')
+
+    urlbase = "{}?size={}&format={}".format(fitscuturl, size, file_type)
+    tab["url"] = ["{}&ra={}&dec={}&red={}".format(urlbase, ra, dec, filename)
+                  for (filename, ra, dec) in zip(tab["filename"], tab["ra"], tab["dec"])]
+    return tab
 
 
-
+def ps1saveim(url, output, load=False, **kwargs):
+    """ Save the image from the url (result of `ps1filenames`) to a file.
+    """
+    r = requests.get(url)
+    with open(output, "wb") as fitsfile:
+        fitsfile.write(r.content)
+    if load:
+        return fits.open(output)
 
 def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
                     width=None, height=None, columns=None, column_filters={}):
