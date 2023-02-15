@@ -1,6 +1,7 @@
 # ysphotutilpy
-Simple photometry utilities.
+[![DOI](https://zenodo.org/badge/159082834.svg)](https://zenodo.org/badge/latestdoi/159082834)
 
+Simple photometry utilities.
 
 
 Install by
