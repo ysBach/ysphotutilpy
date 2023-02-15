@@ -210,17 +210,16 @@ def _fit_2dgaussian(data, error=None, mask=None):
         clean=False,             # No cleaning
         segmentation_map=False,  # No segmentation map
     )[0]
-    props = pd.DataFrame(props)
 
     init_const = 0.  # subtracted data minimum above
     init_amplitude = np.ptp(data)
     g_init = GaussianConst2D(constant=init_const,
                              amplitude=init_amplitude,
-                             x_mean=props.x[0],
-                             y_mean=props.y[0],
-                             x_stddev=props.a[0],
-                             y_stddev=props.b[0],
-                             theta=props.theta[0])
+                             x_mean=props["x"].iloc[0],
+                             y_mean=props["y"].iloc[0],
+                             x_stddev=props["a"].iloc[0],
+                             y_stddev=props["b"].iloc[0],
+                             theta=props["theta"].iloc[0])
     fitter = LevMarLSQFitter()
     y, x = np.indices(data.shape)
     gfit = fitter(g_init, x, y, data, weights=weights)
@@ -254,7 +253,7 @@ class GaussianConst2D(Fittable2DModel):
         counterclockwise.
     """
 
-    constant = Parameter(default=1)
+    constant = Parameter(default=0)
     amplitude = Parameter(default=1)
     x_mean = Parameter(default=0)
     y_mean = Parameter(default=0)
@@ -263,14 +262,10 @@ class GaussianConst2D(Fittable2DModel):
     theta = Parameter(default=0)
 
     @staticmethod
-    def evaluate(x, y, constant, amplitude, x_mean, y_mean, x_stddev,
-                 y_stddev, theta):
+    def evaluate(x, y, constant, amplitude, x_mean, y_mean, x_stddev, y_stddev, theta):
         """Two dimensional Gaussian plus constant function."""
-
-        model = Const2D(constant)(x, y) + Gaussian2D(amplitude, x_mean,
-                                                     y_mean, x_stddev,
-                                                     y_stddev, theta)(x, y)
-        return model
+        return (Const2D(constant)(x, y)
+                + Gaussian2D(amplitude, x_mean, y_mean, x_stddev, y_stddev, theta)(x, y))
 
 
 def find_center_2dg(
@@ -417,30 +412,27 @@ def find_center_2dg(
         if verbose:
             n_all = np.size(mask)
             n_rej = np.count_nonzero(mask.astype(int))
-            print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
-                  + f"from min ({np.min(cut.data):.3f}) "
-                  + f"+ csigma ({csigma}) * ssky ({ssky:.3f})]")
+            print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} from min "
+                  + f"({np.min(cut.data):.3f}) + ({csigma = }) * ({ssky = :.3f})]")
 
         if ccd.mask is not None:
             cutmask = Cutout2D(ccd.mask, position=position_xy, size=cbox_size)
             mask += cutmask
 
         yy, xx = np.mgrid[:cut.data.shape[0], :cut.data.shape[1]]
-        g_fit = _fit_2dgaussian(data=cut.data,
-                                error=e_cut.data,
-                                mask=mask)
+        g_fit = _fit_2dgaussian(data=cut.data, error=e_cut.data, mask=mask)
         g_fit = Gaussian2D_correct(g_fit)
-        x_c_cut = g_fit.x_mean.value
-        y_c_cut = g_fit.y_mean.value
         # The position is in the cutout image coordinate, e.g., (3, 3).
 
-        pos_new_naive = cut.to_original_position((x_c_cut, y_c_cut))
-        # convert the cutout image coordinate to original coordinate.
-        # e.g., (3, 3) becomes something like (137, 189)
+        dx, dy, shift = _scaling_shift(
+            position_xy,
+            cut.to_original_position((g_fit.x_mean.value, g_fit.y_mean.value)),
+            max_shift_step=max_shift_step,
+            verbose=verbose
+        )
+        # ^ convert the cutout image coordinate to original coordinate.
+        #   e.g., (3, 3) becomes something like (137, 189)
 
-        dx, dy, shift = _scaling_shift(position_xy, pos_new_naive,
-                                       max_shift_step=max_shift_step,
-                                       verbose=verbose)
         pos_new = np.array([position_xy[0] + dx, position_xy[1] + dy])
 
         return pos_new, shift, g_fit, cut, e_cut, g_fit(xx, yy)
@@ -449,22 +441,14 @@ def find_center_2dg(
     if position_init.shape != (2,):
         raise TypeError("position_xy must have two and only two (xy) values.")
 
-    if not isinstance(ccd, CCDData):
-        _ccd = CCDData(ccd, unit='adu')  # Just a dummy unit
-    else:
-        _ccd = ccd.copy()
+    _ccd = ccd.copy() if isinstance(ccd, CCDData) else CCDData(ccd, unit='adu')
 
     if error is not None:
-        if not isinstance(error, CCDData):
-            _error = CCDData(error, unit='adu')  # Just a dummy unit
-        else:
-            _error = error.copy()
+        _error = error.copy() if isinstance(error, CCDData) else CCDData(error, unit='adu')
     else:
         _error = np.ones_like(_ccd.data)
 
-    i_iter = 0
     positions = [position_init]
-    d = 0
 
     if full:
         mods = []
@@ -521,31 +505,34 @@ def find_center_2dg(
     total_shift = np.sqrt(np.sum(total_dx_dy**2))
 
     if verbose:
-        print(f"Final shift: dx={total_dx_dy[0]:+.2f}, "
-              + f"dy={total_dx_dy[1]:+.2f}, "
+        print(f"Final shift: dx={total_dx_dy[0]:+.2f}, dy={total_dx_dy[1]:+.2f}, "
               + f"total_shift={total_shift:.2f}")
 
     if total_shift > max_shift:
         warn(f"Object with initial position {position_xy} "
-             + f"shifted larger than {max_shift} ({total_shift:.2f}).")
+             + f"shifted larger than {max_shift = } ({total_shift:.2f}).")
 
     if full:
         if full_history:
-            fulldict = dict(positions=np.atleast_2d(positions),
-                            shifts=np.atleast_1d(shift),
-                            fit_models=mods,
-                            fit_params=fit_params,
-                            cuts=cuts,
-                            e_cuts=e_cuts,
-                            fits=fits)
+            fulldict = dict(
+                positions=np.atleast_2d(positions),
+                shifts=np.atleast_1d(shift),
+                fit_models=mods,
+                fit_params=fit_params,
+                cuts=cuts,
+                e_cuts=e_cuts,
+                fits=fits
+            )
         else:
-            fulldict = dict(positions=np.atleast_2d(positions),
-                            shifts=np.atleast_1d(shift),
-                            fit_models=mods[-1],
-                            fit_params=fit_params,
-                            cuts=cuts[-1],
-                            e_cuts=e_cuts[-1],
-                            fits=fits[-1])
+            fulldict = dict(
+                positions=np.atleast_2d(positions),
+                shifts=np.atleast_1d(shift),
+                fit_models=mods[-1],
+                fit_params=fit_params,
+                cuts=cuts[-1],
+                e_cuts=e_cuts[-1],
+                fits=fits[-1]
+            )
         return positions[-1], total_shift, fulldict
 
     return positions[-1], total_shift
@@ -651,28 +638,29 @@ def find_centroid(
     else:
         _ccd = ccd.copy()
 
-    i_iter = 0
     xc_iter = [position_xy[0]]
     yc_iter = [position_xy[1]]
     shift = []
-    d = 0
+
     if verbose >= 1:
-        print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]")
-        print(f"\t(max iteration {maxiters:d}, shift tolerance {tol_shift})")
+        print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]"
+              + f"\n\t({maxiters = :d}, {tol_shift = :.5f})")
 
     for i_iter in range(maxiters):
         xy_old = (xc_iter[-1], yc_iter[-1])
         if verbose >= 2:
             print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
-        (x, y), d = _centroiding_iteration(ccd=_ccd,
-                                           position_xy=xy_old,
-                                           centroider=centroider,
-                                           cbox_size=cbox_size,
-                                           csigma=csigma,
-                                           msky=msky,
-                                           ssky=ssky,
-                                           max_shift_step=max_shift_step,
-                                           verbose=verbose >= 2)
+        (x, y), d = _centroiding_iteration(
+            ccd=_ccd,
+            position_xy=xy_old,
+            centroider=centroider,
+            cbox_size=cbox_size,
+            csigma=csigma,
+            msky=msky,
+            ssky=ssky,
+            max_shift_step=max_shift_step,
+            verbose=verbose >= 2
+        )
         xc_iter.append(x)
         yc_iter.append(y)
         shift.append(d)
