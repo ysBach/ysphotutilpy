@@ -278,7 +278,7 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
     '''
     # I didn't use ``Gaussian2D`` directly, because GaussianConst2D from
     # photutils may also be used.
-    new_model = model.__class__(*model.parameters)
+    new_model = model.copy()
     sig_x = np.abs(model.x_stddev.value)
     sig_y = np.abs(model.y_stddev.value)
     theta = model.theta.value
