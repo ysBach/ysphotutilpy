@@ -299,7 +299,9 @@ def correct_pa(
     Notes
     -----
     Assumed: optic's position angle (PA or INST-PA-like value) is assumed to
-    have zero error.
+    have zero error. The `pa_obs` value must be used with correct `pa_ccw`.
+    For instance, Pirka MSI should use the header keyword ``"INST-PA"`` with
+    `pa_ccw=True`, while NHAO NIC should use ``"PA"`` with `pa_ccw=False`.
 
     Parameters
     ----------
