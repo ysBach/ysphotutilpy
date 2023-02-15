@@ -17,7 +17,7 @@ __all__ = ["cutout_from_ap", "ap_to_cutout_position",
            "SkyPillBoxAperture", "SkyPillBoxAnnulus"]
 
 
-def cutout_from_ap(ap, ccd):
+def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
     ''' Returns a Cutout2D object from bounding boxes of aperture/annulus.
     Parameters
     ----------
@@ -26,19 +26,46 @@ def cutout_from_ap(ap, ccd):
 
     ccd : `astropy.nddata.CCDData` or ndarray
         The ccd to be cutout.
+
+    method : str
+        The method to cutout.
+
+          * "bbox" : use the bounding box of the aperture/annulus.
+          * {"exact", "center", "subpixel"} : use the aperture mask
+
+        Default is "bbox" which uses the bounding box to cutout rectangular
+        region. Otherwise, "center" is a reasonable option to cutout circular
+        region around the aperture/annulus.
+
+    Note
+    ----
+    photutils ApertureMask has .cutout and .multiply, but they are not "Cutout2D" object.
+    But do I really need Cutout2D instead of ndarray?
     '''
-    if not isinstance(ccd, CCDData):
-        ccd = CCDData(ccd, unit="adu")  # dummy unit
+    # if not isinstance(ccd, CCDData):
+    #     ccd = CCDData(ccd, unit="adu")  # dummy unit
 
     positions = np.atleast_2d(ap.positions)
+    cuts = []
+    # for ap in np.atleast_1d(ap):
+    #     msk = ap.to_mask(method=method, subpixels=subpixels)
+    #     if method == "bbox":
+    #         cuts.append(msk.cutout(ccd, fill_value=fill_value))
+    #     else:
+    #         cuts.append(msk.multiply(ccd, fill_value=fill_value))
+
     try:
         bboxes = np.atleast_1d(ap.bbox)
     except AttributeError:
         bboxes = np.atleast_1d(ap.bounding_boxes)
     sizes = [bbox.shape for bbox in bboxes]
-    cuts = []
     for pos, size in zip(positions, sizes):
-        cuts.append(Cutout2D(ccd.data, position=pos, size=size))
+        cut = Cutout2D(ccd.data, position=pos, size=size)
+        if method != "bbox":
+            cut.data = ap.to_mask(
+                method, subpixels=subpixels
+            ).multiply(ccd, fill_value=fill_value)
+        cuts.append(cut)
 
     if len(cuts) == 1:
         return cuts[0]
@@ -416,6 +443,7 @@ def radprof_an(img, pos, rmax=10, dr=1, method="center"):
     """Get radial profile (annulus average) of an object from n-D image.
     """
     pass
+
 
 """
 def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
