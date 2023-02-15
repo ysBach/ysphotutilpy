@@ -293,6 +293,7 @@ def apphot_annulus(
 
     phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand)
     snr = np.array(phot['source_sum'])/np.array(phot["source_sum_err"])
+    snr[snr < 0] = 0
     phot["mag"] = -2.5*np.log10(phot['source_sum']/t_exposure)
     phot["merr"] = 2.5/np.log(10)*(1/snr)
     phot["snr"] = snr
