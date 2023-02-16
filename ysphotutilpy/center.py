@@ -36,14 +36,15 @@ def _scaling_shift(pos_old, pos_new_naive, max_shift_step=None, verbose=False):
     return dx, dy, shift
 
 
+# TODO: add mask
 def _centroiding_iteration(
         ccd, position_xy,
         centroider=centroid_com,
         cbox_size=5.,
-        csigma=3.,
+        csigma=3,
         max_shift_step=None,
         msky=None,
-        ssky=0,
+        error=0,
         verbose=False
 ):
     ''' Find the intensity-weighted centroid of the image iteratively
@@ -54,8 +55,10 @@ def _centroiding_iteration(
         The full CCD image.
 
     position_xy : float
-        The centroided location in the original image coordinate in image
-        XY.
+        The position of the initial guess in image XY coordinate. It is assumed
+        that the `position_xy` is already quite close to the centroid, so both
+        `msky` and `error`(if constant) are not needed to be updated at every
+        iteration.
 
     cbox_size : float or int, optional
         The size of the box to find the centroid. Recommended to use 2.5 to 4.0
@@ -65,19 +68,23 @@ def _centroiding_iteration(
         https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     csigma : float or int, optional
-        The parameter to use in sigma-clipping. Using pixels only above 3-simga
-        level for centroiding is recommended. See Ma+2009, Optics Express, 17,
-        8525.
+        The parameter to use in sigma-clipping. If `None`, pixels ABOVE (not
+        equal to) the minimum pixel value within the `cbox_size` will be used.
+        If `0` (actually if < 1.e-6), pixels ABOVE the "mean pixel value within
+        the `cbox_size`" will be used (IRAF default?). Otherwise, pixels above
+        ``msky + csigma*error`` will be used.
+        Default is 0
 
     msky : float, optional
         The approximate value of the sky or background. If `None` (default),
-        it will be estimated from the minimum of the array of size `cbox_size`.
+        it is the minimum pixel value within the `cbox_size`.
 
-    ssky : float, optional
-        The sample standard deviation of the sky or background. The pixels
-        above ``msky + csigma*ssky`` will be used for centroid, following the
-        default of IRAF's ``noao.digiphot.apphot``:
-        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
+    error : float, ndarray, optional
+        The 1-sigma error-bar for each pixel. If float, a constant error-bar
+        (e.g., sample standard deviation of sky) is assumed. If array-like, it
+        should be in the shape of ccd. Ignored if `csigma` is
+        `None` or `0`.
+        Default is 0.
 
     max_shift_step : float, None, optional
         The maximum acceptable shift for each iteration. If the shift (call it
@@ -85,43 +92,60 @@ def _centroiding_iteration(
         `max_shift_step` towards the direction identical to `naive_shift`. If
         `None` (default), no such truncation is done.
 
-    error : CCDData or ndarray
-        The 1-sigma uncertainty map used for fitting.
-
     verbose : bool
         Whether to print how many iterations were needed for the centroiding.
 
+    Returns
+    -------
+    pos_new : ndarray
+        The new centroid position in image XY coordinate.
+
     shift : float
-        The total distance between the initial guess and the fitted
-        centroid, i.e., the distance between `(xc_img, yc_img)` and
-        `position_xy`.
+        The total distance between the initial guess and the fitted centroid,
+        i.e., the distance between `(xc_img, yc_img)` and `position_xy`.
     '''
 
     # x_init, y_init = position_xy
-    cutccd = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
-    ssky = np.std(cutccd.data, ddof=1) if ssky is None else ssky
-    _mindata = np.min(cutccd.data)
-    if msky is not None and msky > _mindata:
-        if verbose:
-            print(f"msky ({msky:.3f}) < min(cutccd.data) ({_mindata:.3f}). Using min(data)")
-        msky = _mindata
+    _cutkw = dict(position=position_xy, size=cbox_size)
+    cutccd = Cutout2D(ccd.data, **_cutkw)
 
-    cthresh = msky + csigma * ssky
+    _mindata = np.min(cutccd.data)  # TODO: use np.nanmin?
 
-    # using pixels only above med + 3*std for centroiding is recommended.
-    # See Ma+2009, Optics Express, 17, 8525
-    # -- I doubt this... YPBach 2019-07-08 10:43:54 (KST: GMT+09:00)
+    if csigma is None:
+        cthresh = _mindata
+    elif csigma < 1.e-6:
+        cthresh = np.mean(cutccd.data)  # TODO: use np.nanmean?
+    else:
+        msky = _mindata if msky is None else msky
+        if (msky < _mindata) and verbose:
+            msky = _mindata
+            print(f"\t{msky=:.3f} < (min(pixels in cbox) = {_mindata:.3f}). "
+                  + f"Setting msky = min(pixels in cbox).")
+        error = Cutout2D(error, **_cutkw).data if isinstance(error, np.ndarray) else error
+        cthresh = msky + csigma * error
 
     mask = (cutccd.data <= cthresh)
+    if ccd.mask is not None:
+        mask += Cutout2D(ccd.mask, **_cutkw).data
 
     if verbose:
         n_all = np.size(mask)
         n_rej = np.count_nonzero(mask.astype(int))
-        print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} "
-              + f"from sky ({msky:.3f}) + csigma ({csigma}) * ssky ({ssky:.3f})]")
+        if isinstance(cthresh, np.ndarray):
+            info = f"\t{n_rej} / {n_all} rejected [threshold = "
+        else:
+            info = f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} = "
 
-    if ccd.mask is not None:
-        mask += Cutout2D(ccd.mask, position=position_xy, size=cbox_size).data
+        if csigma is None:
+            info += f"minimum within {cbox_size = }]"
+        elif csigma < 1.e-6:
+            info += f"mean within {cbox_size = }]"
+        else:
+            if not isinstance(error, np.ndarray):
+                info += f"({msky=:.3f}) + ({csigma=}) * {error=:.3f}]"
+            else:
+                info += f"({msky=:.3f}) + ({csigma=}) * (error=ndarray)]"
+        print(info)
 
     x_c_cut, y_c_cut = centroider(data=cutccd.data - msky, mask=mask)
     # The position is in the cutout image coordinate, e.g., (3, 3).
@@ -134,9 +158,12 @@ def _centroiding_iteration(
     # convert the cutout image coordinate to original coordinate.
     # e.g., (3, 3) becomes something like (137, 189)
 
-    dx, dy, shift = _scaling_shift(position_xy, pos_new_naive,
-                                   max_shift_step=max_shift_step,
-                                   verbose=verbose)
+    dx, dy, shift = _scaling_shift(
+        position_xy,
+        pos_new_naive,
+        max_shift_step=max_shift_step,
+        verbose=verbose
+    )
     pos_new = (position_xy[0] + dx, position_xy[1] + dy)
 
     return pos_new, shift
@@ -545,9 +572,9 @@ def find_centroid(
         centroider=centroid_com,
         maxiters=5,
         cbox_size=5.,
-        csigma=3.,
+        csigma=3,
         msky=None,
-        ssky=0,
+        error=0,
         tol_shift=1.e-4,
         max_shift=1,
         max_shift_step=None,
@@ -558,16 +585,24 @@ def find_centroid(
 
     Notes
     -----
-    Cut out small box region around the initial position, subtract "background"
-    which is set to be the minimum pixel value within that box, and then find
-    the centroid of the box using the pixels with value >= ``csigma*ssky``.
-    Setting `ssky` 0 to use all the pixels, very small value to reject only the
-    minimum pixel, or `None` to be estimated from the pixels within the box.
+    Cut out small box region (`cbox_size`) around the initial position, use
+    pixels above certain threshold, and find the intensity-weighted centroid of
+    the box after subtracting "background"::
+
+      * If `csigma=0` (or < 1.e-6), use pixels only above the mean of the box.
+        Ignore `msky` and `error`. (IRAF default?)
+      * If `csigma=None`, use pixels only above the minimum of the box. Ignore
+        `msky` and `error`.
+      * If `csigma` is a positive number, use pixels above ``msky +
+        csigma*error``.
+        * If `msky` is not given, use the minimum pixel value within the box.
 
     Simply run `_centroiding_iteration` function iteratively for `maxiters`
     times. Given the initial guess of centroid position in image xy coordinate,
     it finds the intensity-weighted centroid (center of mass) after rejecting
     pixels by sigma-clipping.
+
+    https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/daophot/centerpars.html
 
     Parameters
     ----------
@@ -575,7 +610,9 @@ def find_centroid(
         The whole image which the `position_xy` is calculated.
 
     position_xy : array-like
-        The position of the initial guess in image XY coordinate.
+        The position of the initial guess in image XY coordinate. It is assumed
+        that the `position_xy` is already quite close to the centroid, so both
+        `msky` and `ssky` are not needed to be updated at every iteration.
 
     centroider : callable
         The centroider function (Dafault uses `photutils.centroid_com`).
@@ -588,21 +625,23 @@ def find_centroid(
         https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
 
     csigma : float or int, optional
-        The parameter to use in sigma-clipping. Using pixels only above 3-simga
-        level for centroiding is recommended. See Ma+2009, Optics Express, 17,
-        8525.
+        The parameter to use in sigma-clipping. If `None`, pixels ABOVE (not
+        equal to) the minimum pixel value within the `cbox_size` will be used.
+        If `0` (actually if < 1.e-6), pixels ABOVE the "mean pixel value within
+        the `cbox_size`" will be used (IRAF default?). Otherwise, pixels above
+        ``msky + csigma*error`` will be used.
+        Default is 0
 
-    msky, ssky : float, optional
-        The estimated sky level (preferrably modal value) and the sample
-        standard deviation of the sky or background. Only the pixels above
-        certain threshold ``msky + csigma*ssky`` will be used for centroiding,
-        following the default of IRAF's ``noao.digiphot.apphot``:
-        https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html.
-        If `None`, `msky` is the minimum pixel value within the `cbox_size`,
-        and `ssky` is the sample standard deviation from the `cbox_size`.
-        It is assumed that the `position_xy` is already quite close to the
-        centroid, so both `msky` and `ssky` are not needed to be updated at
-        every iteration.
+    msky : float, optional
+        The approximate value of the sky or background. If `None` (default),
+        it is the minimum pixel value within the `cbox_size`.
+
+    error : float, ndarray, optional
+        The 1-sigma error-bar for each pixel. If float, a constant error-bar
+        (e.g., sample standard deviation of sky) is assumed. If array-like, it
+        should be in the shape of ccd. Ignored if `csigma` is
+        `None` or `0`.
+        Default is 0.
 
     tol_shift : float
         The absolute tolerance for the shift. If the shift in centroid after
@@ -633,10 +672,7 @@ def find_centroid(
     com_xy : list
         The iteratively found centroid position.
     '''
-    if not isinstance(ccd, CCDData):
-        _ccd = CCDData(ccd, unit='adu')  # Just a dummy
-    else:
-        _ccd = ccd.copy()
+    _ccd = CCDData(ccd, unit='adu') if not isinstance(ccd, CCDData) else ccd.copy()
 
     xc_iter = [position_xy[0]]
     yc_iter = [position_xy[1]]
@@ -644,7 +680,7 @@ def find_centroid(
 
     if verbose >= 1:
         print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]"
-              + f"\n\t({maxiters = :d}, {tol_shift = :.5f})")
+              + f"\n\t({maxiters = :d}, {tol_shift = :.2e})")
 
     for i_iter in range(maxiters):
         xy_old = (xc_iter[-1], yc_iter[-1])
@@ -657,19 +693,19 @@ def find_centroid(
             cbox_size=cbox_size,
             csigma=csigma,
             msky=msky,
-            ssky=ssky,
+            error=error,
             max_shift_step=max_shift_step,
             verbose=verbose >= 2
         )
         xc_iter.append(x)
         yc_iter.append(y)
         shift.append(d)
-        if d < tol_shift:
-            if verbose >= 2:
-                print(f"Finishing iteration (shift {d:.5f} < tol_shift).")
-            break
         if verbose >= 2:
-            print(f"\t({x:.2f}, {y:.2f}), shifted {d:.2f}")
+            print(f"\t({x:.2f}, {y:.2f}) [dx = {x - xc_iter[-2]:.2f}, "
+                  + f"dy = {y - yc_iter[-2]:.2f} --> shift = {d:.2f}]")
+            if d < tol_shift:
+                print(f"*** Finishing iteration (shift={d:.2e} < tol_shift). ***")
+                break
 
     newpos = [xc_iter[-1], yc_iter[-1]]
     dx = x - position_xy[0]
@@ -677,7 +713,10 @@ def find_centroid(
     total = np.sqrt(dx**2 + dy**2)
 
     if verbose >= 1:
-        print(f"Final shift: dx={dx:+.2f}, dy={dy:+.2f}, total={total:.2f}")
+        print(f"   (x, y) = ({xc_iter[0]:8.2f}, {yc_iter[0]:8.2f})")
+        print(f"        --> ({xc_iter[-1]:8.2f}, {yc_iter[-1]:8.2f}) [0-index]")
+        print(f" (dx, dy) = ({dx:+8.2f}, {dy:+8.2f})")
+        print(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
         warn(f"Object with initial position ({xc_iter[-1]}, {yc_iter[-1]}) "
