@@ -361,9 +361,7 @@ class HorizonsDiscreteEpochsQuery:
 
         for i in range(Nquery):
             print(f"{i+1}...", end=' ')
-            i_0 = i*depoch
-            i_1 = (i + 1)*depoch
-            epochs_i = self.epochs[i_0:i_1]
+            epochs_i = self.epochs[i*depoch:(i + 1)*depoch]
 
             obj = Horizons(
                 id=self.targetname,
