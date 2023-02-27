@@ -21,6 +21,8 @@ def apphot_annulus(
         ccd,
         aperture,
         annulus=None,
+        gain="GAIN",
+        rdnoise="RDNOISE",
         t_exposure=None,
         exposure_key="EXPTIME",
         error=None,
@@ -45,6 +47,19 @@ def apphot_annulus(
         multi-position aperture, just use, e.g., ``CircularAperture(positions,
         r=10)``. For multiple radii, use, e.g., ``[CircularAperture(positions,
         r=r) for r in radii]``.
+
+    gain : str, float, optional
+        The gain of the CCD in electrons per ADU. If str, gain will be
+        found from the header by tke key, and if not found, defaults to 1. If
+        float, it should be in electrons per ADU. Used only if `error` is
+        `None`.
+        Default is ``'GAIN'``.
+
+    rdnosie : str, float, optional
+        The readout noise of the CCD in electrons. If str, readout noise will
+        be found from the header by tke key, and if not found, defaults to 0.
+        If float, it should be in electrons. Used only if `error` is `None`.
+        Default is ``'RDNOISE'``.
 
     exposure_key : str
         The key for exposure time. Together with `t_exposure_unit`, the
@@ -93,6 +108,17 @@ def apphot_annulus(
       * 1 (2^0) : number of masked pixels ``> npix_mask_ap`` within aperture.
       * 2 (2^1) : number of masked pixels ``> npix_mask_an`` within annulus.
         (not implemented yet)
+
+    Notes
+    -----
+    If `error` is given, the error is propagated to magnitude error by
+    quadratically summing the error. The final source error is this error plus
+    ``aperture_area*sky_stddev**2``. In IRAF, it wrongly(?) adds another term,
+    (``aperture_area*sky_stddev/sky_num**2``).
+
+    If `error` is not given, error=``sqrt(data/gain + (rdnoise/gain)**2)`` is
+    used, assuming dark=0 (also, digitization error is ignored. cf. Merline &
+    Howell (1995) ExpA).
     '''
     def _propagate_ccdmask(ccd, additional_mask=None):
         ''' Propagate the CCDData's mask and additional mask from ysfitsutilpy.
@@ -187,9 +213,13 @@ def apphot_annulus(
         try:
             err = _ccd.uncertainty.array
         except AttributeError:
+            # if verbose:
+            #     warn("Uncertainty extension not found in ccd. Will not calculate errors.")
+            gain = ccd.header.get(gain, 1) if isinstance(gain, str) else gain
+            rdnoise = ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise
             if verbose:
-                warn("Uncertainty extension not found in ccd. Will not calculate errors.")
-            err = np.zeros_like(_arr)
+                print(f"Making errormap from {gain = } [e/ADU], {rdnoise = } [e]")
+            err = np.sqrt(_arr/gain + (rdnoise/gain)**2)
 
     if aparea_exact:
         # What this does is basically identical to area_overlap:
@@ -290,7 +320,6 @@ def apphot_annulus(
     # var_sky = (aparea * phot['ssky'])**2 / phot['nsky']
     # This error term is used in IRAF APPHOT, but this is wrong and thus
     # ignored here.
-
     phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand)
     snr = np.array(phot['source_sum'])/np.array(phot["source_sum_err"])
     snr[snr < 0] = 0
