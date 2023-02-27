@@ -101,6 +101,7 @@ to +0.5. Simple test code:
 """
 from warnings import warn
 
+from astropy.nddata import support_nddata
 import numpy as np
 import pandas as pd
 
@@ -120,10 +121,13 @@ sep_default_kernel = np.array([[1.0, 2.0, 1.0],
 
 
 def _sanitize_byteorder(data):
-    if data.dtype.byteorder == '>':
-        return data.byteswap().newbyteorder()
-    else:
-        return data
+    if data is None:
+        return None
+    return np.ascontiguousarray(data)
+    # elif data.dtype.byteorder == '>':
+    #     return data.byteswap().newbyteorder()
+    # else:
+    #     return data
 
 
 def sep_back(
@@ -229,7 +233,8 @@ def sep_back(
     return bkg
 
 
-def sep_extract(
+@support_nddata
+def _sep_extract(
         data,
         thresh,
         bkg=None,
@@ -237,27 +242,23 @@ def sep_extract(
         maskthresh=0.0,
         err=None,
         var=None,
-        pos_ref=None,
-        sort_by=None,
-        sort_ascending=True,
-        bezel_x=[0, 0],
-        bezel_y=[0, 0],
         gain=None,
         minarea=5,
-        maxarea=None,
         filter_kernel=sep_default_kernel,
         filter_type='matched',
         deblend_nthresh=32,
         deblend_cont=0.005,
         clean=True,
-        clean_param=1.0
+        clean_param=1.0,
+        seg_remove_mask=True
 ):
-    """
+    """ sep.extract wrapper with minor sanitization of arrays and segmap
     Notes
     -----
-    This includes `sep`'s `extract`. Equivalent processes in photutils may
-    include `detect_sources` and `source_properties`. Maybe we can use
-    ``extract(data=data, err=err, thresh=3)`` for a snr > 3 extraction.
+    This is a wrapper of `sep.extract`. Only the difference is that (1) `data`,
+    `err`, `var`, `mask` are "sanitized" to be in native byte order, (2) the
+    final segmentation map is updated so that the masked pixels are set to 0,
+    and (3) add support for Gaussian kernel if `filter_kernel` is a float.
 
     Parameters
     ----------
@@ -293,6 +294,147 @@ def sep_extract(
         Error *or* variance (specify at most one). This can be used to specify
         a pixel-by-pixel detection threshold; see `thresh`.
 
+    gain : float, optional
+        Conversion factor between data array units and poisson counts. This
+        does not affect detection; it is used only in calculating Poisson noise
+        contribution to uncertainty param(eters such as `errx2`. If not given,
+        no Poisson noise will be added.
+
+    minarea : int, optional
+        Minimum number of pixels required for an object. Default is 5.
+
+    filter_kernel : `~numpy.ndarray` or None, optional
+        Filter kernel used for on-the-fly filtering (used to enhance
+        detection). Default is a 3x3 array: [[1,2,1], [2,4,2], [1,2,1]]. If
+        float, a circular Gaussian kernel of that sigma will be used (kernel
+        size is approximately 2*min(sigma, 1) + 1 pixels). Set to `None` to
+        skip convolution.
+
+    filter_type : {'matched', 'conv'}, optional
+        Filter treatment. This affects filtering behavior when a noise array is
+        supplied. ``'matched'`` (default) accounts for pixel-to-pixel noise in
+        the filter kernel. ``'conv'`` is simple convolution of the data array,
+        ignoring pixel-to-pixel noise across the kernel. ``'matched'`` should
+        yield better detection of faint sources in areas of rapidly varying
+        noise (such as found in coadded images made from semi-overlapping
+        exposures). The two options are equivalent when noise is constant.
+
+    deblend_nthresh : int, optional
+        Number of thresholds used for object deblending. Default is 32.
+
+    deblend_cont : float, optional
+        Minimum contrast ratio used for object deblending. Default is 0.005. To
+        entirely disable deblending, set to 1.0.
+
+    clean : bool, optional
+        Whether to perform cleaning (remove false positives especially nearby
+        bright sources).
+        Default is True. (see Notes)
+
+    clean_param : float, optional
+        The Moffat power index for cleaning processes (see Notes). Default is 1.0.
+
+    Returns
+    -------
+    obj, segm
+
+    Notes
+    -----
+    The **cleaning** means to check if each object would have been detected
+    even if there was no nearby sources. Thus, the code "removes" any nearby
+    objects, and see if the object is still detected. If not, it is considered
+    as a false positive and removed. The removal of nearby object is done by
+    fitting a Moffat profile. `clean_param` is the Moffat beta parameter (power
+    index). Although SEP default is 1.0 and original SExtractor accepts any
+    value between 0.1 to 10, Moffat profile will have finite flux only if
+    `clean_param > 2`.
+    """
+    def _gaussian_kernel(sig):
+        if isinstance(sig, (int, float)):
+            return gaussian_kernel(sigma=sig, nsigma=min(1, 3/sig), normalize_area=False)
+        else:
+            return sig
+
+    if err is not None and var is not None:
+        raise ValueError("Upto one of `err` and `var` can be given.")
+
+    # No need to check CCDData thanks to @support_nddata.
+    data = np.ascontiguousarray(data)
+    mask = None if mask is None else np.ascontiguousarray(mask)
+
+    if bkg is None:
+        data_skysub = data
+        # No need to further update `var` or `err`.
+    elif isinstance(bkg, (int, float, np.ndarray)):
+        data_skysub = data - bkg
+        # No need to further update `var` or `err`.
+    else:
+        data_skysub = data - bkg.back()
+        if var is not None:  # Then err is None (see above)
+            var = var + bkg.rms()**2
+        elif err is not None:  # Then var is None (see above)
+            err = np.sqrt(err**2 + bkg.rms()**2)
+
+    obj, seg = sep.extract(
+        _sanitize_byteorder(data_skysub),
+        thresh=thresh,
+        err=None if err is None else np.ascontiguousarray(err),
+        var=None if var is None else np.ascontiguousarray(var),
+        mask=mask,  # already contiguous (see above)
+        maskthresh=maskthresh,
+        minarea=minarea,
+        filter_kernel=_gaussian_kernel(filter_kernel),
+        filter_type=filter_type,
+        deblend_nthresh=deblend_nthresh,
+        deblend_cont=deblend_cont,
+        clean=clean,
+        clean_param=clean_param,
+        gain=gain,
+        segmentation_map=True
+    )
+    if seg_remove_mask and mask is not None:
+        # FIXME: https://github.com/kbarbary/sep/issues/149
+        seg = seg & ~mask
+    return obj, seg
+
+
+# TODO: use astropy.nddata's @support_nddata
+def sep_extract(
+        data,
+        thresh,
+        bkg=None,
+        mask=None,
+        maskthresh=0.0,
+        err=None,
+        var=None,
+        pos_ref=None,
+        sort_by=None,
+        sort_ascending=True,
+        bezel_x=[0, 0],
+        bezel_y=[0, 0],
+        gain=None,
+        minarea=5,
+        maxarea=None,
+        filter_kernel=sep_default_kernel,
+        filter_type='matched',
+        deblend_nthresh=32,
+        deblend_cont=0.005,
+        clean=True,
+        clean_param=1.0,
+        seg_remove_mask=True
+):
+    """
+    Notes
+    -----
+    This includes `sep`'s `extract`. Equivalent processes in photutils may
+    include `detect_sources` and `source_properties`. Maybe we can use
+    ``extract(data=data, err=err, thresh=3)`` for a snr > 3 extraction.
+
+    Parameters
+    ----------
+    data : CCDData or array-like
+        The 2D array from which to estimate the background.
+
     pos_ref : `None`, list-like of two floats, optional.
         If not `None`, it must be the (x, y) position of the reference point.
         The returned `obj` will have ``'dist_ref'`` column which is the
@@ -317,47 +459,12 @@ def sep_extract(
         (similar for y) will be selected. If you want to keep some stars
         outside the edges, put negative values (e.g., ``-5``).
 
-    gain : float, optional
-        Conversion factor between data array units and poisson counts. This
-        does not affect detection; it is used only in calculating Poisson noise
-        contribution to uncertainty param(eters such as `errx2`. If not given,
-        no Poisson noise will be added.
-
-    minarea : int, optional
-        Minimum number of pixels required for an object. Default is 5.
-
     maxarea : int, optional
         Maximum number of pixels required for an object. It is useful to reject
         any artifact (too low threshold) or extended source. Default is `None`.
 
-    filter_kernel : `~numpy.ndarray` or None, optional
-        Filter kernel used for on-the-fly filtering (used to enhance
-        detection). Default is a 3x3 array: [[1,2,1], [2,4,2], [1,2,1]]. If
-        float, a circular Gaussian kernel of that sigma will be used (kernel
-        size = 2sigma by 2sigma, i.e., +/- 1-sigma). Set to `None` to skip
-        convolution.
-
-    filter_type : {'matched', 'conv'}, optional
-        Filter treatment. This affects filtering behavior when a noise array is
-        supplied. ``'matched'`` (default) accounts for pixel-to-pixel noise in
-        the filter kernel. ``'conv'`` is simple convolution of the data array,
-        ignoring pixel-to-pixel noise across the kernel. ``'matched'`` should
-        yield better detection of faint sources in areas of rapidly varying
-        noise (such as found in coadded images made from semi-overlapping
-        exposures). The two options are equivalent when noise is constant.
-
-    deblend_nthresh : int, optional
-        Number of thresholds used for object deblending. Default is 32.
-
-    deblend_cont : float, optional
-        Minimum contrast ratio used for object deblending. Default is 0.005. To
-        entirely disable deblending, set to 1.0.
-
-    clean : bool, optional
-        Perform cleaning? Default is True.
-
-    clean_param : float, optional
-        Cleaning parameter (see SExtractor manual). Default is 1.0.
+    Other Parameters:
+        See `~_sep_extract` or `sep.extract` for other parameters and notes.
 
     Returns
     -------
@@ -385,53 +492,14 @@ def sep_extract(
     >>> plt.tight_layout()
     >>> plt.show()
     """
-    def _gaussian_kernel(sig):
-        if isinstance(sig, (int, float)):
-            return gaussian_kernel(sigma=sig, nsigma=max(1, 3/sig), normalize_area=False)
-        else:
-            return sig
+    obj, segm = _sep_extract(data=data, thresh=thresh, bkg=bkg, mask=mask,
+                             maskthresh=maskthresh, err=err, var=var,
+                             gain=gain, minarea=minarea,
+                             filter_kernel=filter_kernel, filter_type=filter_type,
+                             deblend_nthresh=deblend_nthresh,
+                             deblend_cont=deblend_cont, clean=clean,
+                             clean_param=clean_param, seg_remove_mask=seg_remove_mask)
 
-    if err is not None and var is not None:
-        raise ValueError("Upto one of `err` and `var` can be given.")
-
-    try:
-        data = _sanitize_byteorder(data)
-    except AttributeError:  # if data is in CCDData...
-        data = _sanitize_byteorder(data.data)
-
-    if mask is not None:
-        mask = np.asarray(mask).astype(float)
-
-    if bkg is None:
-        data_skysub = data
-        # No need to further update `var` or `err`.
-    elif isinstance(bkg, (int, float, np.ndarray)):
-        data_skysub = data - bkg
-        # No need to further update `var` or `err`.
-    else:
-        data_skysub = data - bkg.back()
-        if var is not None:  # Then err is None (see above)
-            var = var + bkg.rms()**2
-        elif err is not None:  # Then var is None (see above)
-            err = np.sqrt(err**2 + bkg.rms()**2)
-
-    obj, segm = sep.extract(
-        data_skysub,
-        thresh=thresh,
-        err=err,
-        var=var,
-        mask=mask,
-        maskthresh=maskthresh,
-        minarea=minarea,
-        filter_kernel=_gaussian_kernel(filter_kernel),
-        filter_type=filter_type,
-        deblend_nthresh=deblend_nthresh,
-        deblend_cont=deblend_cont,
-        clean=clean,
-        clean_param=clean_param,
-        gain=gain,
-        segmentation_map=True
-    )
     obj = pd.DataFrame(obj)
     n_original = len(obj)
 
