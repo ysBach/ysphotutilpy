@@ -4,7 +4,8 @@ from .astroim import *
 from .background import *
 from .center import *
 from .daopsf import *
+from .polarimetry import *
 from .queryutil import *
+from .radprof import *
 from .seputil import *
 from .util import *
-from .polarimetry import *
