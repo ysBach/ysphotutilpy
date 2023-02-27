@@ -361,12 +361,10 @@ class HorizonsDiscreteEpochsQuery:
 
         for i in range(Nquery):
             print(f"{i+1}...", end=' ')
-            epochs_i = self.epochs[i*depoch:(i + 1)*depoch]
-
             obj = Horizons(
                 id=self.targetname,
                 location=self.location,
-                epochs=epochs_i,
+                epochs=self.epochs[i*depoch:(i + 1)*depoch],
                 id_type=self.id_type
             )
             eph = obj.ephemerides(*args, **kwargs)
