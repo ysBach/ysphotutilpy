@@ -1,6 +1,6 @@
 import numpy as np
 from astropy import units as u
-from astropy.nddata import CCDData, Cutout2D
+from astropy.nddata import Cutout2D
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
                        EllipticalAperture, PixelAperture, RectangularAperture,
                        SkyAperture)
@@ -12,7 +12,6 @@ from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
 
 __all__ = ["cutout_from_ap", "ap_to_cutout_position",
            "circ_ap_an", "ellip_ap_an", "pill_ap_an",
-           "radprof_pix",
            "PillBoxMaskMixin", "PillBoxAperture", "PillBoxAnnulus",
            "SkyPillBoxAperture", "SkyPillBoxAnnulus"]
 
@@ -406,43 +405,6 @@ def pill_ap_an(
                         w=w,
                         theta=theta)
     return ap, an
-
-
-def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False):
-    """Get radial profile (pixel values) of an object from n-D image.
-
-    Parameters
-    ----------
-    img : CCDData or ndarray
-        The image to be profiled.
-    pos : array_like
-        The xy coordinates of the center of the object (0-indexing).
-    rmax : int, optional
-        The maximum radius to be profiled.
-    """
-    if isinstance(img, CCDData):
-        img = img.data
-    elif not isinstance(img, np.ndarray):
-        raise TypeError(f'img must be a CCDData or ndarray (now {type(img) = })')
-
-    offset = np.array([int(max(0, _p - rmax)) for _p in pos])  # flooring by `int`
-    slices = [slice(_o, min(_n, int(_p+rmax)+1))               # ceiling by `int` and +1
-              for _o, _p, _n in zip(offset[::-1], pos[::-1], img.shape)]
-    cut = img[tuple(slices)]
-    pos_cut = np.array(pos) - offset
-    grids = np.meshgrid(*[np.arange(_n) for _n in cut.shape])
-    dists = np.sqrt(np.sum([(g - p)**2 for g, p in zip(grids, pos_cut[::-1])], axis=0)).T
-    mask = (dists > rmax) if mask is None else ((dists > rmax) | mask)
-    if sort_dist:
-        sort_idx = np.argsort(dists[~mask])
-        return dists[~mask][sort_idx], cut[~mask][sort_idx]
-    return dists[~mask], cut[~mask]
-
-
-def radprof_an(img, pos, rmax=10, dr=1, method="center"):
-    """Get radial profile (annulus average) of an object from n-D image.
-    """
-    pass
 
 
 """
