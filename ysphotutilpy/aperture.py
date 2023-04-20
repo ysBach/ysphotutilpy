@@ -1,6 +1,7 @@
 import numpy as np
 from astropy import units as u
 from astropy.nddata import Cutout2D
+from astropy.coordinates import SkyCoord
 from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
                        EllipticalAperture, PixelAperture, RectangularAperture,
                        SkyAperture)
@@ -11,7 +12,7 @@ from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
                                            SkyCoordPositions)
 
 __all__ = ["cutout_from_ap", "ap_to_cutout_position",
-           "circ_ap_an", "ellip_ap_an", "pill_ap_an",
+           "circ_ap_an", "ellip_ap_an", "pill_ap_an", "pa2xytheta",
            "PillBoxMaskMixin", "PillBoxAperture", "PillBoxAnnulus",
            "SkyPillBoxAperture", "SkyPillBoxAnnulus"]
 
@@ -429,6 +430,78 @@ def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
     b = 3*sig_y_fit*pix2arcsec
     return PillBoxAperture(positions, trail, )
 """
+
+
+def eofn_ccw(wcs, full=False, tol=5.):
+    """ Checks whether the East of North is counter-clockwise in the image.
+    Parameters
+    ----------
+    wcs : `~astropy.wcs.WCS`
+        The WCS object.
+    full : bool, optional
+        If True, return the PA of x- and y-axes.
+    tol : float, optional
+        The tolerance in degrees for the difference of the two PA.
+    """
+    center = np.array(wcs._naxis)/2
+    coo = SkyCoord(*wcs.wcs_pix2world(*center, 0), unit="deg")
+    plusx = wcs.wcs_pix2world(*(center + np.array((1, 0))), 0)  # basically (CD1_1, CD1_2)
+    plusy = wcs.wcs_pix2world(*(center + np.array((0, 1))), 0)  # basically (CD2_1, CD2_2)
+    pa_x = coo.position_angle(SkyCoord(plusx[0], plusx[1], unit="deg")).to_value(u.deg)
+    pa_y = coo.position_angle(SkyCoord(plusy[0], plusy[1], unit="deg")).to_value(u.deg)
+    dpa = pa_y-pa_x
+    if (-270-tol <= dpa <= -270+tol) or (90-tol <= dpa <= 90+tol):
+        # PA (East of North) is CCW in XY coordinate
+        if full:
+            return True, pa_x, pa_y
+        return True
+    elif (270-tol <= dpa <= 270+tol) or (-90-tol <= dpa <= -90+tol):
+        # PA (East of North) is CW in XY coordinate
+        if full:
+            return False, pa_x, pa_y
+        return False
+    else:
+        raise ValueError("PA calculation is problematic.")
+
+
+def pa2xytheta(pa, wcs, location="crpix"):
+    """
+    pa : float
+        The position angle in degrees, East of North.
+    wcs : `~astropy.wcs.WCS`
+        The WCS object.
+    location : tuple or str, optional
+        The location to convert the position angle. If ``"crpix"``, the
+        location is the CRPIX of the WCS. If ``"center"``, the position angle
+        is converted at the center of the image. Otherwise, it should be a
+        tuple of ``(x, y)`` pixel coordinates.
+
+    Return
+    ------
+    theta: float
+        The rotation angle in degrees from the positive ``x`` axis.  The
+        angle increases counterclockwise.
+    """
+    if location == "crpix":
+        try:
+            location = np.array((wcs.wcs.crpix[0] - 1, wcs.wcs.crpix[1] - 1))
+            coo = SkyCoord(*wcs.wcs.crval, unit="deg")
+        except AttributeError:
+            raise AttributeError("The WCS object does not have CRPIX and/or CRVAL. "
+                                 + "Try with, e.g., `location`='center'.")
+    elif location == "center":
+        location = np.array(wcs._naxis)/2
+        coo = SkyCoord(*wcs.wcs_pix2world(location, 0), unit="deg")
+    else:
+        location = np.array(location)
+        coo = SkyCoord(*wcs.wcs_pix2world(location, 0), unit="deg")
+
+    in_ccw, pa_x, pa_y = eofn_ccw(wcs, full=True)
+    # moved = coo.directional_offset_by(pa, 1/206265)  # 1 arcsec sepration
+    # moved = np.array(moved.to_pixel(wcs)) - location
+    # np.rad2deg(np.arctan2(moved[1], moved[0]))
+    return pa_x - pa if in_ccw else pa - pa_x
+
 
 
 # Pill-Box aperture related str (base descriptions):
