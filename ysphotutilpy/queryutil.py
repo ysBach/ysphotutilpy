@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import requests
 from astropy import units as u
+from astropy.units import Quantity
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
 from astropy.io.fits import Header
@@ -14,6 +15,7 @@ from astropy.wcs import WCS
 from astroquery.jplhorizons import Horizons
 from astroquery.mast import Catalogs
 from astroquery.vizier import Vizier
+from astroquery.gaia import Gaia
 from scipy.interpolate import UnivariateSpline
 
 from .util import bezel_mask
@@ -71,6 +73,20 @@ PS1_DR1_DEL_FLAG = [
     8,   # TRANSIENT: identified as a non-periodic (stationary) transient
     9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
     10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
+    23,  # EXT: extended in our data (eg, PS)
+    24   # EXT_ALT: extended in external data (eg, 2MASS)
+]
+
+PS1_DR1_DEL_FLAG_POINT = [
+    0,   # FEW: Used within relphot; skip star.
+    1,   # POOR: Used within relphot; skip star.
+    # 2,   # ICRF_QSO: object IDed with known ICRF quasar
+    # 3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
+    # 5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
+    # 7,   # HERN_VARIABLE: identified as a variable based on ChiSq
+    # 8,   # TRANSIENT: identified as a non-periodic (stationary) transient
+    # 9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
+    # 10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
     23,  # EXT: extended in our data (eg, PS)
     24   # EXT_ALT: extended in external data (eg, 2MASS)
 ]
@@ -381,6 +397,21 @@ class HorizonsDiscreteEpochsQuery:
         print("Query done.")
 
         return self.query_table
+
+
+# https://gea.esac.esa.int/archive/documentation/GDR3/Data_processing/chap_cu5pho/cu5pho_sec_photSystem/cu5pho_ssec_photRelations.html
+class GaiaDR3():
+    def __init__(self, coordinate: SkyCoord, radius: float | Quantity = None,
+                 width: float | Quantity = None, height: float | Quantity = None,
+                 verbose: bool = False, columns: list | str = "phot"):
+        """
+        https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html
+        """
+        Gaia.ROW_LIMIT = -1
+        self.coordinate = coordinate
+        self.radius = radius
+
+        pass
 
 
 def organize_ps1_and_isnear(
@@ -1485,6 +1516,7 @@ def ps1saveim(url, output, load=False, **kwargs):
         fitsfile.write(r.content)
     if load:
         return fits.open(output)
+
 
 def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
                     width=None, height=None, columns=None, column_filters={}):

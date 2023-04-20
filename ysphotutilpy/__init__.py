@@ -6,6 +6,7 @@ from .center import *
 from .daopsf import *
 from .polarimetry import *
 from .queryutil import *
+from .query_cols import *
 from .radprof import *
 from .seputil import *
 from .util import *
