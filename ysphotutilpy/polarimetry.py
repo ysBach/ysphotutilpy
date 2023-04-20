@@ -456,7 +456,7 @@ def calc_pol_r(
     cos2r = np.cos(2*thr)
     sin2r = np.sin(2*thr)
     polr = pol*cos2r
-    dpolr = err_prop(dpol*cos2r, pol*(-2*sin2r)*dthp)
+    dpolr = np.max([err_prop(dpol*cos2r, pol*(-2*sin2r)*dthp), dpol], axis=0)
     dthr = err_prop(dthp, dsuntargetpa)
     polr, dpolr = convert_pct(polr, dpolr, already=False, convert2unit=out_pct)
     thr, dthr = convert_deg(thr, dthr, already=False, convert2unit=out_deg)
@@ -474,14 +474,10 @@ class PolObjMixin:
             self.r675 = self.i675_e/self.i675_o
 
             # noise-to-signal (dr/r) of I_e/I_o for each HWP angle
-            self.ns000 = err_prop(self.di000_e/self.i000_e,
-                                  self.di000_o/self.i000_o)
-            self.ns450 = err_prop(self.di450_e/self.i450_e,
-                                  self.di450_o/self.i450_o)
-            self.ns225 = err_prop(self.di225_e/self.i225_e,
-                                  self.di225_o/self.i225_o)
-            self.ns675 = err_prop(self.di675_e/self.i675_e,
-                                  self.di675_o/self.i675_o)
+            self.ns000 = err_prop(self.di000_e/self.i000_e, self.di000_o/self.i000_o)
+            self.ns450 = err_prop(self.di450_e/self.i450_e, self.di450_o/self.i450_o)
+            self.ns225 = err_prop(self.di225_e/self.i225_e, self.di225_o/self.i225_o)
+            self.ns675 = err_prop(self.di675_e/self.i675_e, self.di675_o/self.i675_o)
 
             # The q/u values
             self.r_q = np.sqrt(self.r000/self.r045)
