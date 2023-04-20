@@ -6,9 +6,19 @@ import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling.functional_models import Gaussian2D
 
-__all__ = ["sqsum", "err_prop", "_linear_unit_converter", "convert_pct", "convert_deg",
+__all__ = ["magsum", "sqsum", "err_prop",
+           "_linear_unit_converter", "convert_pct", "convert_deg",
            "bezel_mask", "Gaussian2D_correct",
            "fit_astropy_model", "fit_Gaussian2D", "gaussian_kernel"]
+
+
+def magsum(*args):
+    """ Calculates the "sum" of magnitudes.
+    Note
+    ----
+    To calculate magnitude error, use ``err_prop(*merrs)``.
+    """
+    return -2.5 * np.log10(np.sum(10**(-0.4*np.array(args))))
 
 
 def sqsum(*args):
@@ -220,7 +230,8 @@ def normalize(num, lower=0, upper=360, b=False):
         if not (lower + upper == 0):
             raise ValueError('When b=True range must be symmetric about 0.')
 
-    from math import floor, ceil
+    from math import ceil, floor
+
     # abs(num + upper) and abs(num - lower) are needed, instead of abs(num),
     # since the lower and upper limits need not be 0. We need to add half size
     # of the range, so that the final result is lower + <value> or upper -
