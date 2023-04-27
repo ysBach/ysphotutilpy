@@ -151,9 +151,8 @@ def apphot_annulus(
             # except (TypeError, AttributeError):  # i.e., if ccd.mask is None:
         return mask
 
-    _ccd = ccd.copy()
-
-    if isinstance(_ccd, CCDData):
+    if isinstance(ccd, CCDData):
+        _ccd = ccd.copy()
         _arr = _ccd.data
         _mask = _propagate_ccdmask(_ccd, additional_mask=mask)
         if t_exposure is None:
@@ -165,7 +164,8 @@ def apphot_annulus(
                     warn("The exposure time info not given and not found from the header"
                          + f" ({exposure_key}). Setting it to 1 sec.")
     else:  # ndarray
-        _arr = np.array(_ccd)
+        _ccd = CCDData(data=ccd, unit="adu")
+        _arr = _ccd.data
         _mask = mask
         if t_exposure is None:
             t_exposure = 1
@@ -215,11 +215,11 @@ def apphot_annulus(
         except AttributeError:
             # if verbose:
             #     warn("Uncertainty extension not found in ccd. Will not calculate errors.")
-            gain = ccd.header.get(gain, 1) if isinstance(gain, str) else gain
-            rdnoise = ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise
+            gn = float(_ccd.header.get(gain, 1) if isinstance(gain, str) else gain)
+            rd = float(_ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise)
             if verbose:
-                print(f"Making errormap from {gain = } [e/ADU], {rdnoise = } [e]")
-            err = np.sqrt(_arr/gain + (rdnoise/gain)**2)
+                print(f"Making errormap from {gn} [e/ADU], {rd} [e]")
+            err = np.sqrt(_arr/gn + (rd/gn)**2)
 
     if aparea_exact:
         # What this does is basically identical to area_overlap:
