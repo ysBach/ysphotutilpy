@@ -1018,8 +1018,7 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
     Return
     ------
     gtab: Table
-        Returned when ``index_only=False``. The table underwent
-        ``.group_by("group_id")``.
+        Returned when ``index_only=False``.
 
     grouped_rows: list
         Returned when ``index_only=True``.
@@ -1027,13 +1026,17 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
         rows using ``table.remove_rows(grouped_rows)``.
     '''
     from photutils.psf.groupstars import DAOGroup
+    # Convert to astropy.Table because DAOGroup only accepts astropy.Table.
+    if not isinstance(table, Table):
+        table = Table.from_pandas(table)
+
     tab = table.copy()
 
     tab[xcol].name = "x_0"
     tab[ycol].name = "y_0"
     try:
-        gtab = DAOGroup(crit_separation=crit_separation)(tab).group_by("group_id")
-    except IndexError:  # empyy tab (len(tab) == 0)
+        gtab = DAOGroup(crit_separation=crit_separation)(tab)
+    except IndexError:  # empty tab (len(tab) == 0)
         gtab = tab
         gtab["group_id"] = []
         gtab["id"] = []
