@@ -27,6 +27,7 @@ def dao_weight_map(data, position, r_fit):
     -----
     StetsonPB 1987, PASP, 99, 191, p.207
     https://iraf.net/irafhelp.php?val=daopars&help=Help+Page
+    https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/daophot/daopars.html
     '''
     x0, y0 = position
     is_cut = False
