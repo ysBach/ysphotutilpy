@@ -330,7 +330,8 @@ def apphot_annulus(
     phot["nbadpix"] = nbads
 
     if pandas:
-        return phot.to_pandas()
+        phot = phot.to_pandas()
+        return phot.drop(["id"], axis=1)
     else:
         return phot
 
