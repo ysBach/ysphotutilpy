@@ -138,7 +138,7 @@ def sky_fit(
         if return_skyarr:
             return Table(skydicts), skys
         return Table(skydicts)
-    return (skydict, skys) if return_skyarr else skydict
+    return (skydicts, skys) if return_skyarr else skydicts
 
 
 def annul2values(
