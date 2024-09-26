@@ -12,7 +12,7 @@ from astropy.io import fits
 from astropy.io.fits import Header
 from astropy.table import Table, vstack
 from astropy.wcs import WCS
-from astroquery.jplhorizons import Horizons
+from astroquery.jplhorizons import Horizons, conf
 from astroquery.mast import Catalogs
 from astroquery.vizier import Vizier
 from astroquery.gaia import Gaia
@@ -100,7 +100,7 @@ def horizons_query(
         stop=None,
         step='12h',
         location='500',
-        id_type='smallbody',
+        id_type=None,
         interpolate=None,
         interpolate_x='datetime_jd',
         k=1,
@@ -117,7 +117,7 @@ def horizons_query(
         refsystem='J2000',
         closest_apparition=False,
         no_fragments=False,
-        quantities=','.join([str(i + 1) for i in range(43)]),
+        quantities=conf.eph_quantities,
         cache=True,
         extra_precision=False
 ):
@@ -160,11 +160,12 @@ def horizons_query(
         value is not provided it is assumed that this location is on Earth]}.
 
     id_type : str, optional
-        Identifier type, options: ``'smallbody'``, ``'majorbody'`` (planets but
-        also anything that is not a small body), ``'designation'``, ``'name'``,
-        ``'asteroid_name'``, ``'comet_name'``, ``'id'`` (Horizons id number),
-        or ``'smallbody'`` (find the closest match under any id_type).
-        Default: ``'smallbody'``
+        Controls Horizons's object selection for ``id``
+        [HORIZONSDOC_SELECTION]_ .  Options: ``'designation'`` (small body
+        designation), ``'name'`` (asteroid or comet name), ``'asteroid_name'``,
+        ``'comet_name'``, ``'smallbody'`` (asteroid and comet search), or
+        ``None`` (first search search planets, natural satellites, spacecraft,
+        and special cases, and if no matches, then search small bodies).
 
     interpolate, interpolate_x : None, list of str, optinal.
         The column names to interpolate and the column for the ``x`` values to
@@ -187,6 +188,7 @@ def horizons_query(
 
     pandas: bool, optional.
         If True, return a pandas DataFrame. Otherwise, return an astropy Table.
+        If it is pandas, default output format is csv.
         Default: `False`.
 
     airmass_lessthan : float, optional
@@ -252,6 +254,11 @@ def horizons_query(
         The interpolation functions for the columns (specified by
         `interpolate`).
 
+    References
+    ----------
+
+    .. [HORIZONSDOC_SELECTION] https://ssd.jpl.nasa.gov/horizons/manual.html#select
+        (retrieved 2021 Sep 23).
 
     Notes
     -----
@@ -296,7 +303,10 @@ def horizons_query(
         eph = eph.to_pandas()
 
     if output is not None:
-        eph.write(Path(output), format=format)
+        try:  # if astropy.table
+            eph.write(Path(output), format=format)
+        except AttributeError:  # if pandas
+            eph.to_csv(Path(output), index=False)
 
     return obj, eph, interpolated
 
