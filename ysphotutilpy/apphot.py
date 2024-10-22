@@ -4,8 +4,7 @@ import numpy as np
 from astropy import units as u
 from astropy.nddata import CCDData
 from astropy.table import QTable
-from photutils import aperture_photometry
-from photutils.aperture import Aperture
+from photutils.aperture import Aperture, aperture_photometry
 
 from .background import sky_fit
 
@@ -15,8 +14,9 @@ __all__ = ["apphot_annulus"]
 # TODO: Put centroiding into this apphot_annulus ?
 # TODO: use variance instead of error (see photutils 0.7)
 # TODO: one_aperture_per_row : bool, optional.
-# `photutils.aperture_photometry` produces 1-row result if multiple radii aperture is given with column
-# names starting from ``aperture_sum_0`` and ``aperture_sum_err_0``.
+# `photutils.aperture.aperture_photometry` produces 1-row result if multiple
+# radii aperture is given with column names starting from ``aperture_sum_0``
+# and ``aperture_sum_err_0``.
 def apphot_annulus(
         ccd,
         aperture,
@@ -330,6 +330,9 @@ def apphot_annulus(
     phot["nbadpix"] = nbads
 
     if pandas:
+        # This takes about 0.7 us for 1-row table. MBP 14" [2021, macOS 13.1,
+        # M1Pro(6P+2E/G16c/N16c/32G)], 2023-06-19 22:46:08 (KST: GMT+09:00)
+        # -YPB
         phot = phot.to_pandas()
         return phot.drop(["id"], axis=1)
     else:

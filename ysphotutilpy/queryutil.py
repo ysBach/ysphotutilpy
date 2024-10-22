@@ -1035,6 +1035,7 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
         The indices of the rows which are "grouped" stars. You may remove such
         rows using ``table.remove_rows(grouped_rows)``.
     '''
+    # FIXME: photutils 2 introduces SourceGrouper quite different from DAOGroup
     from photutils.psf.groupstars import DAOGroup
     # Convert to astropy.Table because DAOGroup only accepts astropy.Table.
     if not isinstance(table, Table):

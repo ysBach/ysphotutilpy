@@ -2,10 +2,9 @@ import numpy as np
 from astropy import units as u
 from astropy.nddata import Cutout2D
 from astropy.coordinates import SkyCoord
-from photutils import (CircularAnnulus, CircularAperture, EllipticalAnnulus,
-                       EllipticalAperture, PixelAperture, RectangularAperture,
-                       SkyAperture)
-from photutils.aperture import ApertureMask
+from photutils.aperture import (ApertureMask, CircularAnnulus, CircularAperture, EllipticalAnnulus,
+                                EllipticalAperture, PixelAperture, RectangularAperture,
+                                SkyAperture)
 from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
                                            PositiveScalarAngle, ScalarAngle,
                                            ScalarAngleOrValue,
@@ -501,7 +500,6 @@ def pa2xytheta(pa, wcs, location="crpix"):
     # moved = np.array(moved.to_pixel(wcs)) - location
     # np.rad2deg(np.arctan2(moved[1], moved[0]))
     return pa_x - pa if in_ccw else pa - pa_x
-
 
 
 # Pill-Box aperture related str (base descriptions):
