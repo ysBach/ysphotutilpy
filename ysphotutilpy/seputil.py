@@ -504,10 +504,6 @@ def sep_extract(
     n_original = len(obj)
 
     ny, nx = data.shape
-    mask = bezel_mask(obj['x'], obj['y'], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
-    if maxarea is not None:
-        mask = mask & (obj["npix"] <= maxarea)
-    obj = obj[~mask]
 
     # use 1-indexing for the ``segm_label``
     # obj = obj.reset_index(drop=True)
@@ -515,6 +511,10 @@ def sep_extract(
     # obj['segm_label'] += 1
     obj.insert(loc=0, column="segm_label", value=np.arange(1, len(obj)+1).astype(int))
     # log the original input threshold
+    mask = bezel_mask(obj['x'], obj['y'], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
+    if maxarea is not None:
+        mask = mask & (obj["npix"] <= maxarea)
+    obj = obj[~mask]
     obj.insert(loc=1, column='thresh_raw', value=thresh)
 
     if pos_ref is not None:
