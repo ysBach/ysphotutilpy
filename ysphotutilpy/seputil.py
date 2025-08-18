@@ -123,11 +123,11 @@ sep_default_kernel = np.array([[1.0, 2.0, 1.0],
 def _sanitize_byteorder(data):
     if data is None:
         return None
-    return np.ascontiguousarray(data)
-    # elif data.dtype.byteorder == '>':
-    #     return data.byteswap().newbyteorder()
-    # else:
-    #     return data
+    # return np.ascontiguousarray(data)
+    elif data.dtype.byteorder == '>':
+        return data.byteswap().view(data.dtype.newbyteorder())
+    else:
+        return data
 
 
 def sep_back(
@@ -224,7 +224,10 @@ def sep_back(
     try:
         bkg = sep.Background(data, **kw)
     except ValueError:  # Non-native byte order
-        data = data.byteswap().newbyteorder()
+        try:  # numpy < 2
+            data = data.byteswap().newbyteorder()
+        except AttributeError:  # numpy >= 2
+            data = data.view(data.dtype.newbyteorder(">"))
         try:
             bkg = sep.Background(data, **kw)
         except ValueError:  # e.g., int16 not supported
@@ -439,8 +442,8 @@ def sep_extract(
         If not `None`, it must be the (x, y) position of the reference point.
         The returned `obj` will have ``'dist_ref'`` column which is the
         distance of the object's position (``sqrt((obj["x"] - pos_ref[0])**2 +
-        (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default (see
-        `sort_by`).
+        (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default,
+        unless `sort_by` is specified (see `sort_by`).
 
     sort_by : str, optional.
         The column name to sort the output. If `pos_ref` is not `None`, a new
@@ -525,7 +528,8 @@ def sep_extract(
             )
         dist_ref = np.sqrt((obj["x"] - pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)
         obj.insert(loc=1, column='dist_ref', value=dist_ref)
-        sort_by = "dist_ref"
+        if sort_by is not None:
+            sort_by = "dist_ref"
 
     if sort_by is not None:
         obj = obj.sort_values(sort_by, ascending=sort_ascending).reset_index(drop=True)
