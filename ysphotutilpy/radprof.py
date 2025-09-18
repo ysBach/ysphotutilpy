@@ -1,14 +1,17 @@
 """ Radial profiles
 """
 import numpy as np
+import pandas as pd
 from astropy.nddata import CCDData, Cutout2D
+from photutils.aperture import CircularAnnulus, CircularAperture
 from scipy.ndimage import center_of_mass
-from photutils.aperture import CircularAperture, CircularAnnulus
+
 from .background import sky_fit
 from .center import circular_bbox_cut
 
 __all__ = [
-    "moffat_r", "gauss_r", "bivt_r", "radprof_pix",
+    "moffat_r", "gauss_r", "bivt_r", "radial_profile",
+    "radprof_pix",
 ]
 
 
@@ -53,6 +56,53 @@ def fwhm_r(popt, fun):
         return 2*popt[2]*np.sqrt(popt[1]*(2**(2/(popt[1]+4)) - 1))
     else:
         raise ValueError("Unknown function: {}".format(fun))
+
+
+def radial_profile(im, center, radii=1, thickness=1, mask=None, norm_by_center=False, **kwargs):
+    """Calculate radial profile of the image.
+    Parameters
+    ----------
+    im : 2D array
+        The image data.
+    center : tuple
+        The (x, y) coordinates of the center.
+    radii : 1D array
+        The radii of the annulus.
+    mask : 2D array, optional
+        A mask to apply to the image. Pixels with True values will be ignored.
+    thickness : int, optional
+        The thickness of the annulus for the radial profile.
+    norm_by_center : bool, optional
+        If True, normalize the profile by the value at the center position.
+        Default is False.
+    **kwargs : dict, optional
+        Additional keyword arguments to pass to the `sky_fit` function.
+    Returns
+    -------
+    profs : pandas.DataFrame
+        A DataFrame containing the radial profile data, with columns for radius and sky fit parameters.
+    center_val : float
+        The value of the pixel at the center position.
+
+    """
+    radii = np.asarray(radii).ravel()
+    profs = []
+    for i, r in enumerate(radii):
+        an = CircularAnnulus(center, r_in=max(0.01, r-thickness/2), r_out=r+thickness/2)
+        _skyfit = sky_fit(im, an, mask=mask, **kwargs).to_pandas()
+        _skyfit["r"] = r
+        profs.append(_skyfit)
+
+    profs = pd.concat(profs)
+    profs = profs.rename(columns={"msky": "mpix", "ssky": "spix", "nsky": "npix"})
+    profs["spix_n"] = profs["spix"] / np.sqrt(profs["npix"])
+    center_val = im[*(np.round(center).astype(int)[::-1])] # reverse for (y, x) indexing
+
+    if norm_by_center:
+        profs["mpix"] /= center_val
+        profs["spix"] /= center_val
+        profs["spix_n"] /= center_val
+    return profs, center_val
 
 
 def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None,
