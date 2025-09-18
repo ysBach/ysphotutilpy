@@ -3,7 +3,7 @@ from .apphot import *
 from .astroim import *
 from .background import *
 from .center import *
-from .daopsf import *
+# from .daopsf import *
 from .polarimetry import *
 from .queryutil import *
 from .query_cols import *
