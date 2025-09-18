@@ -136,7 +136,8 @@ def sep_back(
         maskthresh=0.0,
         filter_threshold=0.0,
         box_size=(64, 64),
-        filter_size=(3, 3)
+        filter_size=(3, 3),
+        byteorder=">"
 ):
     """
     Notes
@@ -224,7 +225,10 @@ def sep_back(
     try:
         bkg = sep.Background(data, **kw)
     except ValueError:  # Non-native byte order
-        data = data.byteswap().newbyteorder()
+        try:  # numpy < 2
+            data = data.byteswap().newbyteorder()
+        except AttributeError:  # numpy >= 2
+            data = data.view(data.dtype.newbyteorder(byteorder))
         try:
             bkg = sep.Background(data, **kw)
         except ValueError:  # e.g., int16 not supported
@@ -250,7 +254,8 @@ def _sep_extract(
         deblend_cont=0.005,
         clean=True,
         clean_param=1.0,
-        seg_remove_mask=True
+        seg_remove_mask=True,
+        byteorder=">"
 ):
     """ sep.extract wrapper with minor sanitization of arrays and segmap
     Notes
@@ -390,7 +395,7 @@ def _sep_extract(
         clean=clean,
         clean_param=clean_param,
         gain=gain,
-        segmentation_map=True
+        segmentation_map=True,
     )
     if seg_remove_mask and mask is not None:
         # FIXME: https://github.com/kbarbary/sep/issues/149
@@ -511,11 +516,11 @@ def sep_extract(
     # obj['segm_label'] += 1
     obj.insert(loc=0, column="segm_label", value=np.arange(1, len(obj)+1).astype(int))
     # log the original input threshold
+    obj.insert(loc=1, column='thresh_raw', value=thresh)
     mask = bezel_mask(obj['x'], obj['y'], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
     if maxarea is not None:
         mask = mask & (obj["npix"] <= maxarea)
     obj = obj[~mask]
-    obj.insert(loc=1, column='thresh_raw', value=thresh)
 
     if pos_ref is not None:
         pos_ref = np.array(pos_ref).flatten()
