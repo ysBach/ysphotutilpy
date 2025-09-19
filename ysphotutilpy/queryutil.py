@@ -429,7 +429,7 @@ def organize_ps1_and_isnear(
         header_or_wcs=None,
         bezel=0,
         nearby_obj_minsep=None,
-        group_crit_separation=0,
+        group_minsep=0,
         select_filter_kw=None,
         del_flags=PS1_DR1_DEL_FLAG,
         drop_by_Kron=True,
@@ -452,12 +452,13 @@ def organize_ps1_and_isnear(
         The bezel used to select stars inside the field of view.
 
     nearby_obj_minsep : float, `~astropy.Quantity`, optional.
-        If there is any object closer than this value, a warning message will
-        be printed.
+        The minimum angular separation to allow. If there is any object closer
+        than this value, a warning message will be printed.
 
-    group_crit_separation : float, optional
-        The critical separation parameter used in DAOGROUP algorithm
-        (`~photutils.DAOGroup`) to select grouped stars.
+    group_minsep : float, optional
+        The minimum separation in pixel unit, used in the distance-based flat
+        clustering algorithm (`~photutils.psf.SourceGrouper`) to select grouped
+        stars.
 
     select_filter_kw : dict, optional
         The kwargs for `~PanSTARRS1.select_filter()` method.
@@ -512,9 +513,9 @@ def organize_ps1_and_isnear(
     if isnear:
         warn("There are objects near the target!")
 
-    if group_crit_separation > 0:
+    if group_minsep > 0:
         # Drop objects near to each other
-        ps1.drop_star_groups(crit_separation=group_crit_separation, verbose=verbose)
+        ps1.drop_star_groups(min_separation=group_minsep, verbose=verbose)
 
     if del_flags is not None or drop_by_Kron:
         # Drop for preparing differential photometry
@@ -525,12 +526,6 @@ def organize_ps1_and_isnear(
     if select_filter_kw:
         # remove columns that are of no interest
         ps1.select_filters(**select_filter_kw, verbose=verbose)
-
-    try:
-        ps1.queried["_r"] = ps1.queried["_r"].to(u.arcsec)
-    except u.UnitConversionError:  # assuming deg
-        ps1.queried["_r"] = ps1.queried["_r"]*3600
-    ps1.queried["_r"].format = "%.3f"
 
     if calc_JC:
         ps1.queried["grcolor"] = ps1.queried["gmag"] - ps1.queried["rmag"]
@@ -756,6 +751,10 @@ class PanSTARRS1:
                                            height=self.height,
                                            catalog="II/349/ps1")[0]
 
+        self.queried["_r"] <<= u.deg
+        self.queried["_r"] = self.queried["_r"].to(u.arcsec)
+        self.queried["_r"].format = "%.3f"
+
         return self.queried
 
     def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode='all', verbose=1):
@@ -959,7 +958,7 @@ class PanSTARRS1:
 
         if isinstance(minsep, (float, int)):
             warn("minsep is not Quantity. Assuming degree unit.")
-            minsep = minsep * u.deg
+            minsep <<= u.deg
         elif not isinstance(minsep, u.Quantity):
             raise TypeError("minsep not understood.")
 
@@ -978,46 +977,53 @@ class PanSTARRS1:
         isnear = (np.array(chktab["_r"]).min() <= minsep)
         return isnear
 
-    def drop_star_groups(self, crit_separation, verbose=1):
+    def drop_star_groups(self, min_separation, verbose=1):
         N_old = len(self.queried)
-        grouped_rows = group_stars(table=self.queried, crit_separation=crit_separation,
-                                   xcol="x", ycol="y", index_only=True)
+        grouped_rows = group_stars(xpos=self.queried["x"], ypos=self.queried["y"],
+                                   min_separation=min_separation)
         self.queried.remove_rows(grouped_rows)
         N_new = len(self.queried)
         if verbose:
             mask_str(N_new, N_old,
-                     (f"DAOGROUP with {crit_separation:.3f}-pixel critical separation."))
+                     (f"distance-based flat clustering with {min_separation = :.3f} [pix]"))
 
 
-def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
-    ''' Group stars using DAOGROUP algorithm and return row indices.
+def group_stars(xpos, ypos, min_separation, full=False):
+    ''' Group stars using distance-based flat clustering (same as DAOGROUP).
 
     Parameters
     ----------
-    table : astropy.table.Table
-        The queried result table.
+    xpos, ypos : array-like
+        The x and y positions of the stars. Actually any n-d array should work,
+        but `~photutils.psf.SourceGrouper` has a limited support (x and y
+        positions as 1-d arrays).
 
-    crit_separation : float or int
+    min_separation : float or int
         Distance, in units of pixels, such that any two stars separated by less
         than this distance will be placed in the same group.
 
-    xcol, ycol : str, optional
-        The column names for x and y positions. This is necessary since
-        `~photutils.DAOGroup accepts a table which has x y positions designated
-        as ``"x_0"`` and ``"y_0"``.
+    full : bool, optional
+        If `True`, return more information (see Returns below).
 
-    index : bool, optional
-        Whether to return only the index of the grouped rows (group information
-        is lost) or the full grouped table (after group_by).
+        * grouped_rows: array of int
+            The indices of the rows which are "grouped" stars. You may remove
+            such rows using ``table.remove_rows(grouped_rows)``.
+        * group_id: array of int
+            The group id assigned to each star.
+        * uniq: array of int
+            The unique group ids.
+        * counts: array of int
+            The number of stars in each group.
+        * repeated: array of int
+            The group ids which have more than one star.
 
     Notes
     -----
-    Assuming the psf fwhm to be known, ``crit_separation`` may be set to
+    This algorithm is a specific case of scipy's fcluster, with `t` equals
+    to ``min_separation`` and `criterion` equals to ``'distance'``.
+    Assuming the psf fwhm to be known, ``min_separation`` may be set to
     ``k * fwhm``, for some positive real k.
 
-    See Also
-    --------
-    photutils.DAOStarFinder
 
     References
     ----------
@@ -1027,43 +1033,34 @@ def group_stars(table, crit_separation, xcol="x", ycol="y", index_only=True):
 
     Return
     ------
-    gtab: Table
-        Returned when ``index_only=False``.
+    mask : array of bool
+        A boolean array of the same length as the input table, where `True`
+        indicates that the corresponding row in the input table is part of a
+        group with more than one star.
 
-    grouped_rows: list
-        Returned when ``index_only=True``.
-        The indices of the rows which are "grouped" stars. You may remove such
-        rows using ``table.remove_rows(grouped_rows)``.
+    group_id : array of int
+        The group id assigned to each star. Returned only if `full=True`.
+
+    uniq, counts : arrays of int
+        The unique group ids and the number of stars in each group. Output of
+        `np.unique(group_id, return_counts=True)`. Returned only if `full=True`.
+
+    repeated : array of int
+        The group ids which have more than one star. Result of `uniq[counts > 1]`.
+        Returned only if `full=True`.
+
     '''
-    # FIXME: photutils 2 introduces SourceGrouper quite different from DAOGroup
-    from photutils.psf.groupstars import DAOGroup
-    # Convert to astropy.Table because DAOGroup only accepts astropy.Table.
-    if not isinstance(table, Table):
-        table = Table.from_pandas(table)
+    from photutils.psf import SourceGrouper
 
-    tab = table.copy()
+    group_id = SourceGrouper(min_separation=min_separation)(xpos, ypos)
 
-    tab[xcol].name = "x_0"
-    tab[ycol].name = "y_0"
-    try:
-        gtab = DAOGroup(crit_separation=crit_separation)(tab)
-    except IndexError:  # empty tab (len(tab) == 0)
-        gtab = tab
-        gtab["group_id"] = []
-        gtab["id"] = []
+    uniq, counts = np.unique(group_id, return_counts=True)
+    repeated = uniq[counts > 1]
+    mask = np.in1d(group_id, repeated)
+    if full:
+        return mask, group_id, uniq, counts, repeated
 
-    if not index_only:
-        gtab["x_0"].name = xcol
-        gtab["y_0"].name = ycol
-        return gtab
-    else:
-        gid, gnum = np.unique(gtab["group_id"], return_counts=True)
-        gmask = gid[gnum != 1]  # group id with > 1 stars
-        grouped_rows = []
-        for i, gid in enumerate(gtab["group_id"]):
-            if gid in gmask:
-                grouped_rows.append(i)
-        return grouped_rows
+    return mask
 
 
 def get_xy(header_or_wcs, ra, dec, unit=u.deg, origin=0, mode='all'):
