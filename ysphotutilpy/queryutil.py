@@ -20,12 +20,20 @@ from scipy.interpolate import UnivariateSpline
 
 from .util import bezel_mask
 
-__all__ = ["horizons_query",
-           "HorizonsDiscreteEpochsQuery", "organize_ps1_and_isnear",
-           "MASTQuery",
-           "PanSTARRS1", "group_stars", "get_xy", "xyinFOV",
-           "panstarrs_query",
-           "add_reabable_flag", "ps1filenames", "ps1saveim"]
+__all__ = [
+    "horizons_query",
+    "HorizonsDiscreteEpochsQuery",
+    "organize_ps1_and_isnear",
+    "MASTQuery",
+    "PanSTARRS1",
+    "group_stars",
+    "get_xy",
+    "xyinFOV",
+    "panstarrs_query",
+    "add_reabable_flag",
+    "ps1filenames",
+    "ps1saveim",
+]
 
 
 # H15 means Hernitschek+ 2015ApJ...801...45H.
@@ -60,26 +68,26 @@ PS1FLAGS = {
     "GOOD_STACK": "good-quality object in the stack (>1 good stack measurement)",
     "BEST_STACK": "the primary stack measurements are the best measurements",
     "SUSPECT_STACK": "suspect object in the stack (no more than 1 good measurement, 2 or more suspect or good stack measurement)",
-    "BAD_STACK": "poor-quality stack object (no more than 1 good or suspect measurement)"
+    "BAD_STACK": "poor-quality stack object (no more than 1 good or suspect measurement)",
 }
 PS1FLAG_KEYS = list(PS1FLAGS.keys())
 PS1_DR1_DEL_FLAG = [
-    0,   # FEW: Used within relphot; skip star.
-    1,   # POOR: Used within relphot; skip star.
-    2,   # ICRF_QSO: object IDed with known ICRF quasar
-    3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
-    5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
-    7,   # HERN_VARIABLE: identified as a variable based on ChiSq
-    8,   # TRANSIENT: identified as a non-periodic (stationary) transient
-    9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
+    0,  # FEW: Used within relphot; skip star.
+    1,  # POOR: Used within relphot; skip star.
+    2,  # ICRF_QSO: object IDed with known ICRF quasar
+    3,  # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
+    5,  # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
+    7,  # HERN_VARIABLE: identified as a variable based on ChiSq
+    8,  # TRANSIENT: identified as a non-periodic (stationary) transient
+    9,  # HAS_SOLSYS_DET: at least one detection identified with a known SSO
     10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
     23,  # EXT: extended in our data (eg, PS)
-    24   # EXT_ALT: extended in external data (eg, 2MASS)
+    24,  # EXT_ALT: extended in external data (eg, 2MASS)
 ]
 
 PS1_DR1_DEL_FLAG_POINT = [
-    0,   # FEW: Used within relphot; skip star.
-    1,   # POOR: Used within relphot; skip star.
+    0,  # FEW: Used within relphot; skip star.
+    1,  # POOR: Used within relphot; skip star.
     # 2,   # ICRF_QSO: object IDed with known ICRF quasar
     # 3,   # HERN_QSO_P60: identified as likely QSO, P_QSO >= 0.60
     # 5,   # HERN_RRL_P60: identified as likely RR Lyra, P_RRLyra >= 0.60
@@ -88,40 +96,40 @@ PS1_DR1_DEL_FLAG_POINT = [
     # 9,   # HAS_SOLSYS_DET: at least one detection identified with a known SSO
     # 10,  # MOST_SOLSYS_DET: most detections identified with a known SSO
     23,  # EXT: extended in our data (eg, PS)
-    24   # EXT_ALT: extended in external data (eg, 2MASS)
+    24,  # EXT_ALT: extended in external data (eg, 2MASS)
 ]
 
 
 def horizons_query(
-        id,
-        epochs=None,
-        sort_by='datetime_jd',
-        start=None,
-        stop=None,
-        step='12h',
-        location='500',
-        id_type=None,
-        interpolate=None,
-        interpolate_x='datetime_jd',
-        k=1,
-        s=0,
-        output=None,
-        format='csv',
-        pandas=False,
-        airmass_lessthan=99,
-        solar_elongation=(0, 180),
-        max_hour_angle=0,
-        rate_cutoff=None,
-        skip_daylight=False,
-        refraction=False,
-        refsystem='J2000',
-        closest_apparition=False,
-        no_fragments=False,
-        quantities=conf.eph_quantities,
-        cache=True,
-        extra_precision=False
+    id,
+    epochs=None,
+    sort_by="datetime_jd",
+    start=None,
+    stop=None,
+    step="12h",
+    location="500",
+    id_type=None,
+    interpolate=None,
+    interpolate_x="datetime_jd",
+    k=1,
+    s=0,
+    output=None,
+    format="csv",
+    pandas=False,
+    airmass_lessthan=99,
+    solar_elongation=(0, 180),
+    max_hour_angle=0,
+    rate_cutoff=None,
+    skip_daylight=False,
+    refraction=False,
+    refsystem="J2000",
+    closest_apparition=False,
+    no_fragments=False,
+    quantities=conf.eph_quantities,
+    cache=True,
+    extra_precision=False,
 ):
-    """ Designed for query to JPL HORIZONS with dict-like or small epochs.
+    """Designed for query to JPL HORIZONS with dict-like or small epochs.
     Parameters
     ----------
     id : str, required
@@ -313,12 +321,14 @@ def horizons_query(
 
 def mask_str(n_new, n_old, msg):
     dn = n_old - n_new
-    print(f"{n_new:3d} objects remaining: {dn:3d} masked out of {n_old:3d} based on {msg:s}.")
+    print(
+        f"{n_new:3d} objects remaining: {dn:3d} masked out of {n_old:3d} based on {msg:s}."
+    )
 
 
 class HorizonsDiscreteEpochsQuery:
     def __init__(self, targetname, location, epochs, id_type="smallbody"):
-        ''' Designed to query JPL Horizons for a **large** list of epochs.
+        """Designed to query JPL Horizons for a **large** list of epochs.
         Parameters
         ----------
         id : str
@@ -353,7 +363,7 @@ class HorizonsDiscreteEpochsQuery:
             number), or ``'smallbody'`` (find the closest match under any
             id_type).
             Default: ``'smallbody'``
-        '''
+        """
         self.targetname = str(targetname)
         self.location = location
         self.epochs = np.asarray(epochs)
@@ -366,7 +376,7 @@ class HorizonsDiscreteEpochsQuery:
         return _str.format(self.targetname, self.location)
 
     def query(self, depoch=100, *args, **kwargs):
-        '''
+        """
         Parameters
         ----------
         depoch : int, optional
@@ -374,24 +384,25 @@ class HorizonsDiscreteEpochsQuery:
 
         args, kwargs : optional.
             Passed to ``.ephemerides()`` of ``Horizons``.
-        '''
+        """
         Nepoch = np.shape(self.epochs)[0]
         Nquery = (Nepoch - 1) // depoch + 1
         tabs = []
 
-        print(f'Query: {self.targetname} '
-              + f'at {self.location} for {Nepoch} epochs''')
+        print(
+            f"Query: {self.targetname} " + f"at {self.location} for {Nepoch} epochs" ""
+        )
 
         if Nquery > 1:
-            print(f"Query chopped into {Nquery} chunks: Doing ", end=' ')
+            print(f"Query chopped into {Nquery} chunks: Doing ", end=" ")
 
         for i in range(Nquery):
-            print(f"{i+1}...", end=' ')
+            print(f"{i+1}...", end=" ")
             obj = Horizons(
                 id=self.targetname,
                 location=self.location,
-                epochs=self.epochs[i*depoch:(i + 1)*depoch],
-                id_type=self.id_type
+                epochs=self.epochs[i * depoch : (i + 1) * depoch],
+                id_type=self.id_type,
             )
             eph = obj.ephemerides(*args, **kwargs)
 
@@ -410,10 +421,16 @@ class HorizonsDiscreteEpochsQuery:
 
 
 # https://gea.esac.esa.int/archive/documentation/GDR3/Data_processing/chap_cu5pho/cu5pho_sec_photSystem/cu5pho_ssec_photRelations.html
-class GaiaDR3():
-    def __init__(self, coordinate: SkyCoord, radius: float | Quantity = None,
-                 width: float | Quantity = None, height: float | Quantity = None,
-                 verbose: bool = False, columns: list | str = "phot"):
+class GaiaDR3:
+    def __init__(
+        self,
+        coordinate: SkyCoord,
+        radius: float | Quantity = None,
+        width: float | Quantity = None,
+        height: float | Quantity = None,
+        verbose: bool = False,
+        columns: list | str = "phot",
+    ):
         """
         https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html
         """
@@ -425,18 +442,18 @@ class GaiaDR3():
 
 
 def organize_ps1_and_isnear(
-        ps1,
-        header_or_wcs=None,
-        bezel=0,
-        nearby_obj_minsep=None,
-        group_minsep=0,
-        select_filter_kw=None,
-        del_flags=PS1_DR1_DEL_FLAG,
-        drop_by_Kron=True,
-        calc_JC=True,
-        verbose=1
+    ps1,
+    header_or_wcs=None,
+    bezel=0,
+    nearby_obj_minsep=None,
+    group_minsep=0,
+    select_filter_kw=None,
+    del_flags=PS1_DR1_DEL_FLAG,
+    drop_by_Kron=True,
+    calc_JC=True,
+    verbose=1,
 ):
-    ''' Organizes the PanSTARRS1 object and check nearby objects.
+    """Organizes the PanSTARRS1 object and check nearby objects.
 
     Parameters
     ----------
@@ -498,7 +515,7 @@ def organize_ps1_and_isnear(
     -------
     isnear : bool
         True if there is any nearby object from ``ps1.queried``.
-    '''
+    """
 
     _ = ps1.query()
 
@@ -533,27 +550,42 @@ def organize_ps1_and_isnear(
         # Unfortunately the Std of color is unavailable from the columns
         # provided by PS1 DR1. But error of the mean can be estimated by
         # Gaussian error propagation
-        var_g = ps1.queried["e_gmag"]**2
-        var_r = ps1.queried["e_rmag"]**2
+        var_g = ps1.queried["e_gmag"] ** 2
+        var_r = ps1.queried["e_rmag"] ** 2
         dc_gr = np.sqrt(var_g + var_r)
         ps1.queried["e_grcolor"] = dc_gr
 
-        pars = dict(Bmag=[0.213, 0.587, 0.034, "gmag"],
-                    Vmag=[0.006, 0.474, 0.012, "rmag"],
-                    Rmag=[-0.138, -0.131, 0.015, "rmag"])
+        pars = dict(
+            Bmag=[0.213, 0.587, 0.034, "gmag"],
+            Vmag=[0.006, 0.474, 0.012, "rmag"],
+            Rmag=[-0.138, -0.131, 0.015, "rmag"],
+        )
         # filter_name = [B_0, B_1, B_sc of Tonry, mag used for conversion]
         for k, p in pars.items():
-            ps1.queried[k] = (p[0] + p[1]*ps1.queried["grcolor"] + ps1.queried[p[3]])
-            ps1.queried[f"e_{k}"] = np.sqrt((p[1]*ps1.queried["e_grcolor"])**2 + p[2]**2)
+            ps1.queried[k] = p[0] + p[1] * ps1.queried["grcolor"] + ps1.queried[p[3]]
+            ps1.queried[f"e_{k}"] = np.sqrt(
+                (p[1] * ps1.queried["e_grcolor"]) ** 2 + p[2] ** 2
+            )
 
     return isnear
 
 
-class MASTQuery():
-    def __init__(self, catalog, table=None, data_release=None,
-                 ra=None, dec=None, frame="icrs", skycoord=None, radius=None,
-                 columns="*", sort_by=None, **filter_kw):
-        """ MAST Catalog Query (astroquery.mast.Catalogs)
+class MASTQuery:
+    def __init__(
+        self,
+        catalog,
+        table=None,
+        data_release=None,
+        ra=None,
+        dec=None,
+        frame="icrs",
+        skycoord=None,
+        radius=None,
+        columns="*",
+        sort_by=None,
+        **filter_kw,
+    ):
+        """MAST Catalog Query (astroquery.mast.Catalogs)
 
         Parameters
         ----------
@@ -619,10 +651,14 @@ class MASTQuery():
         for k, v in _params.items():
             if v is None:
                 continue
-            if isinstance(v, u.Quantity):  # MAST uses only degrees unit for RA/DEC/radius
+            if isinstance(
+                v, u.Quantity
+            ):  # MAST uses only degrees unit for RA/DEC/radius
                 _params[k] = v.to(u.deg).value
 
-        self.coordinates = "{} {}".format(_params["ra"], _params["dec"])  # MAST str format...
+        self.coordinates = "{} {}".format(
+            _params["ra"], _params["dec"]
+        )  # MAST str format...
         self.radius = _params["radius"]
         self.catalog = catalog
         self.table = table
@@ -630,7 +666,7 @@ class MASTQuery():
         self.sort_by = sort_by
 
         if isinstance(columns, str):
-            if columns in ['*', '**']:
+            if columns in ["*", "**"]:
                 self.columns = [columns]
             else:
                 raise ValueError("If columns is str, it must be one of ['*', '**']")
@@ -648,17 +684,26 @@ class MASTQuery():
             data_release=self.data_release,
             columns=self.columns,
             sort_by=self.sort_by,
-            **self.filters
+            **self.filters,
         )
         self.queried["objID"] = str(int(self.queried["objID"]))
 
 
 # TODO: Let it accept SkyCoord too
 class PanSTARRS1:
-    def __init__(self, ra, dec, frame="icrs", radius=None, inner_radius=None,
-                 width=None, height=None, columns=["**", "+_r"],
-                 column_filters={}):
-        """ Query PanSTARRS @ VizieR using astroquery.vizier
+    def __init__(
+        self,
+        ra,
+        dec,
+        frame="icrs",
+        radius=None,
+        inner_radius=None,
+        width=None,
+        height=None,
+        columns=["**", "+_r"],
+        column_filters={},
+    ):
+        """Query PanSTARRS @ VizieR using astroquery.vizier
 
         Parameters
         ----------
@@ -730,7 +775,7 @@ class PanSTARRS1:
         self.frame = frame
 
         if isinstance(columns, str):
-            if columns in ['*', '**']:
+            if columns in ["*", "**"]:
                 self.columns = [columns]
             else:
                 raise ValueError("If columns is str, it must be one of ['*', '**']")
@@ -740,16 +785,20 @@ class PanSTARRS1:
         self.column_filters = column_filters
 
     def query(self):
-        vquery = Vizier(columns=self.columns, column_filters=self.column_filters, row_limit=-1)
+        vquery = Vizier(
+            columns=self.columns, column_filters=self.column_filters, row_limit=-1
+        )
 
         field = SkyCoord(ra=self.ra, dec=self.dec, frame=self.frame)
 
-        self.queried = vquery.query_region(field,
-                                           radius=self.radius,
-                                           inner_radius=self.inner_radius,
-                                           width=self.width,
-                                           height=self.height,
-                                           catalog="II/349/ps1")[0]
+        self.queried = vquery.query_region(
+            field,
+            radius=self.radius,
+            inner_radius=self.inner_radius,
+            width=self.width,
+            height=self.height,
+            catalog="II/349/ps1",
+        )[0]
 
         self.queried["_r"] <<= u.deg
         self.queried["_r"] = self.queried["_r"].to(u.arcsec)
@@ -757,8 +806,8 @@ class PanSTARRS1:
 
         return self.queried
 
-    def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode='all', verbose=1):
-        ''' Convert RA/DEC to xy (add columns) with rejection at bezels.
+    def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode="all", verbose=1):
+        """Convert RA/DEC to xy (add columns) with rejection at bezels.
         Parameters
         ----------
         header_or_wcs : `astropy.io.fits.Header`, `astropy.wcs.WCS`, optional
@@ -772,14 +821,22 @@ class PanSTARRS1:
         mode: 'all' or 'wcs', optional
             Whether to do the transformation including distortions (``'all'``)
             or only including only the core WCS transformation (``'wcs'``).
-        '''
-        self.queried = xyinFOV(table=self.queried, header_or_wcs=header_or_wcs,
-                               ra_key="RAJ2000", dec_key="DEJ2000",
-                               bezel=bezel, origin=0, mode=mode, verbose=verbose)
+        """
+        self.queried = xyinFOV(
+            table=self.queried,
+            header_or_wcs=header_or_wcs,
+            ra_key="RAJ2000",
+            dec_key="DEJ2000",
+            bezel=bezel,
+            origin=0,
+            mode=mode,
+            verbose=verbose,
+        )
 
-    def drop_for_diff_phot(self, del_flags=PS1_DR1_DEL_FLAG,
-                           drop_by_Kron=True, verbose=1):
-        ''' Drop objects which are not good for differential photometry.
+    def drop_for_diff_phot(
+        self, del_flags=PS1_DR1_DEL_FLAG, drop_by_Kron=True, verbose=1
+    ):
+        """Drop objects which are not good for differential photometry.
         Parameters
         ----------
         del_flags : list of int, None, optional
@@ -853,7 +910,7 @@ class PanSTARRS1:
             * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
 
         (plus maybe 2048(2^11) because centroiding may not work properly?)
-        '''
+        """
         N_old = len(self.queried)
         if del_flags is not None:
             idx2remove = []
@@ -861,7 +918,7 @@ class PanSTARRS1:
             for i, row in enumerate(self.queried):
                 b_flag = list(f"{row['f_objID']:031b}")
                 for bin_pos in del_flags:
-                    if b_flag[-bin_pos] == '1':
+                    if b_flag[-bin_pos] == "1":
                         idx2remove.append(i)
             self.queried.remove_rows(idx2remove)
 
@@ -872,8 +929,8 @@ class PanSTARRS1:
             N_old = N_fobj
 
         if drop_by_Kron:
-            dmag = (self.queried["imag"] - self.queried["iKmag"])
-            mask = (dmag > 0.05)
+            dmag = self.queried["imag"] - self.queried["iKmag"]
+            mask = dmag > 0.05
             self.queried = self.queried[~mask]
 
             N_Kron = len(self.queried)
@@ -881,14 +938,13 @@ class PanSTARRS1:
                 mask_str(N_Kron, N_old, "the Kron magnitude criterion")
 
     def select_filters(
-            self,
-            filter_names=["g", "r", "i"],
-            keep_columns=["_r", "objID", "f_objID", "RAJ2000", "DEJ2000", "x", "y"],
-            n_mins=[0, 0, 0],
-            verbose=1
+        self,
+        filter_names=["g", "r", "i"],
+        keep_columns=["_r", "objID", "f_objID", "RAJ2000", "DEJ2000", "x", "y"],
+        n_mins=[0, 0, 0],
+        verbose=1,
     ):
-        ''' Abridges the columns depending on the specified filters.
-        '''
+        """Abridges the columns depending on the specified filters."""
         if not isinstance(filter_names, (list, tuple, np.ndarray)):
             filter_names = [filter_names]
 
@@ -896,8 +952,10 @@ class PanSTARRS1:
         if n_mins.shape[0] == 1:
             n_mins = np.repeat(n_mins, len(filter_names))
         elif n_mins.shape[0] != len(filter_names):
-            raise ValueError("n_mins must be length 1 or same length as "
-                             f"filter_names (now it's {len(filter_names)}).")
+            raise ValueError(
+                "n_mins must be length 1 or same length as "
+                f"filter_names (now it's {len(filter_names)})."
+            )
 
         selected_columns = keep_columns
         toremove_columns = []
@@ -935,7 +993,7 @@ class PanSTARRS1:
             mask_str(N_new, N_old, f"o_{filter_names}mag >= {n_mins}")
 
     def check_nearby(self, minsep, maxmag=None, filter_names=["r"]):
-        ''' Checkes whether there is any nearby object.
+        """Checkes whether there is any nearby object.
 
         Notes
         -----
@@ -952,7 +1010,7 @@ class PanSTARRS1:
             The maximum magnitude value to mask objects. Objects fainter than
             this magnitude (Mean PSF magnitude) will be accepted even though it
             is nearby the search center.
-        '''
+        """
         if minsep is None:
             return False
 
@@ -974,22 +1032,28 @@ class PanSTARRS1:
             minsep = minsep.to(chktab["_r"].unit).value
         except u.UnitConversionError:  # assume degrees
             minsep = minsep.to(u.deg).value
-        isnear = (np.array(chktab["_r"]).min() <= minsep)
+        isnear = np.array(chktab["_r"]).min() <= minsep
         return isnear
 
     def drop_star_groups(self, min_separation, verbose=1):
         N_old = len(self.queried)
-        grouped_rows = group_stars(xpos=self.queried["x"], ypos=self.queried["y"],
-                                   min_separation=min_separation)
+        grouped_rows = group_stars(
+            xpos=self.queried["x"],
+            ypos=self.queried["y"],
+            min_separation=min_separation,
+        )
         self.queried.remove_rows(grouped_rows)
         N_new = len(self.queried)
         if verbose:
-            mask_str(N_new, N_old,
-                     (f"distance-based flat clustering with {min_separation = :.3f} [pix]"))
+            mask_str(
+                N_new,
+                N_old,
+                (f"distance-based flat clustering with {min_separation = :.3f} [pix]"),
+            )
 
 
 def group_stars(xpos, ypos, min_separation, full=False):
-    ''' Group stars using distance-based flat clustering (same as DAOGROUP).
+    """Group stars using distance-based flat clustering (same as DAOGROUP).
 
     Parameters
     ----------
@@ -1049,7 +1113,7 @@ def group_stars(xpos, ypos, min_separation, full=False):
         The group ids which have more than one star. Result of `uniq[counts > 1]`.
         Returned only if `full=True`.
 
-    '''
+    """
     from photutils.psf import SourceGrouper
 
     group_id = SourceGrouper(min_separation=min_separation)(xpos, ypos)
@@ -1063,8 +1127,8 @@ def group_stars(xpos, ypos, min_separation, full=False):
     return mask
 
 
-def get_xy(header_or_wcs, ra, dec, unit=u.deg, origin=0, mode='all'):
-    ''' Get image XY from the header WCS
+def get_xy(header_or_wcs, ra, dec, unit=u.deg, origin=0, mode="all"):
+    """Get image XY from the header WCS
 
     Parameters
     ----------
@@ -1084,7 +1148,7 @@ def get_xy(header_or_wcs, ra, dec, unit=u.deg, origin=0, mode='all'):
     mode: 'all' or 'wcs', optional
         Whether to do the transformation including distortions (``'all'``) or
         only including only the core WCS transformation (``'wcs'``).
-    '''
+    """
     coo = SkyCoord(ra, dec, unit=unit)
     if isinstance(header_or_wcs, WCS):
         return SkyCoord.to_pixel(coo, wcs=header_or_wcs, origin=origin, mode=mode)
@@ -1093,24 +1157,24 @@ def get_xy(header_or_wcs, ra, dec, unit=u.deg, origin=0, mode='all'):
 
 
 def xyinFOV(
-        table,
-        header_or_wcs=None,
-        wcs=None,
-        shape=None,
-        ra_key='ra',
-        dec_key='dec',
-        unit=None,
-        bezel=0,
-        bezel_x=None,
-        bezel_y=None,
-        origin=0,
-        mode='all',
-        return_mask=False,
-        col_x="x",
-        col_y="y",
-        verbose=1
+    table,
+    header_or_wcs=None,
+    wcs=None,
+    shape=None,
+    ra_key="ra",
+    dec_key="dec",
+    unit=None,
+    bezel=0,
+    bezel_x=None,
+    bezel_y=None,
+    origin=0,
+    mode="all",
+    return_mask=False,
+    col_x="x",
+    col_y="y",
+    verbose=1,
 ):
-    ''' Convert RA/DEC to pixel with rejection at bezels
+    """Convert RA/DEC to pixel with rejection at bezels
 
     Parameters
     ----------
@@ -1153,7 +1217,7 @@ def xyinFOV(
 
     col_x, col_y : str, optional
         The column names for x and y positions.
-    '''
+    """
     bezel = np.atleast_1d(bezel)
     if bezel.shape == (1,):
         bezel = np.tile(bezel, 2)
@@ -1209,13 +1273,9 @@ def xyinFOV(
 
 
 def drop_for_diff_phot_ps(
-        table,
-        service="mast",
-        del_flags=PS1_DR1_DEL_FLAG,
-        drop_by_Kron=True,
-        verbose=1
+    table, service="mast", del_flags=PS1_DR1_DEL_FLAG, drop_by_Kron=True, verbose=1
 ):
-    ''' Drop objects which are not good for differential photometry.
+    """Drop objects which are not good for differential photometry.
 
     Parameters
     ----------
@@ -1297,7 +1357,7 @@ def drop_for_diff_phot_ps(
         * 0, 1, 2, 3, 5, 7, 8, 9, 10, 23, 24
 
     (plus maybe 2048(2^11) because centroiding may not work properly?)
-    '''
+    """
     if service.lower() == "mast":
         col_flag = "objInfoFlag"
         # col_imag =
@@ -1312,7 +1372,7 @@ def drop_for_diff_phot_ps(
         for i, row in enumerate(table):
             b_flag = list(f"{row[col_flag]:031b}")
             for bin_pos in del_flags:
-                if b_flag[-bin_pos] == '1':
+                if b_flag[-bin_pos] == "1":
                     idx2remove.append(i)
         table.drop(idx2remove, inplace=True)
 
@@ -1323,8 +1383,8 @@ def drop_for_diff_phot_ps(
         N_old = N_fobj
 
     if drop_by_Kron:
-        dmag = (table["imag"] - table["iKmag"])
-        mask = (dmag > 0.05)
+        dmag = table["imag"] - table["iKmag"]
+        mask = dmag > 0.05
         table = table.loc[~mask]
 
         N_Kron = len(table)
@@ -1335,72 +1395,72 @@ def drop_for_diff_phot_ps(
 
 
 def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
-    ''' Parse the flat and make human readable flag.
-        Parameters
-        ----------
-        table : astropy.table.Table
-            Table with the flag column (either ``"objInfoFlag"`` or
-            ``"f_objID"`` (from MAST or VizieR, respectively).
+    """Parse the flat and make human readable flag.
+    Parameters
+    ----------
+    table : astropy.table.Table
+        Table with the flag column (either ``"objInfoFlag"`` or
+        ``"f_objID"`` (from MAST or VizieR, respectively).
 
-        newcol : str
-            Name of the new column with the human readable flag. The result
-            will be `sep` separated string (e.g., "POOR & HAS_SOLSYS_DET").
+    newcol : str
+        Name of the new column with the human readable flag. The result
+        will be `sep` separated string (e.g., "POOR & HAS_SOLSYS_DET").
 
-        fullname : bool
-            If True, use the full name of the flag (e.g., "POOR" instead of
-            "2", "HERN_RRL_P05" instead of "64"). Default is True.
+    fullname : bool
+        If True, use the full name of the flag (e.g., "POOR" instead of
+        "2", "HERN_RRL_P05" instead of "64"). Default is True.
 
-        sep : str
-            Separator for the flag.
+    sep : str
+        Separator for the flag.
 
-        Notes
-        -----
-          * FEW (1) : Used within relphot; skip star.
-          * POOR (2) : Used within relphot; skip star.
-          * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF
-            position measurement)
-          * HERN_QSO_P60 (8) : identified as likely QSO (H15), P_QSO >= 0.60
-          * HERN_QSO_P05 (16) : identified as possible QSO (H15), P_QSO >= 0.05
-          * HERN_RRL_P60 (32) : identified as likely RR Lyra (H15), P_RRLyra >=
-            0.60
-          * HERN_RRL_P05 (64) : identified as possible RR Lyra (H15), P_RRLyra
-            >= 0.05
-          * HERN_VARIABLE (128) : identified as a variable based on ChiSq (H15)
-          * TRANSIENT (256) : identified as a non-periodic (stationary)
-            transient
-          * HAS_SOLSYS_DET (512) : at least one detection identified with a
-            known solar-system object (asteroid or other).
-          * MOST_SOLSYS_DET (1024 (2^10)) : most detections identified with a
-            known solar-system object (asteroid or other).
-          * LARGE_PM (2048) : star with large proper motion
-          * RAW_AVE (4096) : simple weighted average position was used (no IRLS
-            fitting)
-          * FIT_AVE (8192) : average position was fitted
-          * FIT_PM (16384) : proper motion model was fitted
-          * FIT_PAR (32768) : parallax model was fitted
-          * USE_AVE (65536) : average position used (not PM or PAR)
-          * USE_PM (131072) : proper motion used (not AVE or PAR)
-          * USE_PAR (262144) : parallax used (not AVE or PM)
-          * NO_MEAN_ASTROM (524288) : mean astrometry could not be measured
-          * STACK_FOR_MEAN (1048576 (2^20)) : stack position used for mean
-            astrometry
-          * MEAN_FOR_STACK (2097152) : mean astrometry used for stack position
-          * BAD_PM (4194304) : failure to measure proper-motion model
-          * EXT (8388608) : extended in our data (eg, PS)
-          * EXT_ALT (16777216) : extended in external data (eg, 2MASS)
-          * GOOD (33554432) : good-quality measurement in our data (eg,PS)
-          * GOOD_ALT (67108864) : good-quality measurement in external data
-            (eg, 2MASS)
-          * GOOD_STACK (134217728) : good-quality object in the stack (>1 good
-            stack measurement)
-          * BEST_STACK (268435456) : the primary stack measurements are the
-            best measurements
-          * SUSPECT_STACK (536870912) : suspect object in the stack (no more
-            than 1 good measurement, 2 or more suspect or good stack
-            measurement)
-          * BAD_STACK (1073741824 (2^30)) : poor-quality stack object (no more
-            than 1 good or suspect measurement)
-        '''
+    Notes
+    -----
+      * FEW (1) : Used within relphot; skip star.
+      * POOR (2) : Used within relphot; skip star.
+      * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF
+        position measurement)
+      * HERN_QSO_P60 (8) : identified as likely QSO (H15), P_QSO >= 0.60
+      * HERN_QSO_P05 (16) : identified as possible QSO (H15), P_QSO >= 0.05
+      * HERN_RRL_P60 (32) : identified as likely RR Lyra (H15), P_RRLyra >=
+        0.60
+      * HERN_RRL_P05 (64) : identified as possible RR Lyra (H15), P_RRLyra
+        >= 0.05
+      * HERN_VARIABLE (128) : identified as a variable based on ChiSq (H15)
+      * TRANSIENT (256) : identified as a non-periodic (stationary)
+        transient
+      * HAS_SOLSYS_DET (512) : at least one detection identified with a
+        known solar-system object (asteroid or other).
+      * MOST_SOLSYS_DET (1024 (2^10)) : most detections identified with a
+        known solar-system object (asteroid or other).
+      * LARGE_PM (2048) : star with large proper motion
+      * RAW_AVE (4096) : simple weighted average position was used (no IRLS
+        fitting)
+      * FIT_AVE (8192) : average position was fitted
+      * FIT_PM (16384) : proper motion model was fitted
+      * FIT_PAR (32768) : parallax model was fitted
+      * USE_AVE (65536) : average position used (not PM or PAR)
+      * USE_PM (131072) : proper motion used (not AVE or PAR)
+      * USE_PAR (262144) : parallax used (not AVE or PM)
+      * NO_MEAN_ASTROM (524288) : mean astrometry could not be measured
+      * STACK_FOR_MEAN (1048576 (2^20)) : stack position used for mean
+        astrometry
+      * MEAN_FOR_STACK (2097152) : mean astrometry used for stack position
+      * BAD_PM (4194304) : failure to measure proper-motion model
+      * EXT (8388608) : extended in our data (eg, PS)
+      * EXT_ALT (16777216) : extended in external data (eg, 2MASS)
+      * GOOD (33554432) : good-quality measurement in our data (eg,PS)
+      * GOOD_ALT (67108864) : good-quality measurement in external data
+        (eg, 2MASS)
+      * GOOD_STACK (134217728) : good-quality object in the stack (>1 good
+        stack measurement)
+      * BEST_STACK (268435456) : the primary stack measurements are the
+        best measurements
+      * SUSPECT_STACK (536870912) : suspect object in the stack (no more
+        than 1 good measurement, 2 or more suspect or good stack
+        measurement)
+      * BAD_STACK (1073741824 (2^30)) : poor-quality stack object (no more
+        than 1 good or suspect measurement)
+    """
     from more_itertools import locate
 
     if "f_objID" in table.colnames:  # VizieR
@@ -1411,7 +1471,7 @@ def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
     contents = []
     for row in table:
         _flags = []
-        _idxs = list(locate(f"{row[col_flag]:031b}"[::-1], lambda x: x == '1'))
+        _idxs = list(locate(f"{row[col_flag]:031b}"[::-1], lambda x: x == "1"))
         for _idx in _idxs:
             _flags.append(PS1FLAG_KEYS[_idx] if fullname else str(_idx))
         contents.append(sep.join(_flags))
@@ -1442,9 +1502,16 @@ def sdss2BV(g, r, gerr=None, rerr=None):
 """
 
 
-def ps1filenames(ra, dec, size, filters="grizy", file_type="fits", image_type="stack",
-                 ps1filenamesurl="https://ps1images.stsci.edu/cgi-bin/ps1filenames.py",
-                 fitscuturl="https://ps1images.stsci.edu/cgi-bin/fitscut.cgi"):
+def ps1filenames(
+    ra,
+    dec,
+    size,
+    filters="grizy",
+    file_type="fits",
+    image_type="stack",
+    ps1filenamesurl="https://ps1images.stsci.edu/cgi-bin/ps1filenames.py",
+    fitscuturl="https://ps1images.stsci.edu/cgi-bin/fitscut.cgi",
+):
     """Query ps1filenames.py service for multiple positions to get image urls.
 
     Parameters
@@ -1503,25 +1570,27 @@ def ps1filenames(ra, dec, size, filters="grizy", file_type="fits", image_type="s
 
     # put the positions in an in-memory file object
     cbuf = StringIO()
-    cbuf.write('\n'.join(
-        ["{} {}".format(ra, dec) for (ra, dec) in zip(ra, dec)]
-    ))
+    cbuf.write("\n".join(["{} {}".format(ra, dec) for (ra, dec) in zip(ra, dec)]))
     cbuf.seek(0)
     # use requests.post to pass in positions as a file
-    r = requests.post(ps1filenamesurl, data=dict(filters=filters, type=image_type),
-                      files=dict(file=cbuf))
+    r = requests.post(
+        ps1filenamesurl,
+        data=dict(filters=filters, type=image_type),
+        files=dict(file=cbuf),
+    )
     r.raise_for_status()
-    tab = pd.read_csv(StringIO(r.text), sep=' ')
+    tab = pd.read_csv(StringIO(r.text), sep=" ")
 
     urlbase = "{}?size={}&format={}".format(fitscuturl, size, file_type)
-    tab["url"] = ["{}&ra={}&dec={}&red={}".format(urlbase, ra, dec, filename)
-                  for (filename, ra, dec) in zip(tab["filename"], tab["ra"], tab["dec"])]
+    tab["url"] = [
+        "{}&ra={}&dec={}&red={}".format(urlbase, ra, dec, filename)
+        for (filename, ra, dec) in zip(tab["filename"], tab["ra"], tab["dec"])
+    ]
     return tab
 
 
 def ps1saveim(url, output, load=False, **kwargs):
-    """ Save the image from the url (result of `ps1filenames`) to a file.
-    """
+    """Save the image from the url (result of `ps1filenames`) to a file."""
     r = requests.get(url)
     with open(output, "wb") as fitsfile:
         fitsfile.write(r.content)
@@ -1529,15 +1598,29 @@ def ps1saveim(url, output, load=False, **kwargs):
         return fits.open(output)
 
 
-def panstarrs_query(ra_deg, dec_deg, radius=None, inner_radius=None,
-                    width=None, height=None, columns=None, column_filters={}):
+def panstarrs_query(
+    ra_deg,
+    dec_deg,
+    radius=None,
+    inner_radius=None,
+    width=None,
+    height=None,
+    columns=None,
+    column_filters={},
+):
     """
     DEPRECATED
     """
     warn("DEPRECATED: Use PanSTARRS1 class instead.", DeprecationWarning, stacklevel=2)
-    ps1 = PanSTARRS1(ra=ra_deg*u.deg, dec=dec_deg*u.deg,
-                     radius=radius, inner_radius=inner_radius,
-                     width=width, height=height,
-                     columns=columns, column_filters=column_filters)
+    ps1 = PanSTARRS1(
+        ra=ra_deg * u.deg,
+        dec=dec_deg * u.deg,
+        radius=radius,
+        inner_radius=inner_radius,
+        width=width,
+        height=height,
+        columns=columns,
+        column_filters=column_filters,
+    )
 
     return ps1.queried

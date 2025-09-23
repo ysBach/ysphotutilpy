@@ -2,23 +2,33 @@
 A collection of temporary utilities, and likely be removed if similar
 functionality can be achieved by pre-existing packages.
 """
+
 import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling.functional_models import Gaussian2D
 
-__all__ = ["magsum", "sqsum", "err_prop",
-           "_linear_unit_converter", "convert_pct", "convert_deg",
-           "bezel_mask", "Gaussian2D_correct",
-           "fit_astropy_model", "fit_Gaussian2D", "gaussian_kernel"]
+__all__ = [
+    "magsum",
+    "sqsum",
+    "err_prop",
+    "_linear_unit_converter",
+    "convert_pct",
+    "convert_deg",
+    "bezel_mask",
+    "Gaussian2D_correct",
+    "fit_astropy_model",
+    "fit_Gaussian2D",
+    "gaussian_kernel",
+]
 
 
 def magsum(*args):
-    """ Calculates the "sum" of magnitudes.
+    """Calculates the "sum" of magnitudes.
     Note
     ----
     To calculate magnitude error, use ``err_prop(*merrs)``.
     """
-    return -2.5 * np.log10(np.sum(10**(-0.4*np.array(args))))
+    return -2.5 * np.log10(np.sum(10 ** (-0.4 * np.array(args))))
 
 
 def sqsum(*args):
@@ -63,14 +73,14 @@ def enclosing_circle_radius(mask, center=None):
         center = (np.mean(x), np.mean(y))
 
     # Calculate the distances from the center to all non-zero pixels
-    distances = np.sqrt((x - center[0])**2 + (y - center[1])**2)
+    distances = np.sqrt((x - center[0]) ** 2 + (y - center[1]) ** 2)
 
     # Return the maximum distance as the radius
     return np.max(distances)
 
 
 def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
-    ''' Converts units among non-physical units (%, deg-radian, etc).
+    """Converts units among non-physical units (%, deg-radian, etc).
     Parameters
     ----------
     factor : float, optional.
@@ -99,36 +109,30 @@ def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
         _linear_unit_converter(*args, factor=180/np.pi, already=already,
                                convert2unit=convert2unit)
 
-    '''
+    """
     if not already and convert2unit:
         factor = factor
     elif already and not convert2unit:
-        factor = 1/factor
+        factor = 1 / factor
     else:  # i.e., both True or both False
         factor = 1
-    return [a*factor for a in args]
+    return [a * factor for a in args]
 
 
 def convert_pct(*args, already=False, convert2unit=False):
-    return _linear_unit_converter(*args, factor=100, already=already,
-                                  convert2unit=convert2unit)
+    return _linear_unit_converter(
+        *args, factor=100, already=already, convert2unit=convert2unit
+    )
 
 
 def convert_deg(*args, already=False, convert2unit=False):
-    return _linear_unit_converter(*args, factor=180/np.pi, already=already,
-                                  convert2unit=convert2unit)
+    return _linear_unit_converter(
+        *args, factor=180 / np.pi, already=already, convert2unit=convert2unit
+    )
 
 
-def bezel_mask(
-        xvals,
-        yvals,
-        nx,
-        ny,
-        bezel=(0, 0),
-        bezel_x=None,
-        bezel_y=None
-):
-    '''
+def bezel_mask(xvals, yvals, nx, ny, bezel=(0, 0), bezel_x=None, bezel_y=None):
+    """
     Parameters
     ----------
     xvals, yvals : array-like
@@ -150,7 +154,7 @@ def bezel_mask(
         ``(bezel_x[0] + 0.5 < center_x) & (center_x < nx - bezel_x[1] - 0.5)``
         (similar for y) will be selected. If you want to keep some stars
         outside the edges, put negative values (e.g., ``-5``).
-    '''
+    """
     bezel = np.array(bezel)
     if len(bezel) == 1:
         bezel = np.repeat(bezel, 2)
@@ -169,11 +173,12 @@ def bezel_mask(
         if len(bezel_y) == 1:
             bezel_y = np.repeat(bezel_y, 2)
 
-    mask = ((xvals < bezel_x[0] + 0.5)
-            | (yvals < bezel_y[0] + 0.5)
-            | (xvals > (nx - bezel_x[1]) - 0.5)
-            | (yvals > (ny - bezel_y[1]) - 0.5)
-            )
+    mask = (
+        (xvals < bezel_x[0] + 0.5)
+        | (yvals < bezel_y[0] + 0.5)
+        | (xvals > (nx - bezel_x[1]) - 0.5)
+        | (yvals > (ny - bezel_y[1]) - 0.5)
+    )
     return mask
 
 
@@ -261,11 +266,10 @@ def normalize(num, lower=0, upper=360, b=False):
         ValueError("lower must be lesser than upper")
     if not b:
         if not ((lower + upper == 0) or (lower == 0)):
-            raise ValueError(
-                'When b=False lower=0 or range must be symmetric about 0.')
+            raise ValueError("When b=False lower=0 or range must be symmetric about 0.")
     else:
         if not (lower + upper == 0):
-            raise ValueError('When b=True range must be symmetric about 0.')
+            raise ValueError("When b=True range must be symmetric about 0.")
 
     from math import ceil, floor
 
@@ -300,8 +304,8 @@ def normalize(num, lower=0, upper=360, b=False):
     return res
 
 
-def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
-    ''' Sets x = semimajor axis and theta to be in [-pi/2, pi/2] range.
+def Gaussian2D_correct(model, theta_lower=-np.pi / 2, theta_upper=np.pi / 2):
+    """Sets x = semimajor axis and theta to be in [-pi/2, pi/2] range.
     Example
     -------
     >>> from astropy.modeling.functional_models import Gaussian2D
@@ -323,7 +327,7 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
     >>>         np.testing.assert_almost_equal(g(x, y) - g_c(x, y), gridsize)
     >>>         plt.pause(0.1)
     You may see some patterns in the residual image, they are < 10**(-13).
-    '''
+    """
     # I didn't use ``Gaussian2D`` directly, because GaussianConst2D from
     # photutils may also be used.
     new_model = model.copy()
@@ -338,7 +342,7 @@ def Gaussian2D_correct(model, theta_lower=-np.pi/2, theta_upper=np.pi/2):
         new_model.theta.value = theta_norm
 
     else:
-        theta_norm = normalize(theta + np.pi/2, theta_lower, theta_upper)
+        theta_norm = normalize(theta + np.pi / 2, theta_lower, theta_upper)
         new_model.x_stddev.value = sig_y
         new_model.y_stddev.value = sig_x
         new_model.theta.value = theta_norm
@@ -371,25 +375,27 @@ def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **
     fitter : fitter
         The fitter (maybe informative, e.g., ``fitter.fit_info``).
     """
-    yy, xx = np.mgrid[:data.shape[0], :data.shape[1]]
+    yy, xx = np.mgrid[: data.shape[0], : data.shape[1]]
     if sigma is not None:
-        weights = 1/sigma
+        weights = 1 / sigma
     else:
         weights = None
     fitted = fitter(model_init, xx, yy, data, weights=weights, **kwargs)
     return fitted, fitter
 
 
-def fit_Gaussian2D(data, model_init, correct=True, sigma=None,
-                   fitter=LevMarLSQFitter(), **kwargs):
-    """ Identical to fit_astropy_model but for Gaussian2D correct.
+def fit_Gaussian2D(
+    data, model_init, correct=True, sigma=None, fitter=LevMarLSQFitter(), **kwargs
+):
+    """Identical to fit_astropy_model but for Gaussian2D correct.
 
     Notes
     -----
     photutils.centroids.GaussianConst2D is also usable.
     """
     fitted, fitter = fit_astropy_model(
-        data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs)
+        data=data, model_init=model_init, sigma=sigma, fitter=fitter, **kwargs
+    )
     if correct:
         fitted = Gaussian2D_correct(fitted)
     return fitted, fitter
@@ -529,7 +535,7 @@ def fit_2dmoffat(data, error=None, mask=None):
 
 
 def gaussian_kernel(fwhm=None, sigma=None, theta=0, nsigma=5, normalize_area=False):
-    """ Generates a 2D array of Gaussian, usable a kernel.
+    """Generates a 2D array of Gaussian, usable a kernel.
 
     Parameters
     ----------
@@ -562,15 +568,21 @@ def gaussian_kernel(fwhm=None, sigma=None, theta=0, nsigma=5, normalize_area=Fal
     if ((fwhm is None) + (sigma is None)) != 1:
         raise ValueError("One and only one of `fwhm` and `sigma` should be given.")
     elif fwhm is not None:
-        sigma = fwhm/(2*np.sqrt(2*np.log(2)))
+        sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
     sigma = np.atleast_1d(sigma)
     if len(sigma) == 1:
         sigma = np.repeat(sigma, 2)
-    _amp = 1/(2*np.pi*sigma[0]*sigma[1]) if normalize_area else 1
+    _amp = 1 / (2 * np.pi * sigma[0] * sigma[1]) if normalize_area else 1
     gauss = Gaussian2D(
-        amplitude=_amp, x_mean=0, y_mean=0,
-        x_stddev=sigma[0], y_stddev=sigma[1], theta=theta
+        amplitude=_amp,
+        x_mean=0,
+        y_mean=0,
+        x_stddev=sigma[0],
+        y_stddev=sigma[1],
+        theta=theta,
     )
-    shape = np.ceil(nsigma*sigma[::-1]).astype(int)
+    shape = np.ceil(nsigma * sigma[::-1]).astype(int)
 
-    return gauss(*np.ogrid[-shape[0]/2:shape[0]/2+1, -shape[1]/2:shape[1]/2+1])
+    return gauss(
+        *np.ogrid[-shape[0] / 2 : shape[0] / 2 + 1, -shape[1] / 2 : shape[1] / 2 + 1]
+    )

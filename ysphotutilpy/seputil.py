@@ -99,6 +99,7 @@ to +0.5. Simple test code:
 >>> # x: [8.66666667]
 >>> # y: [7.66666667]
 """
+
 from warnings import warn
 
 from astropy.nddata import support_nddata
@@ -113,31 +114,31 @@ except ImportError:
     warn("Package sep is not installed. Some functions will not work.")
 
 
-__all__ = ['sep_back', 'sep_extract', 'sep_flux_auto']
+__all__ = ["sep_back", "sep_extract", "sep_flux_auto"]
 
-sep_default_kernel = np.array([[1.0, 2.0, 1.0],
-                               [2.0, 4.0, 2.0],
-                               [1.0, 2.0, 1.0]], dtype=np.float32)
+sep_default_kernel = np.array(
+    [[1.0, 2.0, 1.0], [2.0, 4.0, 2.0], [1.0, 2.0, 1.0]], dtype=np.float32
+)
 
 
 def _sanitize_byteorder(data):
     if data is None:
         return None
     # return np.ascontiguousarray(data)
-    elif data.dtype.byteorder == '>':
+    elif data.dtype.byteorder == ">":
         return data.byteswap().view(data.dtype.newbyteorder())
     else:
         return data
 
 
 def sep_back(
-        data,
-        mask=None,
-        maskthresh=0.0,
-        filter_threshold=0.0,
-        box_size=(64, 64),
-        filter_size=(3, 3),
-        byteorder=">"
+    data,
+    mask=None,
+    maskthresh=0.0,
+    filter_threshold=0.0,
+    box_size=(64, 64),
+    filter_size=(3, 3),
+    byteorder=">",
 ):
     """
     Notes
@@ -219,9 +220,15 @@ def sep_back(
     if len(filter_size) == 1:
         filter_size = np.repeat(filter_size, 2)
 
-    kw = dict(mask=mask, bw=box_size[1], bh=box_size[0],
-              fw=filter_size[1], fh=filter_size[0],
-              maskthresh=maskthresh, fthresh=filter_threshold)
+    kw = dict(
+        mask=mask,
+        bw=box_size[1],
+        bh=box_size[0],
+        fw=filter_size[1],
+        fh=filter_size[0],
+        maskthresh=maskthresh,
+        fthresh=filter_threshold,
+    )
     try:
         bkg = sep.Background(data, **kw)
     except ValueError:  # Non-native byte order
@@ -232,32 +239,32 @@ def sep_back(
         try:
             bkg = sep.Background(data, **kw)
         except ValueError:  # e.g., int16 not supported
-            bkg = sep.Background(data.astype('float32'), **kw)
+            bkg = sep.Background(data.astype("float32"), **kw)
 
     return bkg
 
 
 @support_nddata
 def _sep_extract(
-        data,
-        thresh,
-        bkg=None,
-        mask=None,
-        maskthresh=0.0,
-        err=None,
-        var=None,
-        gain=None,
-        minarea=5,
-        filter_kernel=sep_default_kernel,
-        filter_type='matched',
-        deblend_nthresh=32,
-        deblend_cont=0.005,
-        clean=True,
-        clean_param=1.0,
-        seg_remove_mask=True,
-        byteorder=">"
+    data,
+    thresh,
+    bkg=None,
+    mask=None,
+    maskthresh=0.0,
+    err=None,
+    var=None,
+    gain=None,
+    minarea=5,
+    filter_kernel=sep_default_kernel,
+    filter_type="matched",
+    deblend_nthresh=32,
+    deblend_cont=0.005,
+    clean=True,
+    clean_param=1.0,
+    seg_remove_mask=True,
+    byteorder=">",
 ):
-    """ sep.extract wrapper with minor sanitization of arrays and segmap
+    """sep.extract wrapper with minor sanitization of arrays and segmap
     Notes
     -----
     This is a wrapper of `sep.extract`. Only the difference is that (1) `data`,
@@ -354,9 +361,12 @@ def _sep_extract(
     value between 0.1 to 10, Moffat profile will have finite flux only if
     `clean_param > 2`.
     """
+
     def _gaussian_kernel(sig):
         if isinstance(sig, (int, float)):
-            return gaussian_kernel(sigma=sig, nsigma=min(1, 3/sig), normalize_area=False)
+            return gaussian_kernel(
+                sigma=sig, nsigma=min(1, 3 / sig), normalize_area=False
+            )
         else:
             return sig
 
@@ -376,9 +386,9 @@ def _sep_extract(
     else:
         data_skysub = data - bkg.back()
         if var is not None:  # Then err is None (see above)
-            var = var + bkg.rms()**2
+            var = var + bkg.rms() ** 2
         elif err is not None:  # Then var is None (see above)
-            err = np.sqrt(err**2 + bkg.rms()**2)
+            err = np.sqrt(err**2 + bkg.rms() ** 2)
 
     obj, seg = sep.extract(
         _sanitize_byteorder(data_skysub),
@@ -405,28 +415,28 @@ def _sep_extract(
 
 # TODO: use astropy.nddata's @support_nddata
 def sep_extract(
-        data,
-        thresh,
-        bkg=None,
-        mask=None,
-        maskthresh=0.0,
-        err=None,
-        var=None,
-        pos_ref=None,
-        sort_by=None,
-        sort_ascending=True,
-        bezel_x=[0, 0],
-        bezel_y=[0, 0],
-        gain=None,
-        minarea=5,
-        maxarea=None,
-        filter_kernel=sep_default_kernel,
-        filter_type='matched',
-        deblend_nthresh=32,
-        deblend_cont=0.005,
-        clean=True,
-        clean_param=1.0,
-        seg_remove_mask=True
+    data,
+    thresh,
+    bkg=None,
+    mask=None,
+    maskthresh=0.0,
+    err=None,
+    var=None,
+    pos_ref=None,
+    sort_by=None,
+    sort_ascending=True,
+    bezel_x=[0, 0],
+    bezel_y=[0, 0],
+    gain=None,
+    minarea=5,
+    maxarea=None,
+    filter_kernel=sep_default_kernel,
+    filter_type="matched",
+    deblend_nthresh=32,
+    deblend_cont=0.005,
+    clean=True,
+    clean_param=1.0,
+    seg_remove_mask=True,
 ):
     """
     Notes
@@ -497,13 +507,24 @@ def sep_extract(
     >>> plt.tight_layout()
     >>> plt.show()
     """
-    obj, segm = _sep_extract(data=data, thresh=thresh, bkg=bkg, mask=mask,
-                             maskthresh=maskthresh, err=err, var=var,
-                             gain=gain, minarea=minarea,
-                             filter_kernel=filter_kernel, filter_type=filter_type,
-                             deblend_nthresh=deblend_nthresh,
-                             deblend_cont=deblend_cont, clean=clean,
-                             clean_param=clean_param, seg_remove_mask=seg_remove_mask)
+    obj, segm = _sep_extract(
+        data=data,
+        thresh=thresh,
+        bkg=bkg,
+        mask=mask,
+        maskthresh=maskthresh,
+        err=err,
+        var=var,
+        gain=gain,
+        minarea=minarea,
+        filter_kernel=filter_kernel,
+        filter_type=filter_type,
+        deblend_nthresh=deblend_nthresh,
+        deblend_cont=deblend_cont,
+        clean=clean,
+        clean_param=clean_param,
+        seg_remove_mask=seg_remove_mask,
+    )
 
     obj = pd.DataFrame(obj)
     n_original = len(obj)
@@ -514,10 +535,10 @@ def sep_extract(
     # obj = obj.reset_index(drop=True)
     # obj = obj.rename(columns={'index': 'segm_label'})
     # obj['segm_label'] += 1
-    obj.insert(loc=0, column="segm_label", value=np.arange(1, len(obj)+1).astype(int))
+    obj.insert(loc=0, column="segm_label", value=np.arange(1, len(obj) + 1).astype(int))
     # log the original input threshold
-    obj.insert(loc=1, column='thresh_raw', value=thresh)
-    mask = bezel_mask(obj['x'], obj['y'], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
+    obj.insert(loc=1, column="thresh_raw", value=thresh)
+    mask = bezel_mask(obj["x"], obj["y"], nx, ny, bezel_x=bezel_x, bezel_y=bezel_y)
     if maxarea is not None:
         mask = mask & (obj["npix"] <= maxarea)
     obj = obj[~mask]
@@ -528,8 +549,8 @@ def sep_extract(
             raise ValueError(
                 f"pos_ref must have the size of two (now it is {pos_ref.size})."
             )
-        dist_ref = np.sqrt((obj["x"] - pos_ref[0])**2 + (obj["y"] - pos_ref[1])**2)
-        obj.insert(loc=1, column='dist_ref', value=dist_ref)
+        dist_ref = np.sqrt((obj["x"] - pos_ref[0]) ** 2 + (obj["y"] - pos_ref[1]) ** 2)
+        obj.insert(loc=1, column="dist_ref", value=dist_ref)
         if sort_by is not None:
             sort_by = "dist_ref"
 
@@ -538,35 +559,39 @@ def sep_extract(
 
     # Set segm value to 0 (False) if removed by bezel.
     if len(obj) < n_original:
-        segm_survived = np.isin(segm, obj['segm_label'].values)
+        segm_survived = np.isin(segm, obj["segm_label"].values)
         segm[~segm_survived] = 0
 
     return obj, segm
 
 
 def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
-    """ Calculate FLUX_AUTO
+    """Calculate FLUX_AUTO
     # https://sep.readthedocs.io/en/v1.0.x/apertures.html#equivalent-of-flux-auto-e-g-mag-auto-in-source-extractor
     """
 
-    sepx, sepy = sepext['x'], sepext['y']
-    sepa, sepb = sepext['a'], sepext['b']
-    septh = sepext['theta']
+    sepx, sepy = sepext["x"], sepext["y"]
+    sepa, sepb = sepext["a"], sepext["b"]
+    septh = sepext["theta"]
 
     r_kron, nrej_k = sep.kron_radius(data, sepx, sepy, sepa, sepb, septh, 6.0)
-    fl, dfl, nrej = sep.sum_ellipse(data, sepx, sepy, sepa, sepb, septh,
-                                    r=phot_autoparams[0]*r_kron, err=err, subpix=1)
+    fl, dfl, nrej = sep.sum_ellipse(
+        data,
+        sepx,
+        sepy,
+        sepa,
+        sepb,
+        septh,
+        r=phot_autoparams[0] * r_kron,
+        err=err,
+        subpix=1,
+    )
     nrej |= nrej_k  # combine flags into 'flag'
 
     r_min = phot_autoparams[1]  # R_min = 3.5
-    use_circle = r_kron * np.sqrt(sepa*sepb) < r_min
+    use_circle = r_kron * np.sqrt(sepa * sepb) < r_min
     cfl, cdfl, nrej_c = sep.sum_circle(
-        data,
-        sepx[use_circle],
-        sepy[use_circle],
-        r_min,
-        err=err,
-        subpix=1
+        data, sepx[use_circle], sepy[use_circle], r_min, err=err, subpix=1
     )
     fl[use_circle] = cfl
     dfl[use_circle] = cdfl

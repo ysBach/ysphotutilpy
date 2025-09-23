@@ -2,22 +2,42 @@ import numpy as np
 from astropy import units as u
 from astropy.nddata import Cutout2D
 from astropy.coordinates import SkyCoord
-from photutils.aperture import (ApertureMask, CircularAnnulus, CircularAperture, EllipticalAnnulus,
-                                EllipticalAperture, PixelAperture, RectangularAperture,
-                                SkyAperture)
-from photutils.aperture.attributes import (PixelPositions, PositiveScalar,
-                                           PositiveScalarAngle, ScalarAngle,
-                                           ScalarAngleOrValue,
-                                           SkyCoordPositions)
+from photutils.aperture import (
+    ApertureMask,
+    CircularAnnulus,
+    CircularAperture,
+    EllipticalAnnulus,
+    EllipticalAperture,
+    PixelAperture,
+    RectangularAperture,
+    SkyAperture,
+)
+from photutils.aperture.attributes import (
+    PixelPositions,
+    PositiveScalar,
+    PositiveScalarAngle,
+    ScalarAngle,
+    ScalarAngleOrValue,
+    SkyCoordPositions,
+)
 
-__all__ = ["cutout_from_ap", "ap_to_cutout_position",
-           "circ_ap_an", "ellip_ap_an", "pill_ap_an", "pa2xytheta",
-           "PillBoxMaskMixin", "PillBoxAperture", "PillBoxAnnulus",
-           "SkyPillBoxAperture", "SkyPillBoxAnnulus"]
+__all__ = [
+    "cutout_from_ap",
+    "ap_to_cutout_position",
+    "circ_ap_an",
+    "ellip_ap_an",
+    "pill_ap_an",
+    "pa2xytheta",
+    "PillBoxMaskMixin",
+    "PillBoxAperture",
+    "PillBoxAnnulus",
+    "SkyPillBoxAperture",
+    "SkyPillBoxAnnulus",
+]
 
 
 def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
-    ''' Returns a Cutout2D object from bounding boxes of aperture/annulus.
+    """Returns a Cutout2D object from bounding boxes of aperture/annulus.
     Parameters
     ----------
     ap : `photutils.Aperture`
@@ -40,7 +60,7 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
     ----
     photutils ApertureMask has .cutout and .multiply, but they are not "Cutout2D" object.
     But do I really need Cutout2D instead of ndarray?
-    '''
+    """
     # if not isinstance(ccd, CCDData):
     #     ccd = CCDData(ccd, unit="adu")  # dummy unit
 
@@ -61,9 +81,9 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
     for pos, size in zip(positions, sizes):
         cut = Cutout2D(ccd.data, position=pos, size=size)
         if method != "bbox":
-            cut.data = ap.to_mask(
-                method, subpixels=subpixels
-            ).multiply(ccd, fill_value=fill_value)
+            cut.data = ap.to_mask(method, subpixels=subpixels).multiply(
+                ccd, fill_value=fill_value
+            )
         cuts.append(cut)
 
     if len(cuts) == 1:
@@ -73,7 +93,7 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
 
 
 def ap_to_cutout_position(ap, cutout2d):
-    ''' Returns a new aperture/annulus only by updating ``positions``
+    """Returns a new aperture/annulus only by updating ``positions``
     Parameters
     ----------
     ap : `photutils.Aperture`
@@ -81,8 +101,9 @@ def ap_to_cutout_position(ap, cutout2d):
 
     cutout2d : `astropy.nddata.Cutout2D`
         The cutout ccd to update ``ap.positions``.
-    '''
+    """
     import copy
+
     newap = copy.deepcopy(ap)
     pos_old = np.atleast_2d(newap.positions)  # Nx2 positions
     newpos = []
@@ -190,7 +211,7 @@ def cut_for_ap(to_move, based_on=None, ccd=None):
 """
 
 
-def _sanitize_apsize(size=None, fwhm=None, factor=None, name='size', repeat=False):
+def _sanitize_apsize(size=None, fwhm=None, factor=None, name="size", repeat=False):
     def __repeat(item, repeat=False, rep=2):
         if repeat and np.isscalar(item):
             return np.repeat(item, rep)
@@ -201,7 +222,7 @@ def _sanitize_apsize(size=None, fwhm=None, factor=None, name='size', repeat=Fals
         try:
             fwhm = __repeat(fwhm, repeat=repeat, rep=2)
             factor = __repeat(factor, repeat=repeat, rep=2)
-            return factor*fwhm
+            return factor * fwhm
         except TypeError:
             raise ValueError(f"{name} is None; fwhm must be given.")
     else:
@@ -210,16 +231,16 @@ def _sanitize_apsize(size=None, fwhm=None, factor=None, name='size', repeat=Fals
 
 
 def circ_ap_an(
-        positions,
-        r_ap=None,
-        r_in=None,
-        r_out=None,
-        fwhm=None,
-        f_ap=1.5,
-        f_in=4.,
-        f_out=6.
+    positions,
+    r_ap=None,
+    r_in=None,
+    r_out=None,
+    fwhm=None,
+    f_ap=1.5,
+    f_in=4.0,
+    f_out=6.0,
 ):
-    ''' A convenience function for pixel circular aperture/annulus
+    """A convenience function for pixel circular aperture/annulus
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
@@ -246,10 +267,10 @@ def circ_ap_an(
     -------
     ap, an : `~photutils.CircularAperture` and `~photutils.CircularAnnulus`
         The object aperture and sky annulus.
-    '''
-    r_ap = _sanitize_apsize(r_ap, fwhm=fwhm, factor=f_ap, name='r_ap')
-    r_in = _sanitize_apsize(r_in, fwhm=fwhm, factor=f_in, name='r_in')
-    r_out = _sanitize_apsize(r_out, fwhm=fwhm, factor=f_out, name='r_out')
+    """
+    r_ap = _sanitize_apsize(r_ap, fwhm=fwhm, factor=f_ap, name="r_ap")
+    r_in = _sanitize_apsize(r_in, fwhm=fwhm, factor=f_in, name="r_in")
+    r_out = _sanitize_apsize(r_out, fwhm=fwhm, factor=f_out, name="r_out")
 
     ap = CircularAperture(positions=positions, r=r_ap)
     an = CircularAnnulus(positions=positions, r_in=r_in, r_out=r_out)
@@ -257,17 +278,17 @@ def circ_ap_an(
 
 
 def ellip_ap_an(
-        positions,
-        r_ap=None,
-        r_in=None,
-        r_out=None,
-        fwhm=None,
-        theta=0.,
-        f_ap=(1.5, 1.5),
-        f_in=(4., 4.),
-        f_out=(6., 6.)
+    positions,
+    r_ap=None,
+    r_in=None,
+    r_out=None,
+    fwhm=None,
+    theta=0.0,
+    f_ap=(1.5, 1.5),
+    f_in=(4.0, 4.0),
+    f_out=(6.0, 6.0),
 ):
-    ''' A convenience function for pixel elliptical aperture/annulus
+    """A convenience function for pixel elliptical aperture/annulus
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
@@ -306,10 +327,12 @@ def ellip_ap_an(
     -------
     ap, an : `~photutils.EllipticalAperture` and `~photutils.EllipticalAnnulus`
         The object aperture and sky annulus.
-    '''
-    a_ap, b_ap = _sanitize_apsize(r_ap, fwhm, factor=f_ap, name='r_ap', repeat=True)
-    a_in, b_in = _sanitize_apsize(r_in, fwhm, factor=f_in, name='r_in', repeat=True)
-    a_out, b_out = _sanitize_apsize(r_out, fwhm, factor=f_out, name='r_out', repeat=True)
+    """
+    a_ap, b_ap = _sanitize_apsize(r_ap, fwhm, factor=f_ap, name="r_ap", repeat=True)
+    a_in, b_in = _sanitize_apsize(r_in, fwhm, factor=f_in, name="r_in", repeat=True)
+    a_out, b_out = _sanitize_apsize(
+        r_out, fwhm, factor=f_out, name="r_out", repeat=True
+    )
 
     pt = dict(positions=positions, theta=theta)
 
@@ -323,16 +346,16 @@ def ellip_ap_an(
 
 
 def pill_ap_an(
-        positions,
-        fwhm,
-        trail,
-        theta=0.,
-        f_ap=(1.5, 1.5),
-        f_in=(4., 4.),
-        f_out=(6., 6.),
-        f_w=1.
+    positions,
+    fwhm,
+    trail,
+    theta=0.0,
+    f_ap=(1.5, 1.5),
+    f_in=(4.0, 4.0),
+    f_out=(6.0, 6.0),
+    f_w=1.0,
 ):
-    ''' A convenience function for pixel elliptical aperture/annulus
+    """A convenience function for pixel elliptical aperture/annulus
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
@@ -372,7 +395,7 @@ def pill_ap_an(
     -------
     ap, an : `~PillBoxAperture` and `~PillBoxAnnulus`
         The object aperture and sky annulus.
-    '''
+    """
     if np.isscalar(fwhm):
         fwhm = np.repeat(fwhm, 2)
 
@@ -393,17 +416,10 @@ def pill_ap_an(
 
     w = f_w * trail
 
-    ap = PillBoxAperture(positions=positions,
-                         a=a_ap,
-                         b=b_ap,
-                         w=w,
-                         theta=theta)
-    an = PillBoxAnnulus(positions=positions,
-                        a_in=a_in,
-                        a_out=a_out,
-                        b_out=b_out,
-                        w=w,
-                        theta=theta)
+    ap = PillBoxAperture(positions=positions, a=a_ap, b=b_ap, w=w, theta=theta)
+    an = PillBoxAnnulus(
+        positions=positions, a_in=a_in, a_out=a_out, b_out=b_out, w=w, theta=theta
+    )
     return ap, an
 
 
@@ -431,8 +447,8 @@ def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
 """
 
 
-def eofn_ccw(wcs, full=False, tol=5.):
-    """ Checks whether the East of North is counter-clockwise in the image.
+def eofn_ccw(wcs, full=False, tol=5.0):
+    """Checks whether the East of North is counter-clockwise in the image.
     Parameters
     ----------
     wcs : `~astropy.wcs.WCS`
@@ -442,19 +458,23 @@ def eofn_ccw(wcs, full=False, tol=5.):
     tol : float, optional
         The tolerance in degrees for the difference of the two PA.
     """
-    center = np.array(wcs._naxis)/2
+    center = np.array(wcs._naxis) / 2
     coo = SkyCoord(*wcs.wcs_pix2world(*center, 0), unit="deg")
-    plusx = wcs.wcs_pix2world(*(center + np.array((1, 0))), 0)  # basically (CD1_1, CD1_2)
-    plusy = wcs.wcs_pix2world(*(center + np.array((0, 1))), 0)  # basically (CD2_1, CD2_2)
+    plusx = wcs.wcs_pix2world(
+        *(center + np.array((1, 0))), 0
+    )  # basically (CD1_1, CD1_2)
+    plusy = wcs.wcs_pix2world(
+        *(center + np.array((0, 1))), 0
+    )  # basically (CD2_1, CD2_2)
     pa_x = coo.position_angle(SkyCoord(plusx[0], plusx[1], unit="deg")).to_value(u.deg)
     pa_y = coo.position_angle(SkyCoord(plusy[0], plusy[1], unit="deg")).to_value(u.deg)
-    dpa = pa_y-pa_x
-    if (-270-tol <= dpa <= -270+tol) or (90-tol <= dpa <= 90+tol):
+    dpa = pa_y - pa_x
+    if (-270 - tol <= dpa <= -270 + tol) or (90 - tol <= dpa <= 90 + tol):
         # PA (East of North) is CCW in XY coordinate
         if full:
             return True, pa_x, pa_y
         return True
-    elif (270-tol <= dpa <= 270+tol) or (-90-tol <= dpa <= -90+tol):
+    elif (270 - tol <= dpa <= 270 + tol) or (-90 - tol <= dpa <= -90 + tol):
         # PA (East of North) is CW in XY coordinate
         if full:
             return False, pa_x, pa_y
@@ -486,10 +506,12 @@ def pa2xytheta(pa, wcs, location="crpix"):
             location = np.array((wcs.wcs.crpix[0] - 1, wcs.wcs.crpix[1] - 1))
             coo = SkyCoord(*wcs.wcs.crval, unit="deg")
         except AttributeError:
-            raise AttributeError("The WCS object does not have CRPIX and/or CRVAL. "
-                                 + "Try with, e.g., `location`='center'.")
+            raise AttributeError(
+                "The WCS object does not have CRPIX and/or CRVAL. "
+                + "Try with, e.g., `location`='center'."
+            )
     elif location == "center":
-        location = np.array(wcs._naxis)/2
+        location = np.array(wcs._naxis) / 2
         coo = SkyCoord(*wcs.wcs_pix2world(location, 0), unit="deg")
     else:
         location = np.array(location)
@@ -504,73 +526,78 @@ def pa2xytheta(pa, wcs, location="crpix"):
 
 # Pill-Box aperture related str (base descriptions):
 _PBSTRS = dict(
-    w='trailed distance of the pillbox',
-    a='semimajor axis of ellipse part (parallel to the trail direction)',
-    b='semiminor axis of ellipse part (perpendiculuar to the trail direction)',
-    theta_pix=('The counterclockwise rotation angle as an angular Quantity or value in '
-               + 'radians from the positive x axis.'),
-    theta_sky='The position angle in angular units of the trail direction.'
+    w="trailed distance of the pillbox",
+    a="semimajor axis of ellipse part (parallel to the trail direction)",
+    b="semiminor axis of ellipse part (perpendiculuar to the trail direction)",
+    theta_pix=(
+        "The counterclockwise rotation angle as an angular Quantity or value in "
+        + "radians from the positive x axis."
+    ),
+    theta_sky="The position angle in angular units of the trail direction.",
 )
 
 
 class PillBoxMaskMixin:
     @property
     def _set_aperture_elements(self):
-        """ Set internal aperture elements.
+        """Set internal aperture elements.
         ``self._ap_rect``, ``self.ap_el_1``, ``self.ap_el_2`` and their ``_in``
         counterparts are always made by ``np.atleast_2d(self.position)``, so
         their results are always in the ``N x 2`` shape.
         """
-        if hasattr(self, 'a'):
+        if hasattr(self, "a"):
             w = self.w
             a = self.a
             b = self.b
             h = self.h
             theta = self.theta
-        elif hasattr(self, 'a_in'):  # annulus
+        elif hasattr(self, "a_in"):  # annulus
             w = self.w
             a = self.a_out
             b = self.b_out
             h = self.h_out
             theta = self.theta
         else:
-            raise ValueError('Cannot determine the aperture shape.')
+            raise ValueError("Cannot determine the aperture shape.")
 
         # positions only accepted in the shape of (N, 2), so shape[0]
         # gives the number of positions:
         pos = np.atleast_2d(self.positions)
-        self.offset = np.array([w*np.cos(theta)/2, w*np.sin(theta)/2])
-        offsets = np.repeat(np.array([self.offset, ]), pos.shape[0], 0)
+        self.offset = np.array([w * np.cos(theta) / 2, w * np.sin(theta) / 2])
+        offsets = np.repeat(
+            np.array(
+                [
+                    self.offset,
+                ]
+            ),
+            pos.shape[0],
+            0,
+        )
 
         # aperture elements for aperture,
         # OUTER aperture elements for annulus:
         self._ap_rect = RectangularAperture(positions=pos, w=w, h=h, theta=theta)
-        self._ap_el_1 = EllipticalAperture(positions=pos - offsets, a=a, b=b, theta=theta)
-        self._ap_el_2 = EllipticalAperture(positions=pos + offsets, a=a, b=b, theta=theta)
+        self._ap_el_1 = EllipticalAperture(
+            positions=pos - offsets, a=a, b=b, theta=theta
+        )
+        self._ap_el_2 = EllipticalAperture(
+            positions=pos + offsets, a=a, b=b, theta=theta
+        )
 
-        if hasattr(self, 'a_in'):  # inner components of annulus
+        if hasattr(self, "a_in"):  # inner components of annulus
             self._ap_rect_in = RectangularAperture(
-                positions=pos,
-                w=self.w,
-                h=self.h_in,
-                theta=self.theta
+                positions=pos, w=self.w, h=self.h_in, theta=self.theta
             )
             self._ap_el_1_in = EllipticalAperture(
-                positions=pos - offsets,
-                a=self.a_in,
-                b=self.b_in,
-                theta=self.theta
+                positions=pos - offsets, a=self.a_in, b=self.b_in, theta=self.theta
             )
             self._ap_el_2_in = EllipticalAperture(
-                positions=pos + offsets,
-                a=self.a_in,
-                b=self.b_in,
-                theta=self.theta
+                positions=pos + offsets, a=self.a_in, b=self.b_in, theta=self.theta
             )
 
     @staticmethod
     def _prepare_mask(bbox, ap_r, ap_1, ap_2, method, subpixels, min_mask=0):
-        """ Make the pill box mask array.
+        """Make the pill box mask array.
         Notes
         -----
         To make an ndarray to represent the overlapping mask, the three (a
@@ -612,20 +639,22 @@ class PillBoxMaskMixin:
         for ap in [ap_r, ap_1, ap_2]:
             pos_cent = ap.positions
             tmp_cent = pos_cent - np.array([bbox.ixmin, bbox.iymin])
-            if hasattr(ap, 'w'):
-                tmp_ap = RectangularAperture(positions=tmp_cent,
-                                             w=ap.w, h=ap.h, theta=ap.theta)
+            if hasattr(ap, "w"):
+                tmp_ap = RectangularAperture(
+                    positions=tmp_cent, w=ap.w, h=ap.h, theta=ap.theta
+                )
             else:
-                tmp_ap = EllipticalAperture(positions=tmp_cent,
-                                            a=ap.a, b=ap.b, theta=ap.theta)
+                tmp_ap = EllipticalAperture(
+                    positions=tmp_cent, a=ap.a, b=ap.b, theta=ap.theta
+                )
             aps.append(tmp_ap)
 
         bbox_shape = bbox.shape
 
         mask_kw = dict(method=method, subpixels=subpixels)
-        mask_r = (aps[0].to_mask(**mask_kw).to_image(bbox_shape))
-        mask_1 = (aps[1].to_mask(**mask_kw).to_image(bbox_shape))
-        mask_2 = (aps[2].to_mask(**mask_kw).to_image(bbox_shape))
+        mask_r = aps[0].to_mask(**mask_kw).to_image(bbox_shape)
+        mask_1 = aps[1].to_mask(**mask_kw).to_image(bbox_shape)
+        mask_2 = aps[2].to_mask(**mask_kw).to_image(bbox_shape)
 
         # Remove both machine epsilon artifact & negative mask values:
         mask_pill_1 = mask_1 - mask_r
@@ -640,8 +669,8 @@ class PillBoxMaskMixin:
 
         return mask_pill
 
-    def to_mask(self, method='exact', subpixels=5):
-        """ Return a mask for the aperture.
+    def to_mask(self, method="exact", subpixels=5):
+        """Return a mask for the aperture.
 
         Parameters
         ----------
@@ -683,18 +712,17 @@ class PillBoxMaskMixin:
             `~photutils.ApertureMask` is returned.
         """
         _, subpixels = self._translate_mask_mode(method, subpixels)
-        min_mask = min(1.e-6, 1/(subpixels**2))
+        min_mask = min(1.0e-6, 1 / (subpixels**2))
         masks = []
         try:
             bboxes = np.atleast_1d(self.bbox)
         except AttributeError:
             bboxes = np.atleast_1d(self.bounding_boxes)
-        is_annulus = True if hasattr(self, 'a_in') else False
+        is_annulus = True if hasattr(self, "a_in") else False
 
-        for i, (bbox, ap_r, ap_1, ap_2) in enumerate(zip(bboxes,
-                                                         self._ap_rect,
-                                                         self._ap_el_1,
-                                                         self._ap_el_2)):
+        for i, (bbox, ap_r, ap_1, ap_2) in enumerate(
+            zip(bboxes, self._ap_rect, self._ap_el_1, self._ap_el_2)
+        ):
             mask = self._prepare_mask(
                 bbox,
                 ap_r=ap_r,
@@ -702,7 +730,7 @@ class PillBoxMaskMixin:
                 ap_2=ap_2,
                 method=method,
                 subpixels=subpixels,
-                min_mask=min_mask
+                min_mask=min_mask,
             )
 
             if is_annulus:
@@ -713,7 +741,7 @@ class PillBoxMaskMixin:
                     ap_2=self._ap_el_2_in[i],
                     method=method,
                     subpixels=subpixels,
-                    min_mask=min_mask
+                    min_mask=min_mask,
                 )
 
             masks.append(ApertureMask(mask, bbox))
@@ -725,8 +753,7 @@ class PillBoxMaskMixin:
 
     @staticmethod
     def _pill_patches(ellipse_1, ellipse_2, **patch_kwargs):
-        """ Make matplotlib.patches from ellipses.
-        """
+        """Make matplotlib.patches from ellipses."""
         import matplotlib.patches as mpatches
         import matplotlib.path as mpath
 
@@ -735,16 +762,16 @@ class PillBoxMaskMixin:
         trpath_1 = tran_1.transform_path(path_1)
         trpath_1_v = trpath_1.vertices
         trpath_1_c = trpath_1.codes
-        pill_1_v = trpath_1_v[:len(trpath_1_v)//2, :]
-        pill_1_c = trpath_1_c[:len(trpath_1_c)//2]
+        pill_1_v = trpath_1_v[: len(trpath_1_v) // 2, :]
+        pill_1_c = trpath_1_c[: len(trpath_1_c) // 2]
 
         path_2 = ellipse_2.get_path()
         tran_2 = ellipse_2.get_transform()
         trpath_2 = tran_2.transform_path(path_2)
         trpath_2_v = trpath_2.vertices
         trpath_2_c = trpath_2.codes
-        pill_2_v = trpath_2_v[-(len(trpath_2_v)//2 + 1):, :]
-        pill_2_c = trpath_2_c[-(len(trpath_2_c)//2 + 1):]
+        pill_2_v = trpath_2_v[-(len(trpath_2_v) // 2 + 1) :, :]
+        pill_2_c = trpath_2_c[-(len(trpath_2_c) // 2 + 1) :]
 
         pill_v = np.concatenate([pill_1_v, pill_2_v])
         pill_c = np.concatenate([pill_1_c, [mpath.Path.LINETO], pill_2_c[1:]])
@@ -755,25 +782,26 @@ class PillBoxMaskMixin:
 
 
 class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
-    """ A pill box aperture defined in pixel coordinates.
+    """A pill box aperture defined in pixel coordinates.
 
     The aperture has a single fixed size/shape, but it can have multiple
     positions (see the ``positions`` input).
 
     """
-    _params = ('positions', 'w', 'a', 'b', 'theta')
-    positions = PixelPositions('The center pixel position(s).')
+
+    _params = ("positions", "w", "a", "b", "theta")
+    positions = PixelPositions("The center pixel position(s).")
     w = PositiveScalar(f"The {_PBSTRS['w']} in pixels.")
     a = PositiveScalar(f"The {_PBSTRS['a']} in pixels.")
     b = PositiveScalar(f"The {_PBSTRS['b']} in pixels.")
     theta = ScalarAngleOrValue(_PBSTRS["theta_pix"])
 
-    def __init__(self, positions, w, a, b, theta=0.):
+    def __init__(self, positions, w, a, b, theta=0.0):
         self.positions = positions
         self.w = w
         self.a = a
         self.b = b
-        self.h = 2*b
+        self.h = 2 * b
         self.theta = theta
         self._set_aperture_elements
 
@@ -806,8 +834,7 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         return self.w * self.h + np.pi * self.a * self.b
 
     def _to_patch(self, origin=(0, 0), indices=None, **kwargs):
-        """
-        """
+        """ """
         import matplotlib.patches as mpatches
 
         # xy_positions is already atleast_2d'ed.
@@ -818,22 +845,16 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         # -2022-04-25 23:26:12 (KST: GMT+09:00) ysBach
 
         patches = []
-        theta_deg = self.theta * 180. / np.pi
+        theta_deg = self.theta * 180.0 / np.pi
 
         for xy_position in xy_positions:
             # The ellipse on the "right" whan theta = 0
             ellipse_1 = mpatches.Ellipse(
-                xy_position + self.offset,
-                2.*self.a,
-                2.*self.b,
-                theta_deg
+                xy_position + self.offset, 2.0 * self.a, 2.0 * self.b, theta_deg
             )
             # The ellipse on the "left" whan theta = 0
             ellipse_2 = mpatches.Ellipse(
-                xy_position - self.offset,
-                2.*self.a,
-                2.*self.b,
-                theta_deg
+                xy_position - self.offset, 2.0 * self.a, 2.0 * self.b, theta_deg
             )
             p = self._pill_patches(ellipse_1, ellipse_2, **patch_kwargs)
 
@@ -844,7 +865,7 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         else:
             return patches
 
-    def to_sky(self, wcs, mode='all'):
+    def to_sky(self, wcs, mode="all"):
         """
         Convert the aperture to a `SkyPillBoxAperture` object
         defined in celestial coordinates.
@@ -869,25 +890,25 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
 
 
 class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
-    """
-    """
-    _params = ('positions', 'w', 'a_in', 'a_out', 'b_out', 'theta')
-    positions = PixelPositions('The center pixel position(s).')
+    """ """
+
+    _params = ("positions", "w", "a_in", "a_out", "b_out", "theta")
+    positions = PixelPositions("The center pixel position(s).")
     w = PositiveScalar(f"The {_PBSTRS['w']} in pixels.")
     a_in = PositiveScalar(f"The inner {_PBSTRS['a']} in pixels.")
     a_out = PositiveScalar(f"The outer {_PBSTRS['a']} in pixels.")
     b_out = PositiveScalar(f"The outer {_PBSTRS['b']} in pixels.")
-    theta = ScalarAngleOrValue(_PBSTRS['theta_pix'])
+    theta = ScalarAngleOrValue(_PBSTRS["theta_pix"])
 
-    def __init__(self, positions, w, a_in, a_out, b_out, theta=0.):
+    def __init__(self, positions, w, a_in, a_out, b_out, theta=0.0):
         self.positions = positions
         self.w = w
         self.a_out = a_out
         self.a_in = a_in
         self.b_out = b_out
         self.b_in = self.b_out * self.a_in / self.a_out
-        self.h_out = self.b_out*2
-        self.h_in = self.b_in*2
+        self.h_out = self.b_out * 2
+        self.h_in = self.b_in * 2
         self.theta = theta
         self._set_aperture_elements
 
@@ -914,8 +935,9 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
 
     @property
     def area(self):
-        return (self.w * (self.h_out - self.h_in)
-                + np.pi * (self.a_out * self.b_out - self.a_in * self.b_in))
+        return self.w * (self.h_out - self.h_in) + np.pi * (
+            self.a_out * self.b_out - self.a_in * self.b_in
+        )
 
     def _to_patch(self, origin=(0, 0), indices=None, **kwargs):
         import matplotlib.patches as mpatches
@@ -928,38 +950,26 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         # -2022-04-25 23:26:12 (KST: GMT+09:00) ysBach
 
         patches = []
-        theta_deg = self.theta * 180. / np.pi
+        theta_deg = self.theta * 180.0 / np.pi
 
         for xy_position in xy_positions:
             # The ellipse on the "right" whan theta = 0
             ellipse_1_in = mpatches.Ellipse(
-                xy_position + self.offset,
-                2.*self.a_in,
-                2.*self.b_in,
-                theta_deg
+                xy_position + self.offset, 2.0 * self.a_in, 2.0 * self.b_in, theta_deg
             )
             # The ellipse on the "left" whan theta = 0
             ellipse_2_in = mpatches.Ellipse(
-                xy_position - self.offset,
-                2.*self.a_in,
-                2.*self.b_in,
-                theta_deg
+                xy_position - self.offset, 2.0 * self.a_in, 2.0 * self.b_in, theta_deg
             )
             p_inner = self._pill_patches(ellipse_1_in, ellipse_2_in)
 
             # The ellipse on the "right" whan theta = 0
             ellipse_1_out = mpatches.Ellipse(
-                xy_position + self.offset,
-                2.*self.a_out,
-                2.*self.b_out,
-                theta_deg
+                xy_position + self.offset, 2.0 * self.a_out, 2.0 * self.b_out, theta_deg
             )
             # The ellipse on the "left" whan theta = 0
             ellipse_2_out = mpatches.Ellipse(
-                xy_position - self.offset,
-                2.*self.a_out,
-                2.*self.b_out,
-                theta_deg
+                xy_position - self.offset, 2.0 * self.a_out, 2.0 * self.b_out, theta_deg
             )
             p_outer = self._pill_patches(ellipse_1_out, ellipse_2_out)
 
@@ -971,7 +981,7 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         else:
             return patches
 
-    def to_sky(self, wcs, mode='all'):
+    def to_sky(self, wcs, mode="all"):
         """
         Convert the aperture to a `SkyPillBoxAnnulus` object defined
         in celestial coordinates.
@@ -996,16 +1006,16 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
 
 
 class SkyPillBoxAperture(SkyAperture):
-    """ A pill box aperture defined in sky coordinates.
-    """
-    _params = ('positions', 'w', 'a', 'b', 'theta')
+    """A pill box aperture defined in sky coordinates."""
+
+    _params = ("positions", "w", "a", "b", "theta")
     positions = SkyCoordPositions("'The center position(s) in sky coordinates.'")
     w = PositiveScalarAngle(f"The {_PBSTRS['w']} in angular units.")
     a = PositiveScalarAngle(f"The {_PBSTRS['a']} in angular units.")
     b = PositiveScalarAngle(f"The {_PBSTRS['b']} in angular units.")
-    theta = ScalarAngle(_PBSTRS['theta_sky'])
+    theta = ScalarAngle(_PBSTRS["theta_sky"])
 
-    def __init__(self, positions, w, a, b, theta=0.*u.deg):
+    def __init__(self, positions, w, a, b, theta=0.0 * u.deg):
         if not (w.unit.physical_type == a.unit.physical_type == b.unit.physical_type):
             raise ValueError("'w', 'a', and 'b' should all be angles or in pixels")
 
@@ -1015,7 +1025,7 @@ class SkyPillBoxAperture(SkyAperture):
         self.b = b
         self.theta = theta
 
-    def to_pixel(self, wcs, mode='all'):
+    def to_pixel(self, wcs, mode="all"):
         """
         Convert the aperture to an `PillBoxAperture` object defined in pixel
         coordinates.
@@ -1040,21 +1050,24 @@ class SkyPillBoxAperture(SkyAperture):
 
 
 class SkyPillBoxAnnulus(SkyAperture):
-    _shape_params = ('w', 'a_in', 'a_out', 'b_out', 'theta')
-    positions = SkyCoordPositions('positions')
+    _shape_params = ("w", "a_in", "a_out", "b_out", "theta")
+    positions = SkyCoordPositions("positions")
     w = PositiveScalarAngle(f"The {_PBSTRS['w']} in angular units.")
     a_in = PositiveScalarAngle(f"The inner {_PBSTRS['a']} in angular units.")
     b_in = PositiveScalarAngle(f"The inner {_PBSTRS['b']} in angular units.")
     b_out = PositiveScalarAngle(f"The outer {_PBSTRS['b']} in angular units.")
-    theta = ScalarAngle(_PBSTRS['theta_sky'])
+    theta = ScalarAngle(_PBSTRS["theta_sky"])
 
-    def __init__(self, positions, w, a_in, a_out, b_out, theta=0.*u.deg):
-        if not (w.unit.physical_type
-                == a_in.unit.physical_type
-                == a_out.unit.physical_type
-                == b_out.unit.physical_type):
-            raise ValueError("'w', 'a_in', 'a_out', and 'b_out' should all be "
-                             "angles or in pixels")
+    def __init__(self, positions, w, a_in, a_out, b_out, theta=0.0 * u.deg):
+        if not (
+            w.unit.physical_type
+            == a_in.unit.physical_type
+            == a_out.unit.physical_type
+            == b_out.unit.physical_type
+        ):
+            raise ValueError(
+                "'w', 'a_in', 'a_out', and 'b_out' should all be " "angles or in pixels"
+            )
 
         self.positions = positions
         self.w = w
@@ -1062,11 +1075,11 @@ class SkyPillBoxAnnulus(SkyAperture):
         self.a_in = a_in
         self.b_out = b_out
         self.b_in = self.b_out * self.a_in / self.a_out
-        self.h_out = self.b_out*2
-        self.h_in = self.b_in*2
+        self.h_out = self.b_out * 2
+        self.h_in = self.b_in * 2
         self.theta = theta
 
-    def to_pixel(self, wcs, mode='all'):
+    def to_pixel(self, wcs, mode="all"):
         """
         Convert the aperture to an `PillBoxAnnulus` object defined in
         pixel coordinates.

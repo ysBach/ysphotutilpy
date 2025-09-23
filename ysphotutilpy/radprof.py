@@ -1,5 +1,6 @@
 """ Radial profiles
 """
+
 import numpy as np
 import pandas as pd
 from astropy.nddata import CCDData, Cutout2D
@@ -10,10 +11,12 @@ from .background import sky_fit
 from .center import circular_bbox_cut
 
 __all__ = [
-    "moffat_r", "gauss_r", "bivt_r", "radial_profile",
+    "moffat_r",
+    "gauss_r",
+    "bivt_r",
+    "radial_profile",
     "radprof_pix",
 ]
-
 
 
 # def psfmeasure(img, pos, level=0.5, radius=5, maxiters=3, sky_buffer=5, sky_width=5,
@@ -29,36 +32,37 @@ __all__ = [
 #         cut, dists, pos_cut = circular_cut(img, pos, radius=crad)
 
 
-
 def gauss_r(r, amp=1, sig=1, const=0):
-    return amp*np.exp(-0.5*(r/sig)**2) + const
+    return amp * np.exp(-0.5 * (r / sig) ** 2) + const
 
 
 def moffat_r(r, amp=1, core=1, power=2.5, const=0):
-    return amp*(1 + (r/core)**2)**(-power) + const
+    return amp * (1 + (r / core) ** 2) ** (-power) + const
 
 
 def bivt_r(r, amp=1, num2=1, sig=1, const=0):
-    """ Bivariate t distribution (generalized Moffat)
+    """Bivariate t distribution (generalized Moffat)
     num2 : float
         The degrees of freedom (nu) minus 2.
     """
-    return amp*(1 + (r**2/(num2*sig**2)))**(-(num2+4)/2) + const
+    return amp * (1 + (r**2 / (num2 * sig**2))) ** (-(num2 + 4) / 2) + const
 
 
 def fwhm_r(popt, fun):
     if fun == "gauss":
-        return 2*np.sqrt(2*np.log(2))*popt[1]
+        return 2 * np.sqrt(2 * np.log(2)) * popt[1]
     elif fun == "moffat":
-        return 2*popt[1]*np.sqrt(2**(1/popt[2]) - 1)
+        return 2 * popt[1] * np.sqrt(2 ** (1 / popt[2]) - 1)
     elif fun == "bivt":
         # 2*sig*np.sqrt((nu-2)*(2**(2/(nu+2)) - 1))
-        return 2*popt[2]*np.sqrt(popt[1]*(2**(2/(popt[1]+4)) - 1))
+        return 2 * popt[2] * np.sqrt(popt[1] * (2 ** (2 / (popt[1] + 4)) - 1))
     else:
         raise ValueError("Unknown function: {}".format(fun))
 
 
-def radial_profile(im, center, radii=1, thickness=1, mask=None, norm_by_center=False, **kwargs):
+def radial_profile(
+    im, center, radii=1, thickness=1, mask=None, norm_by_center=False, **kwargs
+):
     """Calculate radial profile of the image.
     Parameters
     ----------
@@ -88,7 +92,9 @@ def radial_profile(im, center, radii=1, thickness=1, mask=None, norm_by_center=F
     radii = np.asarray(radii).ravel()
     profs = []
     for i, r in enumerate(radii):
-        an = CircularAnnulus(center, r_in=max(0.01, r-thickness/2), r_out=r+thickness/2)
+        an = CircularAnnulus(
+            center, r_in=max(0.01, r - thickness / 2), r_out=r + thickness / 2
+        )
         _skyfit = sky_fit(im, an, mask=mask, **kwargs).to_pandas()
         _skyfit["r"] = r
         profs.append(_skyfit)
@@ -96,7 +102,9 @@ def radial_profile(im, center, radii=1, thickness=1, mask=None, norm_by_center=F
     profs = pd.concat(profs)
     profs = profs.rename(columns={"msky": "mpix", "ssky": "spix", "nsky": "npix"})
     profs["spix_n"] = profs["spix"] / np.sqrt(profs["npix"])
-    center_val = im[*(np.round(center).astype(int)[::-1])] # reverse for (y, x) indexing
+    center_val = im[
+        *(np.round(center).astype(int)[::-1])
+    ]  # reverse for (y, x) indexing
 
     if norm_by_center:
         profs["mpix"] /= center_val
@@ -105,8 +113,7 @@ def radial_profile(im, center, radii=1, thickness=1, mask=None, norm_by_center=F
     return profs, center_val
 
 
-def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None,
-                refit=1):
+def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None, refit=1):
     """Get radial profile (pixel values) of an object from n-D image.
 
     Parameters
@@ -134,7 +141,7 @@ def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None,
     if isinstance(img, CCDData):
         img = img.data
     elif not isinstance(img, np.ndarray):
-        raise TypeError(f'img must be a CCDData or ndarray (now {type(img) = })')
+        raise TypeError(f"img must be a CCDData or ndarray (now {type(img) = })")
 
     cut, _, _, dists = circular_bbox_cut(img, pos, radius=rmax, return_dists=True)
     mask = (dists > rmax) if mask is None else ((dists > rmax) | mask)
@@ -153,38 +160,45 @@ def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None,
 
     if fitfunc is not None:
         from scipy.optimize import curve_fit
+
         _r = dists[~mask]
         _i = cut[~mask]
         _imin, _imax = _i.min(), _i.max()
         if fitfunc == "gauss":
             fitter = gauss_r
-            p0 = [_i[_r == _r.min()][0] - _imin, max(1, rmax/6), _imin]
-            bounds = np.array([[0, 0, _imin-1], [np.inf, rmax/2, _imax+1]])
+            p0 = [_i[_r == _r.min()][0] - _imin, max(1, rmax / 6), _imin]
+            bounds = np.array([[0, 0, _imin - 1], [np.inf, rmax / 2, _imax + 1]])
             # assuming the user gave ~ (2-3)x FWHM, and we want sigma ~ 0.4xFWHM
         elif fitfunc == "moffat":
             fitter = moffat_r
             p0 = [_i[_r == _r.min()][0] - _imin, 1, 2.5, _imin]
-            bounds = np.array([[0, 0.1, 1., _imin-1], [np.inf, rmax, np.inf, _imax+1]])
+            bounds = np.array(
+                [[0, 0.1, 1.0, _imin - 1], [np.inf, rmax, np.inf, _imax + 1]]
+            )
         elif fitfunc == "bivt":
             fitter = bivt_r
-            p0 = [_i[_r == _r.min()][0] - _imin, 1, max(1, rmax/6), _imin]
-            bounds = np.array([[0, -2, 1.e-10, _imin-1], [np.inf, 15, 2*rmax, _imax+1]])
+            p0 = [_i[_r == _r.min()][0] - _imin, 1, max(1, rmax / 6), _imin]
+            bounds = np.array(
+                [[0, -2, 1.0e-10, _imin - 1], [np.inf, 15, 2 * rmax, _imax + 1]]
+            )
             # assuming the user gave ~ (2-3)x FWHM, and we want sigma ~ 0.4xFWHM
         else:
             raise ValueError("Unknown function: {}".format(fitfunc))
 
         popt, _ = curve_fit(fitter, _r, _i, p0=p0, bounds=bounds)
         if refit is not None:
-            fitrad = max(refit*fwhm_r(popt, fun=fitfunc), 3)
+            fitrad = max(refit * fwhm_r(popt, fun=fitfunc), 3)
             if fitrad < rmax:
-                mask = (_r > fitrad)
+                mask = _r > fitrad
                 # upper bound of sky as the profile at fitrad
                 bounds[1][-1] = fitter(fitrad, *popt)
                 # tighten others (amp, sigma, etc)
-                bounds[0][:-1] = popt[:-1]*0.5
-                bounds[1][:-1] = popt[:-1]*2
+                bounds[0][:-1] = popt[:-1] * 0.5
+                bounds[1][:-1] = popt[:-1] * 2
 
-                popt, _ = curve_fit(fitter, _r[~mask], _i[~mask], p0=popt, bounds=bounds)
+                popt, _ = curve_fit(
+                    fitter, _r[~mask], _i[~mask], p0=popt, bounds=bounds
+                )
 
         return _r, _i, fitter, popt, fwhm_r(popt, fun=fitfunc)
 

@@ -11,19 +11,24 @@ from scipy import ndimage
 from scipy.optimize import curve_fit
 
 from .background import sky_fit
-from .seputil import (_sanitize_byteorder, _sep_extract, sep_default_kernel,
-                      sep_extract)
+from .seputil import _sanitize_byteorder, _sep_extract, sep_default_kernel, sep_extract
 from .util import Gaussian2D_correct
 
-__all__ = ["circular_slice", "circular_bbox_cut",
-           "center_sep",
-           "find_center_2dg", "find_centroid"]
+__all__ = [
+    "circular_slice",
+    "circular_bbox_cut",
+    "center_sep",
+    "find_center_2dg",
+    "find_centroid",
+]
 
 
 def circular_slice(shape, pos, radius, resturn_offset=False):
     offset = np.array([max(0, _p - radius) for _p in pos])
-    slices = [slice(int(_o), min(_n, int(_p+radius)+1))
-              for _o, _p, _n in zip(offset[::-1], pos[::-1], shape)]
+    slices = [
+        slice(int(_o), min(_n, int(_p + radius) + 1))
+        for _o, _p, _n in zip(offset[::-1], pos[::-1], shape)
+    ]
     #         flooring by `int`, ceiling by "`int` and +1"
     if resturn_offset:
         return tuple(slices), np.array([sl.start for sl in slices[::-1]])
@@ -45,10 +50,9 @@ def circular_bbox_cut(img, pos, radius, return_dists=False):
     pos_cut = np.array(pos) - offset
     if return_dists:
         grids = np.meshgrid(*[np.arange(_n) for _n in cut.shape])
-        dists = np.sqrt(np.sum(
-            [(g - p)**2 for g, p in zip(grids, pos_cut[::-1])],
-            axis=0
-        )).T
+        dists = np.sqrt(
+            np.sum([(g - p) ** 2 for g, p in zip(grids, pos_cut[::-1])], axis=0)
+        ).T
         return cut, pos_cut, offset, dists
     return cut, pos_cut, offset
 
@@ -62,8 +66,10 @@ def _scaling_shift(pos_old, pos_new_raw, max_shift_step=None, verbose=False):
 
     if shift > max_shift_step:
         if verbose:
-            print(f"\tshift({shift:.3f}) > max_shift_step({max_shift_step:.3f}): "
-                  + f"shift truncated to {max_shift_step:.3f} pixels.")
+            print(
+                f"\tshift({shift:.3f}) > max_shift_step({max_shift_step:.3f}): "
+                + f"shift truncated to {max_shift_step:.3f} pixels."
+            )
         scale = max_shift_step / shift
         shift *= scale
         dxdy *= scale
@@ -111,34 +117,56 @@ def _background(data, bkg="min"):
         try:
             return bkg.back()
         except AttributeError:
-            raise TypeError("bkg must be one of 'min', 'mean', 'median', "
-                            + "float, array_like, or sep.Background.")
+            raise TypeError(
+                "bkg must be one of 'min', 'mean', 'median', "
+                + "float, array_like, or sep.Background."
+            )
 
 
-def resample_psf(data, zoom=5, order=3, mode='constant',
-                 cval=0.0, prefilter=True, *, grid_mode=False):
+def resample_psf(
+    data, zoom=5, order=3, mode="constant", cval=0.0, prefilter=True, *, grid_mode=False
+):
     data_min, data_max = data.min(), data.max()
-    y_max, x_max = np.argwhere(data==data_max)
+    y_max, x_max = np.argwhere(data == data_max)
     _data = data - data_min
     _GAUSS_AMP = _data.max() - _data.min()
 
     def _gaussx(x, fwhm):
-        return _GAUSS_AMP * np.exp(-4 * np.log(2) * (x - x_max)**2 / fwhm**2)
+        return _GAUSS_AMP * np.exp(-4 * np.log(2) * (x - x_max) ** 2 / fwhm**2)
+
     def _gaussy(y, fwhm):
-        return _GAUSS_AMP * np.exp(-4 * np.log(2) * (y - y_max)**2 / fwhm**2)
+        return _GAUSS_AMP * np.exp(-4 * np.log(2) * (y - y_max) ** 2 / fwhm**2)
 
     poptx = curve_fit(_gaussx, np.arange(_data.shape[1]), _data[y_max, :])[0]
     popty = curve_fit(_gaussy, np.arange(_data.shape[0]), _data[:, x_max])[0]
     pos = np.array([poptx[0], popty[0]])
-    fwhm = np.mean([min(max(1, poptx[1]), data.shape[1]),
-                    min(max(1, popty[1]), data.shape[0])])
-    gauss = (_gaussx(np.arange(_data.shape[1]), *poptx)
-             * _gaussy(np.arange(_data.shape[0]), *popty)[:, None])
-    gauss = ndimage.zoom(gauss, zoom, order=order, mode=mode,
-                         cval=cval, prefilter=prefilter, grid_mode=grid_mode)
-    spl = ndimage.zoom(_data - gauss, zoom, order=order, mode=mode,
-                       cval=cval, prefilter=prefilter, grid_mode=grid_mode)
+    fwhm = np.mean(
+        [min(max(1, poptx[1]), data.shape[1]), min(max(1, popty[1]), data.shape[0])]
+    )
+    gauss = (
+        _gaussx(np.arange(_data.shape[1]), *poptx)
+        * _gaussy(np.arange(_data.shape[0]), *popty)[:, None]
+    )
+    gauss = ndimage.zoom(
+        gauss,
+        zoom,
+        order=order,
+        mode=mode,
+        cval=cval,
+        prefilter=prefilter,
+        grid_mode=grid_mode,
+    )
+    spl = ndimage.zoom(
+        _data - gauss,
+        zoom,
+        order=order,
+        mode=mode,
+        cval=cval,
+        prefilter=prefilter,
+        grid_mode=grid_mode,
+    )
     return gauss + spl + data_min, pos, fwhm
+
 
 def _center_sep(
     data,
@@ -154,9 +182,9 @@ def _center_sep(
     max_shift_step=None,
     full=False,
     verbose=0,
-    **kwargs
+    **kwargs,
 ):
-    """ Centroiding by SEP
+    """Centroiding by SEP
     Parameters
     ----------
     data : array_like
@@ -178,8 +206,12 @@ def _center_sep(
     brightest object.
 
     """
-    cut_slices, cut_offset = circular_slice(data.shape, position, crad, resturn_offset=True)
-    cut, pos_cut, offset, dists = circular_bbox_cut(data, position, crad, return_dists=True)
+    cut_slices, cut_offset = circular_slice(
+        data.shape, position, crad, resturn_offset=True
+    )
+    cut, pos_cut, offset, dists = circular_bbox_cut(
+        data, position, crad, return_dists=True
+    )
     in_circ = dists <= crad
     mask_cut = mask[cut_slices] | ~in_circ if mask is not None else ~in_circ
     err_cut = err[cut_slices] if err is not None else None
@@ -197,7 +229,7 @@ def _center_sep(
         var=_sanitize_byteorder(var_cut),
         minarea=minarea,
         seg_remove_mask=False,
-        **kwargs
+        **kwargs,
     )
 
     nobj = len(obj)
@@ -215,10 +247,12 @@ def _center_sep(
 
     dxdy, shift = _scaling_shift(
         position,
-        (np.array([float(obj[0][f"x{move2}"]), float(obj[0][f"y{move2}"])])
-         + cut_offset),
+        (
+            np.array([float(obj[0][f"x{move2}"]), float(obj[0][f"y{move2}"])])
+            + cut_offset
+        ),
         max_shift_step=max_shift_step,
-        verbose=verbose
+        verbose=verbose,
     )
     pos_new = position + dxdy
 
@@ -226,8 +260,10 @@ def _center_sep(
     n_src = np.sum(seg == 1)
 
     if verbose:
-        print(f"\t{n_circ} / {cut.size} pixels used for SEP, {n_src} pixels "
-              "identified as the source.")
+        print(
+            f"\t{n_circ} / {cut.size} pixels used for SEP, {n_src} pixels "
+            "identified as the source."
+        )
 
     overflow = True if n_src > n_circ else False
 
@@ -247,17 +283,17 @@ def center_sep(
     maskthresh=0.0,
     minarea=5,
     filter_kernel=sep_default_kernel,
-    filter_type='matched',
+    filter_type="matched",
     deblend_nthresh=32,
     deblend_cont=1,
     clean=False,
-    clean_param=1.,
+    clean_param=1.0,
     maxiters=50,
-    tol_shift=1.e-3,
+    tol_shift=1.0e-3,
     max_shift=1,
     max_shift_step=1,
     verbose=False,
-    full=False
+    full=False,
 ):
     """Find the center of the object by SEP.
     Parameters
@@ -313,8 +349,10 @@ def center_sep(
 
     if verbose >= 1:
         print("*** Centering by SEP ***")
-        print(f"Initial xy: ({positions[0][0]}, {positions[0][1]}) [0-index]"
-              + f"\n\t{crad=:.1f}, {maxiters=:d}, {tol_shift=:.1e}")
+        print(
+            f"Initial xy: ({positions[0][0]}, {positions[0][1]}) [0-index]"
+            + f"\n\t{crad=:.1f}, {maxiters=:d}, {tol_shift=:.1e}"
+        )
         if bkg in ["min", "mean", "median"]:
             print(f"\tBackgound = **{bkg}** value inside the cutout")
         elif isinstance(bkg, (int, float)):
@@ -352,7 +390,7 @@ def center_sep(
             clean_param=clean_param,
             max_shift_step=max_shift_step,
             full=True,
-            verbose=verbose>=2,
+            verbose=verbose >= 2,
         )
         positions.append(pos)
         shifts.append(d)
@@ -360,8 +398,10 @@ def center_sep(
         segs.append(seg)
 
         if verbose >= 2:
-            print(f"\t({pos[0]:.2f}, {pos[1]:.2f}) [dx = {pos[0] - positions[-2][0]:.2f}, "
-                  + f"dy = {pos[1] - positions[-2][1]:.2f} --> shift = {d:.2f}]")
+            print(
+                f"\t({pos[0]:.2f}, {pos[1]:.2f}) [dx = {pos[0] - positions[-2][0]:.2f}, "
+                + f"dy = {pos[1] - positions[-2][1]:.2f} --> shift = {d:.2f}]"
+            )
         if d < tol_shift:
             if verbose >= 2:
                 print(f"*** Finished at iteration {i_iter+1}. ***")
@@ -373,13 +413,17 @@ def center_sep(
 
     if verbose >= 1:
         print(f"   (x, y) = ({positions[0][0]:8.2f}, {positions[0][1]:8.2f})")
-        print(f"        --> ({positions[-1][0]:8.2f}, {positions[-1][1]:8.2f}) [0-index]")
+        print(
+            f"        --> ({positions[-1][0]:8.2f}, {positions[-1][1]:8.2f}) [0-index]"
+        )
         print(f" (dx, dy) = ({dxdy[0]:+8.2f}, {dxdy[1]:+8.2f})")
         print(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
-        warn(f"Object with initial position ({positions[0]}) "
-             + f"shifted larger than {max_shift} ({total:.2f}).")
+        warn(
+            f"Object with initial position ({positions[0]}) "
+            + f"shifted larger than {max_shift} ({total:.2f})."
+        )
 
     if full:
         return pos, dxdy, total, objs, segs
@@ -389,16 +433,17 @@ def center_sep(
 
 # TODO: add mask
 def _centroiding_iteration(
-        ccd, position_xy,
-        centroider=centroid_com,
-        cbox_size=5.,
-        csigma=3,
-        max_shift_step=None,
-        msky=None,
-        error=0,
-        verbose=False
+    ccd,
+    position_xy,
+    centroider=centroid_com,
+    cbox_size=5.0,
+    csigma=3,
+    max_shift_step=None,
+    msky=None,
+    error=0,
+    verbose=False,
 ):
-    ''' Find the intensity-weighted centroid of the image iteratively
+    """Find the intensity-weighted centroid of the image iteratively
 
     Returns
     -------
@@ -454,7 +499,7 @@ def _centroiding_iteration(
     shift : float
         The total distance between the initial guess and the fitted centroid,
         i.e., the distance between `(xc_img, yc_img)` and `position_xy`.
-    '''
+    """
 
     # x_init, y_init = position_xy
     _cutkw = dict(position=position_xy, size=cbox_size)
@@ -466,22 +511,24 @@ def _centroiding_iteration(
         cthresh = _mindata
         if verbose:
             info = f"minimum value within {cbox_size = }"
-    elif csigma < 1.e-6:
+    elif csigma < 1.0e-6:
         cthresh = np.mean(cutccd.data)  # TODO: use np.nanmean?
         if verbose:
             info = f"mean value within {cbox_size = }"
     else:
         msky = _mindata if msky is None else msky
-        error = Cutout2D(error, **_cutkw).data if isinstance(error, np.ndarray) else error
+        error = (
+            Cutout2D(error, **_cutkw).data if isinstance(error, np.ndarray) else error
+        )
         cthresh = msky + csigma * error
-        if (cthresh < _mindata):
+        if cthresh < _mindata:
             if verbose:
                 print(f"\tthreshold = {cthresh:.3f} < (min of pixels in cbox).")
                 print(f"\t∴ threshold = {_mindata:.3f} (min of pixels in cbox)...")
             # msky = _mindata
             cthresh = _mindata
 
-    mask = (cutccd.data <= (cthresh+1.e-10))
+    mask = cutccd.data <= (cthresh + 1.0e-10)
     if ccd.mask is not None:
         mask += Cutout2D(ccd.mask, **_cutkw).data
 
@@ -495,7 +542,7 @@ def _centroiding_iteration(
 
         if csigma is None:
             info += f"minimum within {cbox_size = }]"
-        elif csigma < 1.e-6:
+        elif csigma < 1.0e-6:
             info += f"mean within {cbox_size = }]"
         else:
             if not isinstance(error, np.ndarray):
@@ -516,10 +563,7 @@ def _centroiding_iteration(
     # e.g., (3, 3) becomes something like (137, 189)
 
     dxdy, shift = _scaling_shift(
-        position_xy,
-        pos_new_raw,
-        max_shift_step=max_shift_step,
-        verbose=verbose
+        position_xy, pos_new_raw, max_shift_step=max_shift_step, verbose=verbose
     )
     pos_new = position_xy + dxdy
 
@@ -552,33 +596,38 @@ def _fit_2dgaussian(data, error=None, mask=None):
     if mask is not None and mask is not np.ma.nomask:
         mask = np.asanyarray(mask)
         if data.shape != mask.shape:
-            raise ValueError('data and mask must have the same shape.')
+            raise ValueError("data and mask must have the same shape.")
         data.mask |= mask
 
     if np.any(~np.isfinite(data)):
         data = np.ma.masked_invalid(data)
-        warn('Input data contains non-finite values (e.g., NaN or infs) that were '
-             + 'automatically masked.', UserWarning)
+        warn(
+            "Input data contains non-finite values (e.g., NaN or infs) that were "
+            + "automatically masked.",
+            UserWarning,
+        )
 
     if error is not None:
         error = np.ma.masked_invalid(error)
         if data.shape != error.shape:
-            raise ValueError('data and error must have the same shape.')
+            raise ValueError("data and error must have the same shape.")
         data.mask |= error.mask
-        weights = 1.0 / error.clip(min=1.e-30)
+        weights = 1.0 / error.clip(min=1.0e-30)
     else:
         weights = np.ones(data.shape)
 
     if np.ma.count(data) < 7:
-        raise ValueError('Input data must have a least 7 unmasked values to '
-                         'fit a 2D Gaussian plus a constant.')
+        raise ValueError(
+            "Input data must have a least 7 unmasked values to "
+            "fit a 2D Gaussian plus a constant."
+        )
 
     # assign zero weight to masked pixels
     if data.mask is not np.ma.nomask:
-        weights[data.mask] = 0.
+        weights[data.mask] = 0.0
 
     mask = data.mask
-    data.fill_value = 0.
+    data.fill_value = 0.0
     data = data.filled()
 
     # Subtract the minimum of the data as a rough background estimate.
@@ -587,23 +636,25 @@ def _fit_2dgaussian(data, error=None, mask=None):
     # values can yield undefined Gaussian parameters, e.g., x/y_stddev.
     props = sep_extract(
         data - np.min(data),
-        thresh=0.0,              # Use all data points
+        thresh=0.0,  # Use all data points
         mask=mask,
-        filter_kernel=None,      # No convolution
-        deblend_cont=1.0,        # No deblending
-        clean=False,             # No cleaning
+        filter_kernel=None,  # No convolution
+        deblend_cont=1.0,  # No deblending
+        clean=False,  # No cleaning
         segmentation_map=False,  # No segmentation map
     )[0]
 
-    init_const = 0.  # subtracted data minimum above
+    init_const = 0.0  # subtracted data minimum above
     init_amplitude = np.ptp(data)
-    g_init = GaussianConst2D(constant=init_const,
-                             amplitude=init_amplitude,
-                             x_mean=props["x"].iloc[0],
-                             y_mean=props["y"].iloc[0],
-                             x_stddev=props["a"].iloc[0],
-                             y_stddev=props["b"].iloc[0],
-                             theta=props["theta"].iloc[0])
+    g_init = GaussianConst2D(
+        constant=init_const,
+        amplitude=init_amplitude,
+        x_mean=props["x"].iloc[0],
+        y_mean=props["y"].iloc[0],
+        x_stddev=props["a"].iloc[0],
+        y_stddev=props["b"].iloc[0],
+        theta=props["theta"].iloc[0],
+    )
     fitter = LevMarLSQFitter()
     y, x = np.indices(data.shape)
     gfit = fitter(g_init, x, y, data, weights=weights)
@@ -648,29 +699,30 @@ class GaussianConst2D(Fittable2DModel):
     @staticmethod
     def evaluate(x, y, constant, amplitude, x_mean, y_mean, x_stddev, y_stddev, theta):
         """Two dimensional Gaussian plus constant function."""
-        return (Const2D(constant)(x, y)
-                + Gaussian2D(amplitude, x_mean, y_mean, x_stddev, y_stddev, theta)(x, y))
+        return Const2D(constant)(x, y) + Gaussian2D(
+            amplitude, x_mean, y_mean, x_stddev, y_stddev, theta
+        )(x, y)
 
 
 def find_center_2dg(
-        ccd,
-        position_xy,
-        cbox_size=5.,
-        csigma=3.,
-        msky=None,
-        ssky=0,
-        sky_annulus=None,
-        sky_kw={},
-        maxiters=5,
-        error=None,
-        atol_shift=1.e-4,
-        max_shift=1,
-        max_shift_step=None,
-        verbose=False,
-        full=True,
-        full_history=False
+    ccd,
+    position_xy,
+    cbox_size=5.0,
+    csigma=3.0,
+    msky=None,
+    ssky=0,
+    sky_annulus=None,
+    sky_kw={},
+    maxiters=5,
+    error=None,
+    atol_shift=1.0e-4,
+    max_shift=1,
+    max_shift_step=None,
+    verbose=False,
+    full=True,
+    full_history=False,
 ):
-    ''' Find the center of the image by 2D Gaussian fitting.
+    """Find the center of the image by 2D Gaussian fitting.
 
     Parameters
     ----------
@@ -752,17 +804,26 @@ def find_center_2dg(
             * ``positions``: `Nx2` numpy.array
         The history of ``x`` and ``y`` positions. The 0-th element is the
         initial position and the last element is the final fitted position.
-    '''
+    """
     if sky_annulus is not None:
         import copy
+
         ANNULUS = copy.deepcopy(sky_annulus)
     else:
         ANNULUS = None
 
-    def _center_2dg_iteration(ccd, position_xy, cbox_size=5., csigma=3.,
-                              max_shift_step=None, msky=None, ssky=0,
-                              error=None, verbose=False):
-        ''' Find the intensity-weighted centroid of the image iteratively
+    def _center_2dg_iteration(
+        ccd,
+        position_xy,
+        cbox_size=5.0,
+        csigma=3.0,
+        max_shift_step=None,
+        msky=None,
+        ssky=0,
+        error=None,
+        verbose=False,
+    ):
+        """Find the intensity-weighted centroid of the image iteratively
 
         Returns
         -------
@@ -774,7 +835,7 @@ def find_center_2dg(
             The total distance between the initial guess and the fitted
             centroid, i.e., the distance between `(xc_img, yc_img)` and
             `position_xy`.
-        '''
+        """
 
         cut = Cutout2D(ccd.data, position=position_xy, size=cbox_size)
         e_cut = Cutout2D(error.data, position=position_xy, size=cbox_size)
@@ -788,7 +849,7 @@ def find_center_2dg(
             msky = np.min(cut.data)
 
         cthresh = msky + csigma * ssky
-        mask = (cut.data < cthresh)
+        mask = cut.data < cthresh
         # using pixels only above med + 3*std for centroiding is recommended.
         # See Ma+2009, Optics Express, 17, 8525
         # -- I doubt this... YPBach 2019-07-08 10:43:54 (KST: GMT+09:00)
@@ -796,14 +857,16 @@ def find_center_2dg(
         if verbose:
             n_all = np.size(mask)
             n_rej = np.count_nonzero(mask.astype(int))
-            print(f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} from min "
-                  + f"({np.min(cut.data):.3f}) + ({csigma = }) * ({ssky = :.3f})]")
+            print(
+                f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} from min "
+                + f"({np.min(cut.data):.3f}) + ({csigma = }) * ({ssky = :.3f})]"
+            )
 
         if ccd.mask is not None:
             cutmask = Cutout2D(ccd.mask, position=position_xy, size=cbox_size)
             mask += cutmask
 
-        yy, xx = np.mgrid[:cut.data.shape[0], :cut.data.shape[1]]
+        yy, xx = np.mgrid[: cut.data.shape[0], : cut.data.shape[1]]
         g_fit = _fit_2dgaussian(data=cut.data, error=e_cut.data, mask=mask)
         g_fit = Gaussian2D_correct(g_fit)
         # The position is in the cutout image coordinate, e.g., (3, 3).
@@ -812,7 +875,7 @@ def find_center_2dg(
             position_xy,
             cut.to_original_position((g_fit.x_mean.value, g_fit.y_mean.value)),
             max_shift_step=max_shift_step,
-            verbose=verbose
+            verbose=verbose,
         )
         # ^ convert the cutout image coordinate to original coordinate.
         #   e.g., (3, 3) becomes something like (137, 189)
@@ -825,10 +888,12 @@ def find_center_2dg(
     if position_init.shape != (2,):
         raise TypeError("position_xy must have two and only two (xy) values.")
 
-    _ccd = ccd.copy() if isinstance(ccd, CCDData) else CCDData(ccd, unit='adu')
+    _ccd = ccd.copy() if isinstance(ccd, CCDData) else CCDData(ccd, unit="adu")
 
     if error is not None:
-        _error = error.copy() if isinstance(error, CCDData) else CCDData(error, unit='adu')
+        _error = (
+            error.copy() if isinstance(error, CCDData) else CCDData(error, unit="adu")
+        )
     else:
         _error = np.ones_like(_ccd.data)
 
@@ -845,9 +910,11 @@ def find_center_2dg(
             fit_params[k] = []
 
     if verbose:
-        print(f"Initial xy: {position_init} [0-indexing]\n"
-              + f"\t(max iteration {maxiters:d}, "
-              + f"shift tolerance {atol_shift} pixel)")
+        print(
+            f"Initial xy: {position_init} [0-indexing]\n"
+            + f"\t(max iteration {maxiters:d}, "
+            + f"shift tolerance {atol_shift} pixel)"
+        )
 
     for i_iter in range(maxiters):
         xy_old = positions[-1]
@@ -855,15 +922,17 @@ def find_center_2dg(
         if verbose:
             print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
 
-        res = _center_2dg_iteration(ccd=_ccd,
-                                    position_xy=xy_old,
-                                    cbox_size=cbox_size,
-                                    csigma=csigma,
-                                    msky=msky,
-                                    ssky=ssky,
-                                    error=_error,
-                                    max_shift_step=max_shift_step,
-                                    verbose=verbose)
+        res = _center_2dg_iteration(
+            ccd=_ccd,
+            position_xy=xy_old,
+            cbox_size=cbox_size,
+            csigma=csigma,
+            msky=msky,
+            ssky=ssky,
+            error=_error,
+            max_shift_step=max_shift_step,
+            verbose=verbose,
+        )
         newpos, d, g_fit, cut, e_cut, fit = res
 
         if d < atol_shift:
@@ -889,12 +958,16 @@ def find_center_2dg(
     total_shift = np.sqrt(np.sum(total_dx_dy**2))
 
     if verbose:
-        print(f"Final shift: dx={total_dx_dy[0]:+.2f}, dy={total_dx_dy[1]:+.2f}, "
-              + f"total_shift={total_shift:.2f}")
+        print(
+            f"Final shift: dx={total_dx_dy[0]:+.2f}, dy={total_dx_dy[1]:+.2f}, "
+            + f"total_shift={total_shift:.2f}"
+        )
 
     if total_shift > max_shift:
-        warn(f"Object with initial position {position_xy} "
-             + f"shifted larger than {max_shift = } ({total_shift:.2f}).")
+        warn(
+            f"Object with initial position {position_xy} "
+            + f"shifted larger than {max_shift = } ({total_shift:.2f})."
+        )
 
     if full:
         if full_history:
@@ -905,7 +978,7 @@ def find_center_2dg(
                 fit_params=fit_params,
                 cuts=cuts,
                 e_cuts=e_cuts,
-                fits=fits
+                fits=fits,
             )
         else:
             fulldict = dict(
@@ -915,7 +988,7 @@ def find_center_2dg(
                 fit_params=fit_params,
                 cuts=cuts[-1],
                 e_cuts=e_cuts[-1],
-                fits=fits[-1]
+                fits=fits[-1],
             )
         return positions[-1], total_shift, fulldict
 
@@ -924,21 +997,21 @@ def find_center_2dg(
 
 # TODO: Add error-bar of the centroids by accepting error-map
 def find_centroid(
-        ccd,
-        position_xy,
-        centroider=centroid_com,
-        maxiters=5,
-        cbox_size=5.,
-        csigma=0,
-        msky=None,
-        error=0,
-        tol_shift=1.e-4,
-        max_shift=1,
-        max_shift_step=None,
-        verbose=False,
-        full=False
+    ccd,
+    position_xy,
+    centroider=centroid_com,
+    maxiters=5,
+    cbox_size=5.0,
+    csigma=0,
+    msky=None,
+    error=0,
+    tol_shift=1.0e-4,
+    max_shift=1,
+    max_shift_step=None,
+    verbose=False,
+    full=False,
 ):
-    ''' Find the intensity-weighted centroid iteratively.
+    """Find the intensity-weighted centroid iteratively.
 
     Notes
     -----
@@ -1028,8 +1101,8 @@ def find_centroid(
     -------
     com_xy : list
         The iteratively found centroid position.
-    '''
-    _ccd = CCDData(ccd, unit='adu') if not isinstance(ccd, CCDData) else ccd.copy()
+    """
+    _ccd = CCDData(ccd, unit="adu") if not isinstance(ccd, CCDData) else ccd.copy()
 
     x, y = position_xy
     xc_iter = [x]
@@ -1037,8 +1110,10 @@ def find_centroid(
     shift = []
 
     if verbose >= 1:
-        print(f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]"
-              + f"\n\t({maxiters = :d}, {tol_shift = :.2e})")
+        print(
+            f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]"
+            + f"\n\t({maxiters = :d}, {tol_shift = :.2e})"
+        )
 
     for i_iter in range(maxiters):
         if verbose >= 2:
@@ -1052,14 +1127,16 @@ def find_centroid(
             msky=msky,
             error=error,
             max_shift_step=max_shift_step,
-            verbose=verbose >= 2
+            verbose=verbose >= 2,
         )
         xc_iter.append(x)
         yc_iter.append(y)
         shift.append(d)
         if verbose >= 2:
-            print(f"\t({x:.2f}, {y:.2f}) [dx = {x - xc_iter[-2]:.2f}, "
-                  + f"dy = {y - yc_iter[-2]:.2f} --> shift = {d:.2f}]")
+            print(
+                f"\t({x:.2f}, {y:.2f}) [dx = {x - xc_iter[-2]:.2f}, "
+                + f"dy = {y - yc_iter[-2]:.2f} --> shift = {d:.2f}]"
+            )
         if d < tol_shift:
             if verbose >= 2:
                 print(f"*** Finished at {i_iter}th-iteration. ***")
@@ -1077,8 +1154,10 @@ def find_centroid(
         print(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
-        warn(f"Object with initial position ({xc_iter[-1]}, {yc_iter[-1]}) "
-             + f"shifted larger than {max_shift} ({total:.2f}).")
+        warn(
+            f"Object with initial position ({xc_iter[-1]}, {yc_iter[-1]}) "
+            + f"shifted larger than {max_shift} ({total:.2f})."
+        )
 
     # if verbose:
     #     print('Found centroid after {} iterations'.format(i_iter))

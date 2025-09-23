@@ -18,24 +18,24 @@ __all__ = ["apphot_annulus"]
 # radii aperture is given with column names starting from ``aperture_sum_0``
 # and ``aperture_sum_err_0``.
 def apphot_annulus(
-        ccd,
-        aperture,
-        annulus=None,
-        gain="GAIN",
-        rdnoise="RDNOISE",
-        t_exposure=None,
-        exposure_key="EXPTIME",
-        error=None,
-        mask=None,
-        sky_keys=None,
-        sky_min=None,
-        aparea_exact=False,
-        npix_mask_ap=2,
-        verbose=False,
-        pandas=True,
-        **kwargs
+    ccd,
+    aperture,
+    annulus=None,
+    gain="GAIN",
+    rdnoise="RDNOISE",
+    t_exposure=None,
+    exposure_key="EXPTIME",
+    error=None,
+    mask=None,
+    sky_keys=None,
+    sky_min=None,
+    aparea_exact=False,
+    npix_mask_ap=2,
+    verbose=False,
+    pandas=True,
+    **kwargs,
 ):
-    ''' Do aperture photometry using annulus.
+    """Do aperture photometry using annulus.
 
     Parameters
     ----------
@@ -119,9 +119,10 @@ def apphot_annulus(
     If `error` is not given, error=``sqrt(data/gain + (rdnoise/gain)**2)`` is
     used, assuming dark=0 (also, digitization error is ignored. cf. Merline &
     Howell (1995) ExpA).
-    '''
+    """
+
     def _propagate_ccdmask(ccd, additional_mask=None):
-        ''' Propagate the CCDData's mask and additional mask from ysfitsutilpy.
+        """Propagate the CCDData's mask and additional mask from ysfitsutilpy.
 
         Parameters
         ----------
@@ -136,8 +137,9 @@ def apphot_annulus(
         -----
         The original ``ccd.mask`` is not modified. To do so,
         >>> ccd.mask = propagate_ccdmask(ccd, additional_mask=mask2)
-        '''
+        """
         from copy import deepcopy
+
         if additional_mask is None:
             try:
                 mask = ccd.mask.copy()
@@ -161,8 +163,10 @@ def apphot_annulus(
             except (KeyError, IndexError):
                 t_exposure = 1
                 if verbose:
-                    warn("The exposure time info not given and not found from the header"
-                         + f" ({exposure_key}). Setting it to 1 sec.")
+                    warn(
+                        "The exposure time info not given and not found from the header"
+                        + f" ({exposure_key}). Setting it to 1 sec."
+                    )
     else:  # ndarray
         _ccd = CCDData(data=ccd, unit="adu")
         _arr = _ccd.data
@@ -195,8 +199,8 @@ def apphot_annulus(
     bads = []
     if _mask is None:
         flag_bad = False
-        bads = [0]*n_apertures
-        nbads = [0]*n_apertures
+        bads = [0] * n_apertures
+        nbads = [0] * n_apertures
         _mask = np.zeros_like(_arr).astype(bool)
 
     if mask is not None:
@@ -204,8 +208,10 @@ def apphot_annulus(
 
     if error is not None:
         if verbose:
-            print("Ignore any uncertainty extension in the original CCD, "
-                  + "and use provided uncertainty map.")
+            print(
+                "Ignore any uncertainty extension in the original CCD, "
+                + "and use provided uncertainty map."
+            )
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
@@ -216,10 +222,12 @@ def apphot_annulus(
             # if verbose:
             #     warn("Uncertainty extension not found in ccd. Will not calculate errors.")
             gn = float(_ccd.header.get(gain, 1) if isinstance(gain, str) else gain)
-            rd = float(_ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise)
+            rd = float(
+                _ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise
+            )
             if verbose:
                 print(f"Making errormap from {gn} [e/ADU], {rd} [e]")
-            err = np.sqrt(_arr/gn + (rd/gn)**2)
+            err = np.sqrt(_arr / gn + (rd / gn) ** 2)
 
     if aparea_exact:
         # What this does is basically identical to area_overlap:
@@ -227,8 +235,9 @@ def apphot_annulus(
         # I am just afraid of testing the code.
         _ones = np.ones_like(_arr)
         _area = aperture_photometry(_ones, aperture, mask=_mask, **kwargs)
-        aparea = np.array([_area[c][0] for c in _area.colnames
-                           if c.startswith("aperture_sum")])
+        aparea = np.array(
+            [_area[c][0] for c in _area.colnames if c.startswith("aperture_sum")]
+        )
     else:
         try:
             if n_apertures != 1:
@@ -250,13 +259,13 @@ def apphot_annulus(
     if flag_bad:
         try:
             for ap in aperture:
-                apmask = ap.to_mask(method='exact')
+                apmask = ap.to_mask(method="exact")
                 nbad = np.count_nonzero(apmask.multiply(_mask))
                 bad = 1 if nbad > npix_mask_ap else 0
                 nbads.append(nbad)
                 bads.append(bad)
         except TypeError:  # scalar aperture
-            apmask = aperture.to_mask(method='exact')
+            apmask = aperture.to_mask(method="exact")
             nbad = np.count_nonzero(apmask.multiply(_mask))
             bad = 1 if nbad > npix_mask_ap else 0
             nbads.append(nbad)
@@ -264,17 +273,25 @@ def apphot_annulus(
 
     if annulus is not None:
         if sky_keys is None:
-            skys = sky_fit(_arr, annulus, mask=_mask, method='mode',
-                           mode_option='sex', sigma=3, maxiters=5, std_ddof=1)
+            skys = sky_fit(
+                _arr,
+                annulus,
+                mask=_mask,
+                method="mode",
+                mode_option="sex",
+                sigma=3,
+                maxiters=5,
+                std_ddof=1,
+            )
         else:
             skys = sky_fit(_arr, annulus, mask=_mask, **sky_keys)
         for c in skys.colnames:
             _phot[c] = skys[c]
     else:
-        _phot['msky'] = 0
-        _phot['nsky'] = 1
-        _phot['nrej'] = 0
-        _phot['ssky'] = 0
+        _phot["msky"] = 0
+        _phot["nsky"] = 1
+        _phot["nrej"] = 0
+        _phot["ssky"] = 0
 
     if isinstance(aperture, (list, tuple, np.ndarray)):
         # If multiple apertures at each position
@@ -286,7 +303,7 @@ def apphot_annulus(
 
         for i, c in enumerate(_phot.colnames):
             if not c.startswith("aperture"):  # all other columns
-                phot[c] = [_phot[c][0]]*n
+                phot[c] = [_phot[c][0]] * n
             elif c.startswith("aperture_sum_err"):  # aperture_sum_err_xx
                 aperrs.append(_phot[c][0])
             else:  # aperture_sum_xx
@@ -305,14 +322,14 @@ def apphot_annulus(
     if sky_min is not None:
         phot["msky"][phot["msky"] < sky_min] = sky_min
 
-    phot['aparea'] = aparea
+    phot["aparea"] = aparea
     phot["source_sum"] = phot["aperture_sum"] - aparea * phot["msky"]
 
     # see, e.g., http://stsdas.stsci.edu/cgi-bin/gethelp.cgi?radprof.hlp
     # Poisson + RDnoise (Poisson includes signal + sky + dark) :
-    var_errmap = phot["aperture_sum_err"]**2
+    var_errmap = phot["aperture_sum_err"] ** 2
     # Sum of aparea Gaussians (kind of random walk):
-    var_skyrand = aparea * phot["ssky"]**2
+    var_skyrand = aparea * phot["ssky"] ** 2
     # The CLT error (although not correct, let me denote it as "systematic"
     # error for simplicity) of the mean estimation is ssky/sqrt(nsky), and that
     # is propagated for aparea pixels, so we have std = aparea*ssky/sqrt(nsky), so
@@ -321,10 +338,10 @@ def apphot_annulus(
     # This error term is used in IRAF APPHOT, but this is wrong and thus
     # ignored here.
     phot["source_sum_err"] = np.sqrt(var_errmap + var_skyrand)
-    snr = np.array(phot['source_sum'])/np.array(phot["source_sum_err"])
+    snr = np.array(phot["source_sum"]) / np.array(phot["source_sum_err"])
     snr[snr < 0] = 0
-    phot["mag"] = -2.5*np.log10(phot['source_sum']/t_exposure)
-    phot["merr"] = 2.5/np.log(10)*(1/snr)
+    phot["mag"] = -2.5 * np.log10(phot["source_sum"] / t_exposure)
+    phot["merr"] = 2.5 / np.log(10) * (1 / snr)
     phot["snr"] = snr
     phot["bad"] = bads
     phot["nbadpix"] = nbads
@@ -340,13 +357,30 @@ def apphot_annulus(
 
 
 # TODO: make this...
-def apphot_ellip_sep(ccd, x, y, a, a_in, a_out, bpa=1, theta=0, t_exposure=None,
-                     exposure_key="EXPTIME", error=None, mask=None, sky_keys={}, aparea_exact=False,
-                     t_exposure_unit=u.s, verbose=False, pandas=False, **kwargs):
-    ''' Similar to apphot_annulus but use sep to speedup.
+def apphot_ellip_sep(
+    ccd,
+    x,
+    y,
+    a,
+    a_in,
+    a_out,
+    bpa=1,
+    theta=0,
+    t_exposure=None,
+    exposure_key="EXPTIME",
+    error=None,
+    mask=None,
+    sky_keys={},
+    aparea_exact=False,
+    t_exposure_unit=u.s,
+    verbose=False,
+    pandas=False,
+    **kwargs,
+):
+    """Similar to apphot_annulus but use sep to speedup.
     bpa : float
         b per a (ellipticity)
-    '''
+    """
     try:
         import sep
     except ImportError:
@@ -362,8 +396,10 @@ def apphot_ellip_sep(ccd, x, y, a, a_in, a_out, bpa=1, theta=0, t_exposure=None,
                 t_exposure = _ccd.header[exposure_key]
             except (KeyError, IndexError):
                 t_exposure = 1
-                warn("The exposure time info not given and not found from the"
-                     + f"header({exposure_key}). Setting it to 1 sec.")
+                warn(
+                    "The exposure time info not given and not found from the"
+                    + f"header({exposure_key}). Setting it to 1 sec."
+                )
     else:  # ndarray
         _arr = np.array(_ccd)
         _mask = None
@@ -379,7 +415,9 @@ def apphot_ellip_sep(ccd, x, y, a, a_in, a_out, bpa=1, theta=0, t_exposure=None,
 
     if error is not None:
         if verbose:
-            print("Ignore any uncertainty extension in the original CCD and use provided error.")
+            print(
+                "Ignore any uncertainty extension in the original CCD and use provided error."
+            )
         err = error.copy()
         if isinstance(err, CCDData):
             err = err.data
@@ -388,8 +426,10 @@ def apphot_ellip_sep(ccd, x, y, a, a_in, a_out, bpa=1, theta=0, t_exposure=None,
             err = _ccd.uncertainty.array
         except AttributeError:
             if verbose:
-                warn("Couldn't find Uncertainty extension in ccd. "
-                     + "Will not calculate errors.")
+                warn(
+                    "Couldn't find Uncertainty extension in ccd. "
+                    + "Will not calculate errors."
+                )
             err = np.zeros_like(_arr)
 
     x = np.atleast_1d(x)
@@ -411,7 +451,7 @@ def apphot_ellip_sep(ccd, x, y, a, a_in, a_out, bpa=1, theta=0, t_exposure=None,
     a = np.repeat(a, num_apertures)
     bpa = np.repeat(bpa, num_apertures)
     theta = np.repeat(theta, num_apertures)
-    b = a*bpa
+    b = a * bpa
 
     a_in = np.atleast_1d(a_in)
     a_out = np.atleast_1d(a_out)

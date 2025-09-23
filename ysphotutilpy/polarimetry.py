@@ -10,23 +10,53 @@ Primitive naming:
   single-ray version
 - n: the number of HWP angles used. 3 or 4.
 """
+
 import numpy as np
 from .util import err_prop, convert_pct, convert_deg
 
-__all__ = ["calc_stokes", "calc_pol_r",
-           'calc_qu_4set', 'correct_eff', 'correct_off', 'correct_pa', 'calc_pol']
+__all__ = [
+    "calc_stokes",
+    "calc_pol_r",
+    "calc_qu_4set",
+    "correct_eff",
+    "correct_off",
+    "correct_pa",
+    "calc_pol",
+]
 
 
 def calc_stokes(
-        o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
-        do_000=0, do_450=0, do_225=0, do_675=0,
-        de_000=0, de_450=0, de_225=0, de_675=0,
-        p_eff=1, dp_eff=0,
-        rot_q=0, rot_u=0, q_off=0, u_off=0, dq_off=0, du_off=0,
-        pa_off=0, dpa_off=0, pa_obs=0, pa_ccw=True,
-        use_pct=False,
-        use_deg=False,
-        eminuso=True,
+    o_000,
+    o_450,
+    o_225,
+    o_675,
+    e_000,
+    e_450,
+    e_225,
+    e_675,
+    do_000=0,
+    do_450=0,
+    do_225=0,
+    do_675=0,
+    de_000=0,
+    de_450=0,
+    de_225=0,
+    de_675=0,
+    p_eff=1,
+    dp_eff=0,
+    rot_q=0,
+    rot_u=0,
+    q_off=0,
+    u_off=0,
+    dq_off=0,
+    du_off=0,
+    pa_off=0,
+    dpa_off=0,
+    pa_obs=0,
+    pa_ccw=True,
+    use_pct=False,
+    use_deg=False,
+    eminuso=True,
 ):
     """A one-line calculator of Stokes' parameters in 4-set linear polarimetry.
 
@@ -96,31 +126,77 @@ def calc_stokes(
     >>> calc_stokes(1, 1, 1, 1, 2, 1, 1, 2,)
 
     """
-    qu_dqu_raw = calc_qu_4set(o_000=o_000, o_450=o_450, o_225=o_225, o_675=o_675,
-                              e_000=e_000, e_450=e_450, e_225=e_225, e_675=e_675,
-                              do_000=do_000, do_450=do_450, do_225=do_225, do_675=do_675,
-                              de_000=de_000, de_450=de_450, de_225=de_225, de_675=de_675,
-                              out_pct=use_pct, eminuso=eminuso)
-    qu_dqu_eff = correct_eff(*qu_dqu_raw, p_eff=p_eff, dp_eff=dp_eff,
-                             in_pct=use_pct, out_pct=use_pct)
-    qu_dqu_off = correct_off(*qu_dqu_eff, rot_q=rot_q, rot_u=rot_u,
-                             q_off=q_off, u_off=u_off, dq_off=dq_off, du_off=du_off,
-                             in_pct=use_pct, in_deg=use_deg, out_pct=use_pct)
-    qu_dqu_pa = correct_pa(*qu_dqu_off, pa_off=pa_off, dpa_off=dpa_off, pa_obs=pa_obs,
-                           pa_ccw=pa_ccw, in_pct=use_pct, in_deg=use_deg, out_pct=use_pct)
+    qu_dqu_raw = calc_qu_4set(
+        o_000=o_000,
+        o_450=o_450,
+        o_225=o_225,
+        o_675=o_675,
+        e_000=e_000,
+        e_450=e_450,
+        e_225=e_225,
+        e_675=e_675,
+        do_000=do_000,
+        do_450=do_450,
+        do_225=do_225,
+        do_675=do_675,
+        de_000=de_000,
+        de_450=de_450,
+        de_225=de_225,
+        de_675=de_675,
+        out_pct=use_pct,
+        eminuso=eminuso,
+    )
+    qu_dqu_eff = correct_eff(
+        *qu_dqu_raw, p_eff=p_eff, dp_eff=dp_eff, in_pct=use_pct, out_pct=use_pct
+    )
+    qu_dqu_off = correct_off(
+        *qu_dqu_eff,
+        rot_q=rot_q,
+        rot_u=rot_u,
+        q_off=q_off,
+        u_off=u_off,
+        dq_off=dq_off,
+        du_off=du_off,
+        in_pct=use_pct,
+        in_deg=use_deg,
+        out_pct=use_pct,
+    )
+    qu_dqu_pa = correct_pa(
+        *qu_dqu_off,
+        pa_off=pa_off,
+        dpa_off=dpa_off,
+        pa_obs=pa_obs,
+        pa_ccw=pa_ccw,
+        in_pct=use_pct,
+        in_deg=use_deg,
+        out_pct=use_pct,
+    )
     pu_dpu = calc_pol(*qu_dqu_pa, in_pct=use_pct, out_pct=use_pct, out_deg=use_deg)
 
     return pu_dpu
 
 
 def calc_qu_4set(
-        o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675,
-        do_000=0, do_450=0, do_225=0, do_675=0,
-        de_000=0, de_450=0, de_225=0, de_675=0,
-        out_pct=False,
-        eminuso=True
+    o_000,
+    o_450,
+    o_225,
+    o_675,
+    e_000,
+    e_450,
+    e_225,
+    e_675,
+    do_000=0,
+    do_450=0,
+    do_225=0,
+    do_675=0,
+    de_000=0,
+    de_450=0,
+    de_225=0,
+    de_675=0,
+    out_pct=False,
+    eminuso=True,
 ):
-    """ Calculate the q, u, dq, and du of the 4 sets (HWP angles) of O-E rays.
+    """Calculate the q, u, dq, and du of the 4 sets (HWP angles) of O-E rays.
 
     Parameters
     ----------
@@ -159,31 +235,25 @@ def calc_qu_4set(
         The q, u values and their errors. The unit can be natural (if `out_pct`
         is `False`) or percentage (if `out_pct` is `True`).
     """
-    s_000 = err_prop(de_000/e_000, do_000/o_000)
-    s_450 = err_prop(de_450/e_450, do_450/o_450)
-    s_225 = err_prop(de_225/e_225, do_225/o_225)
-    s_675 = err_prop(de_675/e_675, do_675/o_675)
+    s_000 = err_prop(de_000 / e_000, do_000 / o_000)
+    s_450 = err_prop(de_450 / e_450, do_450 / o_450)
+    s_225 = err_prop(de_225 / e_225, do_225 / o_225)
+    s_675 = err_prop(de_675 / e_675, do_675 / o_675)
 
-    rq = np.sqrt((e_000/o_000)/(e_450/o_450))
-    ru = np.sqrt((e_225/o_225)/(e_675/o_675))
+    rq = np.sqrt((e_000 / o_000) / (e_450 / o_450))
+    ru = np.sqrt((e_225 / o_225) / (e_675 / o_675))
     sign = 1 if eminuso else -1
-    q = sign*(rq - 1)/(rq + 1)
-    u = sign*(ru - 1)/(ru + 1)
-    dq = (rq/(rq + 1)**2)*err_prop(s_000, s_450)
-    du = (ru/(ru + 1)**2)*err_prop(s_225, s_675)
+    q = sign * (rq - 1) / (rq + 1)
+    u = sign * (ru - 1) / (ru + 1)
+    dq = (rq / (rq + 1) ** 2) * err_prop(s_000, s_450)
+    du = (ru / (ru + 1) ** 2) * err_prop(s_225, s_675)
     q, u, dq, du = convert_pct(q, u, dq, du, already=False, convert2unit=out_pct)
     return q, u, dq, du
 
 
 # TODO: make calc_qu_3set, which uses 0, 60, 120 degree data.
-def correct_eff(
-        q, u, dq=0, du=0,
-        p_eff=1,
-        dp_eff=0,
-        in_pct=False,
-        out_pct=False
-):
-    """ Correct the polarimetric efficiency.
+def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, out_pct=False):
+    """Correct the polarimetric efficiency.
 
     Parameters
     ----------
@@ -208,29 +278,37 @@ def correct_eff(
         (if `out_pct` is `True`).
     """
     q, dq, u, du, p_eff, dp_eff = convert_pct(
-        q, dq, u, du, p_eff, dp_eff, already=in_pct, convert2unit=False)
+        q, dq, u, du, p_eff, dp_eff, already=in_pct, convert2unit=False
+    )
 
-    q_eff = q/p_eff
-    u_eff = u/p_eff
+    q_eff = q / p_eff
+    u_eff = u / p_eff
 
-    dq_eff = np.abs(q_eff)*err_prop(dq/q, dp_eff/p_eff)
-    du_eff = np.abs(u_eff)*err_prop(du/u, dp_eff/p_eff)
+    dq_eff = np.abs(q_eff) * err_prop(dq / q, dp_eff / p_eff)
+    du_eff = np.abs(u_eff) * err_prop(du / u, dp_eff / p_eff)
 
-    q_eff, u_eff, dq_eff, du_eff = convert_pct(q_eff, u_eff, dq_eff, du_eff,
-                                               already=False, convert2unit=out_pct)
+    q_eff, u_eff, dq_eff, du_eff = convert_pct(
+        q_eff, u_eff, dq_eff, du_eff, already=False, convert2unit=out_pct
+    )
     return q_eff, u_eff, dq_eff, du_eff
 
 
 def correct_off(
-        q, u, dq=0, du=0,
-        rot_q=0, rot_u=0,
-        q_off=0, u_off=0,
-        dq_off=0, du_off=0,
-        in_pct=False,
-        in_deg=False,
-        out_pct=False
+    q,
+    u,
+    dq=0,
+    du=0,
+    rot_q=0,
+    rot_u=0,
+    q_off=0,
+    u_off=0,
+    dq_off=0,
+    du_off=0,
+    in_pct=False,
+    in_deg=False,
+    out_pct=False,
 ):
-    ''' Correct the instrument-induced polarization due to the offsets.
+    """Correct the instrument-induced polarization due to the offsets.
 
     Parameters
     ----------
@@ -263,38 +341,42 @@ def correct_off(
     Notes
     -----
     Assumed: rotator angle (INSROT-like value) is assumed to have zero error.
-    '''
+    """
     q, dq, u, du, q_off, dq_off, u_off, du_off = convert_pct(
         q, dq, u, du, q_off, dq_off, u_off, du_off, already=in_pct, convert2unit=False
     )
     rot_q, rot_u = convert_deg(rot_q, rot_u, already=in_deg, convert2unit=False)
 
-    cos2q = np.cos(2*rot_q)
-    sin2q = np.sin(2*rot_q)
-    cos2u = np.cos(2*rot_u)
-    sin2u = np.sin(2*rot_u)
-    q_rot = q - (cos2q*q_off - sin2q*u_off)
-    u_rot = u - (cos2u*q_off - sin2u*u_off)
+    cos2q = np.cos(2 * rot_q)
+    sin2q = np.sin(2 * rot_q)
+    cos2u = np.cos(2 * rot_u)
+    sin2u = np.sin(2 * rot_u)
+    q_rot = q - (cos2q * q_off - sin2q * u_off)
+    u_rot = u - (cos2u * q_off - sin2u * u_off)
 
-    dq_rot = err_prop(dq, cos2q*dq_off, sin2q*du_off)
-    du_rot = err_prop(du, cos2u*dq_off, sin2u*du_off)
+    dq_rot = err_prop(dq, cos2q * dq_off, sin2q * du_off)
+    du_rot = err_prop(du, cos2u * dq_off, sin2u * du_off)
 
-    q_rot, u_rot, dq_rot, du_rot = convert_pct(q_rot, u_rot, dq_rot, du_rot,
-                                               already=False, convert2unit=out_pct)
+    q_rot, u_rot, dq_rot, du_rot = convert_pct(
+        q_rot, u_rot, dq_rot, du_rot, already=False, convert2unit=out_pct
+    )
     return q_rot, u_rot, dq_rot, du_rot
 
 
 def correct_pa(
-        q, u, dq=0, du=0,
-        pa_off=0,
-        dpa_off=0,
-        pa_obs=0,
-        pa_ccw=True,
-        in_pct=False,
-        in_deg=False,
-        out_pct=False
+    q,
+    u,
+    dq=0,
+    du=0,
+    pa_off=0,
+    dpa_off=0,
+    pa_obs=0,
+    pa_ccw=True,
+    in_pct=False,
+    in_deg=False,
+    out_pct=False,
 ):
-    '''Convert the q, u values from image coordinate to the celestial one.
+    """Convert the q, u values from image coordinate to the celestial one.
 
     Notes
     -----
@@ -339,34 +421,34 @@ def correct_pa(
         celestial coordinate rather than the image coordinate) and their
         errors. The unit can be natural (if `out_pct` is `False`) or percentage
         (if `out_pct` is `True`).
-    '''
+    """
     q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
     pa_off, dpa_off, pa_obs = convert_deg(
         pa_off, dpa_off, pa_obs, already=in_deg, convert2unit=False
     )
 
     sign = 1 if pa_ccw else -1
-    offset = sign*(pa_off - pa_obs)
-    cos2o = np.cos(2*offset)
-    sin2o = np.sin(2*offset)
-    q_inst = cos2o*q + sin2o*u
-    u_inst = -sin2o*q + cos2o*u
+    offset = sign * (pa_off - pa_obs)
+    cos2o = np.cos(2 * offset)
+    sin2o = np.sin(2 * offset)
+    q_inst = cos2o * q + sin2o * u
+    u_inst = -sin2o * q + cos2o * u
 
-    dq_inst = err_prop(cos2o*dq, sin2o*du, 2*sin2o*q*dpa_off, 2*cos2o*u*dpa_off)
-    du_inst = err_prop(sin2o*dq, cos2o*du, 2*cos2o*q*dpa_off, 2*sin2o*u*dpa_off)
+    dq_inst = err_prop(
+        cos2o * dq, sin2o * du, 2 * sin2o * q * dpa_off, 2 * cos2o * u * dpa_off
+    )
+    du_inst = err_prop(
+        sin2o * dq, cos2o * du, 2 * cos2o * q * dpa_off, 2 * sin2o * u * dpa_off
+    )
 
-    q_inst, u_inst, dq_inst, du_inst = convert_pct(q_inst, u_inst, dq_inst, du_inst,
-                                                   already=False, convert2unit=out_pct)
+    q_inst, u_inst, dq_inst, du_inst = convert_pct(
+        q_inst, u_inst, dq_inst, du_inst, already=False, convert2unit=out_pct
+    )
     return q_inst, u_inst, dq_inst, du_inst
 
 
-def calc_pol(
-        q, u, dq=0, du=0,
-        in_pct=False,
-        out_pct=False,
-        out_deg=False
-):
-    """ Calculate the polarization degree and error.
+def calc_pol(q, u, dq=0, du=0, in_pct=False, out_pct=False, out_deg=False):
+    """Calculate the polarization degree and error.
     Parameters
     ----------
     q, u : float, ndarray
@@ -393,9 +475,9 @@ def calc_pol(
     """
     q, dq, u, du = convert_pct(q, dq, u, du, already=in_pct, convert2unit=False)
     pol = np.sqrt(q**2 + u**2)
-    dpol = err_prop(q*dq, u*du)/pol
-    thp = 0.5*np.arctan2(u, q)
-    dthp = err_prop(q*du, u*dq)/(2*pol**2)
+    dpol = err_prop(q * dq, u * du) / pol
+    thp = 0.5 * np.arctan2(u, q)
+    dthp = err_prop(q * du, u * dq) / (2 * pol**2)
 
     pol, dpol = convert_pct(pol, dpol, already=False, convert2unit=out_pct)
     thp, dthp = convert_deg(thp, dthp, already=False, convert2unit=out_deg)
@@ -403,17 +485,18 @@ def calc_pol(
 
 
 def calc_pol_r(
-        pol, thp,
-        dpol=0,
-        dthp=0,
-        suntargetpa=0,
-        dsuntargetpa=0,
-        in_pct=False,
-        in_deg=False,
-        out_pct=False,
-        out_deg=False
+    pol,
+    thp,
+    dpol=0,
+    dthp=0,
+    suntargetpa=0,
+    dsuntargetpa=0,
+    in_pct=False,
+    in_deg=False,
+    out_pct=False,
+    out_deg=False,
 ):
-    """ Calculate the "proper" polarization degree and error (following B.
+    """Calculate the "proper" polarization degree and error (following B.
     Lyot's definition).
 
     Parameters
@@ -444,8 +527,9 @@ def calc_pol_r(
         North to East direction), and their errors.
     """
     pol, dpol = convert_pct(pol, dpol, already=in_pct, convert2unit=False)
-    thp, dthp, suntargetpa, dsuntargetpa = convert_deg(thp, dthp, suntargetpa, dsuntargetpa,
-                                                       already=in_deg, convert2unit=False)
+    thp, dthp, suntargetpa, dsuntargetpa = convert_deg(
+        thp, dthp, suntargetpa, dsuntargetpa, already=in_deg, convert2unit=False
+    )
     thr = thp + suntargetpa
     # if np.array(thr).size == 1:
     #     thr += np.pi/2 if thr < 0 else 0
@@ -453,10 +537,10 @@ def calc_pol_r(
     # else:
     #     thr[thr < 0] += np.pi/2
     #     thr[thr > np.pi] -= np.pi/2
-    cos2r = np.cos(2*thr)
-    sin2r = np.sin(2*thr)
-    polr = pol*cos2r
-    dpolr = np.max([err_prop(dpol*cos2r, pol*(-2*sin2r)*dthp), dpol], axis=0)
+    cos2r = np.cos(2 * thr)
+    sin2r = np.sin(2 * thr)
+    polr = pol * cos2r
+    dpolr = np.max([err_prop(dpol * cos2r, pol * (-2 * sin2r) * dthp), dpol], axis=0)
     dthr = err_prop(dthp, dsuntargetpa)
     polr, dpolr = convert_pct(polr, dpolr, already=False, convert2unit=out_pct)
     thr, dthr = convert_deg(thr, dthr, already=False, convert2unit=out_deg)
@@ -468,33 +552,41 @@ class PolObjMixin:
     def _set_qu(self):
         if self.mode == "lin_oe_4set":
             # The ratios, r for each HWP angle
-            self.r000 = self.i000_e/self.i000_o
-            self.r045 = self.i450_e/self.i450_o
-            self.r225 = self.i225_e/self.i225_o
-            self.r675 = self.i675_e/self.i675_o
+            self.r000 = self.i000_e / self.i000_o
+            self.r045 = self.i450_e / self.i450_o
+            self.r225 = self.i225_e / self.i225_o
+            self.r675 = self.i675_e / self.i675_o
 
             # noise-to-signal (dr/r) of I_e/I_o for each HWP angle
-            self.ns000 = err_prop(self.di000_e/self.i000_e, self.di000_o/self.i000_o)
-            self.ns450 = err_prop(self.di450_e/self.i450_e, self.di450_o/self.i450_o)
-            self.ns225 = err_prop(self.di225_e/self.i225_e, self.di225_o/self.i225_o)
-            self.ns675 = err_prop(self.di675_e/self.i675_e, self.di675_o/self.i675_o)
+            self.ns000 = err_prop(
+                self.di000_e / self.i000_e, self.di000_o / self.i000_o
+            )
+            self.ns450 = err_prop(
+                self.di450_e / self.i450_e, self.di450_o / self.i450_o
+            )
+            self.ns225 = err_prop(
+                self.di225_e / self.i225_e, self.di225_o / self.i225_o
+            )
+            self.ns675 = err_prop(
+                self.di675_e / self.i675_e, self.di675_o / self.i675_o
+            )
 
             # The q/u values
-            self.r_q = np.sqrt(self.r000/self.r045)
-            self.r_u = np.sqrt(self.r225/self.r675)
-            self.q0 = (self.r_q - 1)/(self.r_q + 1)
-            self.u0 = (self.r_u - 1)/(self.r_u + 1)
+            self.r_q = np.sqrt(self.r000 / self.r045)
+            self.r_u = np.sqrt(self.r225 / self.r675)
+            self.q0 = (self.r_q - 1) / (self.r_q + 1)
+            self.u0 = (self.r_u - 1) / (self.r_u + 1)
 
             # The errors
             s_q = err_prop(self.ns000, self.ns450)
             s_u = err_prop(self.ns225, self.ns675)
-            self.dq0 = (self.r_q/(self.r_q + 1)**2 * s_q)
-            self.du0 = (self.r_u/(self.r_u + 1)**2 * s_u)
+            self.dq0 = self.r_q / (self.r_q + 1) ** 2 * s_q
+            self.du0 = self.r_u / (self.r_u + 1) ** 2 * s_u
         else:
             raise ValueError(f"{self.mode} not understood.")
 
 
-'''
+"""
     @property
     def _set_qu(self):
         self.o_val = {}
@@ -547,15 +639,29 @@ class PolObjMixin:
                 raise ValueError(f"{name} must be a length 4 or (N, 4) array.")
 
         setattr(self, name, a)
-'''
+"""
 
 
 class LinPolOE4(PolObjMixin):
-    def __init__(self, i000_o, i000_e, i450_o, i450_e,
-                 i225_o, i225_e, i675_o, i675_e,
-                 di000_o=None, di000_e=None, di450_o=None, di450_e=None,
-                 di225_o=None, di225_e=None, di675_o=None, di675_e=None
-                 ):
+    def __init__(
+        self,
+        i000_o,
+        i000_e,
+        i450_o,
+        i450_e,
+        i225_o,
+        i225_e,
+        i675_o,
+        i675_e,
+        di000_o=None,
+        di000_e=None,
+        di450_o=None,
+        di450_e=None,
+        di225_o=None,
+        di225_e=None,
+        di675_o=None,
+        di675_e=None,
+    ):
         """
         Parameters
         ----------
@@ -578,35 +684,64 @@ class LinPolOE4(PolObjMixin):
         self.i675_o = np.array(i675_o)
         self.i675_e = np.array(i675_e)
 
-        if not (self.i000_o.shape == self.i000_e.shape
-                == self.i450_o.shape == self.i450_e.shape
-                == self.i225_o.shape == self.i225_e.shape
-                == self.i675_o.shape == self.i675_e.shape):
+        if not (
+            self.i000_o.shape
+            == self.i000_e.shape
+            == self.i450_o.shape
+            == self.i450_e.shape
+            == self.i225_o.shape
+            == self.i225_e.shape
+            == self.i675_o.shape
+            == self.i675_e.shape
+        ):
             raise ValueError("all ixxx_<oe> must share the identical shape.")
 
-        _dis = dict(di000_o=di000_o, di000_e=di000_e,
-                    di450_o=di450_o, di450_e=di450_e,
-                    di225_o=di225_o, di225_e=di225_e,
-                    di675_o=di675_o, di675_e=di675_e)
+        _dis = dict(
+            di000_o=di000_o,
+            di000_e=di000_e,
+            di450_o=di450_o,
+            di450_e=di450_e,
+            di225_o=di225_o,
+            di225_e=di225_e,
+            di675_o=di675_o,
+            di675_e=di675_e,
+        )
         for k, v in _dis.items():
             if v is None:
                 v = np.zeros_like(getattr(self, k[1:]))
             setattr(self, k, np.array(v))
 
-        if not (self.di000_o.shape == self.di000_e.shape
-                == self.di450_o.shape == self.di450_e.shape
-                == self.di225_o.shape == self.di225_e.shape
-                == self.di675_o.shape == self.di675_e.shape):
+        if not (
+            self.di000_o.shape
+            == self.di000_e.shape
+            == self.di450_o.shape
+            == self.di450_e.shape
+            == self.di225_o.shape
+            == self.di225_e.shape
+            == self.di675_o.shape
+            == self.di675_e.shape
+        ):
             raise ValueError("all dixxx_<oe> must share the identical shape.")
 
     # TODO: This should apply for any linear polarimetry using HWP..?
     # So maybe should move to Mixin class.
-    def calc_pol(self, p_eff=1., dp_eff=0.,
-                 q_inst=0., u_inst=0., dq_inst=0., du_inst=0.,
-                 rot_instq=0., rot_instu=0.,
-                 pa_inst=0., theta_inst=0., dtheta_inst=0.,
-                 percent=True, degree=True):
-        '''
+    def calc_pol(
+        self,
+        p_eff=1.0,
+        dp_eff=0.0,
+        q_inst=0.0,
+        u_inst=0.0,
+        dq_inst=0.0,
+        du_inst=0.0,
+        rot_instq=0.0,
+        rot_instu=0.0,
+        pa_inst=0.0,
+        theta_inst=0.0,
+        dtheta_inst=0.0,
+        percent=True,
+        degree=True,
+    ):
+        """
         Parameters
         ----------
         p_eff, dp_eff : float, optional.
@@ -636,17 +771,17 @@ class LinPolOE4(PolObjMixin):
             Whether ``rot_instq``, ``rot_instu``, ``theta_inst``,
             ``dtheta_inst`` are in degree unit. Otherwise it must be in
             radians. Defaults to ``True``.
-        '''
+        """
 
         if percent:
             # polarization efficiency
-            p_eff = p_eff/100
-            dp_eff = dp_eff/100
+            p_eff = p_eff / 100
+            dp_eff = dp_eff / 100
             # instrumental polarization
-            q_inst = q_inst/100
-            u_inst = u_inst/100
-            dq_inst = dq_inst/100
-            du_inst = du_inst/100
+            q_inst = q_inst / 100
+            u_inst = u_inst / 100
+            dq_inst = dq_inst / 100
+            du_inst = du_inst / 100
 
         self.p_eff = p_eff
         self.dp_eff = dp_eff
@@ -672,39 +807,39 @@ class LinPolOE4(PolObjMixin):
 
         self._set_qu()
 
-        self.q1 = self.q0/self.p_eff
-        self.u1 = self.u0/self.p_eff
-        self.dq1 = err_prop(self.dq0, np.abs(self.q1)*self.dp_eff)/self.p_eff
-        self.du1 = err_prop(self.du0, np.abs(self.u1)*self.dp_eff)/self.p_eff
+        self.q1 = self.q0 / self.p_eff
+        self.u1 = self.u0 / self.p_eff
+        self.dq1 = err_prop(self.dq0, np.abs(self.q1) * self.dp_eff) / self.p_eff
+        self.du1 = err_prop(self.du0, np.abs(self.u1) * self.dp_eff) / self.p_eff
 
         # self.messages = ("Polarization efficiency corrected by "
         #                   + f"p_eff = {self.p_eff}, "
         #                   + f"dp_eff = {self.dp_eff}.")
 
-        rotq = (np.cos(2*self.rot_instq), np.sin(2*self.rot_instq))
-        rotu = (np.cos(2*self.rot_instu), np.sin(2*self.rot_instu))
-        self.q2 = (self.q1 - (self.q_inst*rotq[0] - self.u_inst*rotq[1]))
-        self.u2 = (self.u1 - (self.q_inst*rotu[1] + self.u_inst*rotu[0]))
+        rotq = (np.cos(2 * self.rot_instq), np.sin(2 * self.rot_instq))
+        rotu = (np.cos(2 * self.rot_instu), np.sin(2 * self.rot_instu))
+        self.q2 = self.q1 - (self.q_inst * rotq[0] - self.u_inst * rotq[1])
+        self.u2 = self.u1 - (self.q_inst * rotu[1] + self.u_inst * rotu[0])
         # dq_inst_rot = err_prop(self.dq_inst*rotq[0], self.du_inst*rotq[1])
         # du_inst_rot = err_prop(self.dq_inst*rotu[1], self.du_inst*rotu[0])
-        self.dq2 = err_prop(self.dq1, self.dq_inst*rotq[0], self.du_inst*rotq[1])
-        self.du2 = err_prop(self.du1, self.dq_inst*rotu[1], self.du_inst*rotu[0])
+        self.dq2 = err_prop(self.dq1, self.dq_inst * rotq[0], self.du_inst * rotq[1])
+        self.du2 = err_prop(self.du1, self.dq_inst * rotu[1], self.du_inst * rotu[0])
 
         theta = self.theta_inst - self.pa_inst
-        rot = (np.cos(2*theta), np.sin(2*theta))
-        self.q3 = +1*self.q2*rot[0] + self.u2*rot[1]
-        self.u3 = -1*self.q2*rot[1] + self.u2*rot[0]
-        self.dq3 = err_prop(rot[0]*self.dq2,
-                            rot[1]*self.du2,
-                            2*self.u3*dtheta_inst)
-        self.du3 = err_prop(rot[1]*self.dq2,
-                            rot[0]*self.du2,
-                            2*self.q3*dtheta_inst)
+        rot = (np.cos(2 * theta), np.sin(2 * theta))
+        self.q3 = +1 * self.q2 * rot[0] + self.u2 * rot[1]
+        self.u3 = -1 * self.q2 * rot[1] + self.u2 * rot[0]
+        self.dq3 = err_prop(
+            rot[0] * self.dq2, rot[1] * self.du2, 2 * self.u3 * dtheta_inst
+        )
+        self.du3 = err_prop(
+            rot[1] * self.dq2, rot[0] * self.du2, 2 * self.q3 * dtheta_inst
+        )
 
         self.pol = np.sqrt(self.q3**2 + self.u3**2)
-        self.dpol = err_prop(self.q3*self.dq3, self.u3*self.du3)/self.pol
-        self.theta = 0.5*np.arctan2(self.u3, self.q3)
-        self.dtheta = 0.5*self.dpol/self.pol
+        self.dpol = err_prop(self.q3 * self.dq3, self.u3 * self.du3) / self.pol
+        self.theta = 0.5 * np.arctan2(self.u3, self.q3)
+        self.dtheta = 0.5 * self.dpol / self.pol
 
         if percent:
             self.pol *= 100
@@ -721,9 +856,9 @@ def proper_pol(pol, theta, psang, degree=True):
         psang = np.rad2deg(psang)
 
     dphi = psang + 90
-    dphi = dphi - 180*(dphi//180)
+    dphi = dphi - 180 * (dphi // 180)
     theta_r = theta - dphi
-    pol_r = pol*np.cos(2*np.deg2rad(theta_r))
+    pol_r = pol * np.cos(2 * np.deg2rad(theta_r))
     if not degree:
         theta_r = np.deg2rad(theta_r)
     return pol_r, theta_r

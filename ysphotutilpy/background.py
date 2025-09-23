@@ -6,29 +6,29 @@ from astropy.nddata import CCDData
 from astropy.stats import sigma_clip
 from astropy.table import Table
 
-__all__ = ['quick_sky_circ', 'sky_fit', "annul2values"]
+__all__ = ["quick_sky_circ", "sky_fit", "annul2values"]
 
 
 def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
-    """ Estimate sky with crude presets
-    """
+    """Estimate sky with crude presets"""
     from photutils.aperture import CircularAnnulus
+
     annulus = CircularAnnulus(pos, r_in=r_in, r_out=r_out)
     return sky_fit(ccd, annulus)
 
 
 def sky_fit(
-        ccd,
-        annulus=None,
-        mask=None,
-        method='mode',
-        mode_option='sex',
-        std_ddof=1,
-        to_table=True,
-        return_skyarr=False,
-        **kwargs
+    ccd,
+    annulus=None,
+    mask=None,
+    method="mode",
+    mode_option="sex",
+    std_ddof=1,
+    to_table=True,
+    return_skyarr=False,
+    **kwargs,
 ):
-    """ Estimate the sky value from image and annulus.
+    """Estimate the sky value from image and annulus.
 
     Parameters
     ----------
@@ -90,8 +90,9 @@ def sky_fit(
         The 1-d array (or list of such if multiple annuli) of sky values.
 
     """
+
     def _sstd(arr, ddof=0, axis=None):
-        return np.sqrt(arr.size/(arr.size - ddof))*bn.nanstd(arr, axis=axis)
+        return np.sqrt(arr.size / (arr.size - ddof)) * bn.nanstd(arr, axis=axis)
 
     skydicts = []
     if annulus is None:
@@ -109,30 +110,32 @@ def sky_fit(
         nrej = sky.size - sky_clip.size
         nsky = sky.size - nrej
         if nrej < 0:
-            raise ValueError('nrej < 0: check the code')
+            raise ValueError("nrej < 0: check the code")
 
         if nrej > nsky:  # rejected > survived
-            warn('More than half of the pixels rejected.')
+            warn("More than half of the pixels rejected.")
 
-        if method.lower() == 'mode':
+        if method.lower() == "mode":
             mean = np.mean(sky_clip)
             med = np.median(sky_clip)
-            if mode_option.lower() == 'sex':
-                skydict["msky"] = med if (mean - med)/std > 0.3 else (2.5*med) - (1.5*mean)
-            elif mode_option.lower() == 'iraf':
-                skydict["msky"] = mean if (mean < med) else 3*med - 2*mean
-            elif mode_option.lower() == 'mmm':
-                skydict["msky"] = 3*med - 2*mean
+            if mode_option.lower() == "sex":
+                skydict["msky"] = (
+                    med if (mean - med) / std > 0.3 else (2.5 * med) - (1.5 * mean)
+                )
+            elif mode_option.lower() == "iraf":
+                skydict["msky"] = mean if (mean < med) else 3 * med - 2 * mean
+            elif mode_option.lower() == "mmm":
+                skydict["msky"] = 3 * med - 2 * mean
             else:
-                raise ValueError('mode_option not understood')
-        elif method.lower() == 'mean':
+                raise ValueError("mode_option not understood")
+        elif method.lower() == "mean":
             skydict["msky"] = np.mean(sky_clip)
-        elif method.lower() == 'median':
+        elif method.lower() == "median":
             skydict["msky"] = np.median(sky_clip)
 
-        skydict['ssky'] = std
-        skydict['nsky'] = nsky
-        skydict['nrej'] = nrej
+        skydict["ssky"] = std
+        skydict["nsky"] = nsky
+        skydict["nrej"] = nrej
         skydicts.append(skydict)
     if to_table:
         if return_skyarr:
@@ -141,12 +144,8 @@ def sky_fit(
     return (skydicts, skys) if return_skyarr else skydicts
 
 
-def annul2values(
-        ccd,
-        annulus,
-        mask=None
-):
-    ''' Extracts the pixel values from the image with annuli
+def annul2values(ccd, annulus, mask=None):
+    """Extracts the pixel values from the image with annuli
 
     Parameters
     ----------
@@ -163,7 +162,7 @@ def annul2values(
     values: list of ndarray
         The list of pixel values. Length is the same as the number of annuli in
         ``annulus``.
-    '''
+    """
     if isinstance(ccd, CCDData):
         _ccd = ccd.copy()
         _arr = _ccd.data
@@ -178,7 +177,7 @@ def annul2values(
     if mask is not None:
         _mask |= mask
 
-    an_masks = annulus.to_mask(method='center')
+    an_masks = annulus.to_mask(method="center")
     try:
         if annulus.isscalar:  # as of photutils 0.7
             an_masks = [an_masks]
@@ -249,22 +248,22 @@ def mmm_dao(
     """
     sky = np.array(sky)
     if (nsky := sky.size) < min_nsky:
-        sigma = -1.
-        skew = 0.
+        sigma = -1.0
+        skew = 0.0
         raise ValueError(f"Input vector must contain at least {min_nsky = } elements.")
 
     # do the MMM sky estimation similar to DAOPHOT (MMM.pro of https://idlastro.gsfc.nasa.gov/ftp/pro/idlphot/mmm.pro)
     sky = np.sort(sky)
-    skymid = 0.5*sky[(nsky-1)//2] + 0.5*sky[nsky//2]
-    cut1 = min([skymid-sky[0], sky[-1]-skymid])
+    skymid = 0.5 * sky[(nsky - 1) // 2] + 0.5 * sky[nsky // 2]
+    cut1 = min([skymid - sky[0], sky[-1] - skymid])
     if highbad is not None:
-        cut1 = min(cut1, highbad-skymid)
+        cut1 = min(cut1, highbad - skymid)
     cut2 = skymid + cut1
     cut1 = skymid - cut1
     goodmask = (cut1 <= sky) & (sky <= cut2)
     if (ngood := np.count_nonzero(goodmask)) == 0:
-        sigma = -1.
-        skew = 0.
+        sigma = -1.0
+        skew = 0.0
         raise ValueError(f"No sky values survived: {cut1:.4f}<=sky<={cut2:.4f}")
 
     skydelta = sky[goodmask] - skymid
@@ -275,7 +274,9 @@ def mmm_dao(
     min_idx = _goodidx[0] - 1
 
     # compute mean and standard deviation
-    skymed = 0.5*(sky[(min_idx+max_idx+1)//2] + sky[(min_idx+max_idx)//2 + 1])
+    skymed = 0.5 * (
+        sky[(min_idx + max_idx + 1) // 2] + sky[(min_idx + max_idx) // 2 + 1]
+    )
 
     """
  cut1 = min( [skymid-sky[0],sky[nsky-1] - skymid] )
