@@ -32,6 +32,43 @@ def err_prop(*errs):
     return np.sqrt(sqsum(*errs))
 
 
+def enclosing_circle_radius(mask, center=None):
+    """
+    Calculate the radius of the smallest enclosing circle for a given mask.
+
+    Parameters
+    ----------
+    mask : 2D array-like
+        The input mask (binary image) where non-zero values are considered
+        as the region of interest.
+
+    center : tuple, optional
+        The (x, y) coordinates of the center of the circle. If not provided,
+        the center will be calculated as the centroid of the masked region.
+
+    Returns
+    -------
+    float
+        The radius of the smallest enclosing circle.
+    """
+    # Find the coordinates of the non-zero pixels in the mask
+    y, x = np.nonzero(mask)
+
+    if len(x) == 0 or len(y) == 0:
+        # If the mask is empty, return 0
+        return 0.0
+
+    if center is None:
+        # Calculate the centroid of the masked region
+        center = (np.mean(x), np.mean(y))
+
+    # Calculate the distances from the center to all non-zero pixels
+    distances = np.sqrt((x - center[0])**2 + (y - center[1])**2)
+
+    # Return the maximum distance as the radius
+    return np.max(distances)
+
+
 def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
     ''' Converts units among non-physical units (%, deg-radian, etc).
     Parameters
