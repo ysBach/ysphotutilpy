@@ -3,8 +3,8 @@ from warnings import warn
 import numpy as np
 import bottleneck as bn
 from astropy.nddata import CCDData
-from astropy.stats import sigma_clip
 from astropy.table import Table
+from .util import sample_std, sigma_clipper
 
 __all__ = ["quick_sky_circ", "sky_fit", "annul2values"]
 
@@ -21,8 +21,8 @@ def sky_fit(
     ccd,
     annulus=None,
     mask=None,
-    method="mode",
-    mode_option="sex",
+    method="sex",
+    sky_clipper=sigma_clipper,
     std_ddof=1,
     to_table=True,
     return_skyarr=False,
@@ -39,19 +39,30 @@ def sky_fit(
         The annulus which will be used to estimate sky values.
         If `None` (default), the whole image will be used.
 
-    method : {"mean", "median", "mode"}, optional.
-        The method to estimate sky value. You can give options to "mode" case;
-        see `mode_option`. "mode" is analogous to Mode Estimator Background
-        of photutils.
+    method : {"sex", "IRAF", "MMM", "mean", "median"}, callable, optional.
+        The method to estimate sky value.
 
-    mode_option : {"sex", "IRAF", "MMM"}, optional.
-        Three options::
-
+          * mean/median: simple nanmean/nanmedian of the sky values.
           * sex  == (med_factor, mean_factor) = (2.5, 1.5)
           * IRAF == (med_factor, mean_factor) = (3, 2)
           * MMM  == (med_factor, mean_factor) = (3, 2)
 
         where ``msky = (med_factor * med) - (mean_factor * mean)``.
+        For the `"sex"` method, if (mean - median)/std < 0.3, median is used
+        instead of the above formula, which mimics the SExtractor's way.
+        If a callable is given, it should have the signature
+        ``func(skyarr, ssky) -> msky`` where `skyarr` is the 1-d array of sky
+        values and `ssky` is the sample standard deviation after using
+        `sky_clipper`. Example: ``method = lambda x, s: np.median(x)``.
+        The default is ``"sex"``.
+
+    sky_clipper : callable, `None`, optional.
+        The function to be used to clip the sky values before estimating the
+        sky value. The function should have the signature
+        ``func(skyarr, **kwargs) -> clipped_skyarr`` where `skyarr` is the 1-d
+        array of sky values. If `None`, no clipping will be applied
+        (i.e., ``lambda x: x[~np.isnan(x)]`` is used).
+        The default is `ysphotutilpy.util.sigma_clipper`.
 
     std_ddof : int, optional.
         The "delta-degrees of freedom" for sky standard deviation calculation.
@@ -65,7 +76,7 @@ def sky_fit(
         values will be returned.
 
     kwargs : dict, optional.
-        The keyword arguments for sigma-clipping.
+        The keyword arguments for `sky_clipper`.
 
     Returns
     -------
@@ -90,10 +101,6 @@ def sky_fit(
         The 1-d array (or list of such if multiple annuli) of sky values.
 
     """
-
-    def _sstd(arr, ddof=0, axis=None):
-        return np.sqrt(arr.size / (arr.size - ddof)) * bn.nanstd(arr, axis=axis)
-
     skydicts = []
     if annulus is None:
         try:  # CCDData or HDU
@@ -103,45 +110,77 @@ def sky_fit(
     else:
         skys = annul2values(ccd, annulus, mask=mask)
 
-    for i, sky in enumerate(skys):
+    if sky_clipper is None:
+        sky_clipper = lambda x, **kwargs: x[~np.isnan(x)]
+
+    for _, sky in enumerate(skys):
         skydict = {}
-        sky_clip = sigma_clip(sky, masked=False, stdfunc=_sstd, **kwargs)
-        std = np.std(sky_clip, ddof=std_ddof)
-        nrej = sky.size - sky_clip.size
-        nsky = sky.size - nrej
-        if nrej < 0:
-            raise ValueError("nrej < 0: check the code")
-
-        if nrej > nsky:  # rejected > survived
-            warn("More than half of the pixels rejected.")
-
-        if method.lower() == "mode":
-            mean = np.mean(sky_clip)
-            med = np.median(sky_clip)
-            if mode_option.lower() == "sex":
-                skydict["msky"] = (
-                    med if (mean - med) / std > 0.3 else (2.5 * med) - (1.5 * mean)
-                )
-            elif mode_option.lower() == "iraf":
-                skydict["msky"] = mean if (mean < med) else 3 * med - 2 * mean
-            elif mode_option.lower() == "mmm":
-                skydict["msky"] = 3 * med - 2 * mean
-            else:
-                raise ValueError("mode_option not understood")
-        elif method.lower() == "mean":
-            skydict["msky"] = np.mean(sky_clip)
-        elif method.lower() == "median":
-            skydict["msky"] = np.median(sky_clip)
-
+        msky, std, nsky, nrej = _sky_fit(
+            sky,
+            method=method,
+            sky_clipper=sky_clipper,
+            std_ddof=std_ddof,
+            **kwargs,
+        )
+        skydict["msky"] = msky
         skydict["ssky"] = std
         skydict["nsky"] = nsky
         skydict["nrej"] = nrej
         skydicts.append(skydict)
+
     if to_table:
         if return_skyarr:
             return Table(skydicts), skys
         return Table(skydicts)
+
     return (skydicts, skys) if return_skyarr else skydicts
+
+
+def _sky_fit(
+    sky,
+    method="sex",
+    sky_clipper=sigma_clipper,
+    std_ddof=1,
+    **kwargs,
+):
+    sky_clipped = sky_clipper(sky, **kwargs)
+
+    if isinstance(method, str):
+        method = method.lower()
+        if method == "sex":
+            std = np.std(sky_clipped, ddof=std_ddof)
+            mean = np.mean(sky_clipped)
+            med = np.median(sky_clipped)
+            msky = (
+                med if (mean - med) / std > 0.3 else (2.5 * med) - (1.5 * mean)
+            )
+        elif method == "median":
+            std = np.std(sky_clipped, ddof=std_ddof)
+            msky = np.median(sky_clipped)
+        elif method == "mean":
+            std = np.std(sky_clipped, ddof=std_ddof)
+            msky = np.mean(sky_clipped)
+        elif method == "iraf":
+            std = np.std(sky_clipped, ddof=std_ddof)
+            mean = np.mean(sky_clipped)
+            med = np.median(sky_clipped)
+            msky = mean if (mean < med) else 3 * med - 2 * mean
+        elif method == "mmm":
+            std = np.std(sky_clipped, ddof=std_ddof)
+            mean = np.mean(sky_clipped)
+            med = np.median(sky_clipped)
+            msky = 3 * med - 2 * mean
+        else:
+            raise ValueError(f"{method=} not understood")
+
+    else:
+        std = np.std(sky_clipped, ddof=std_ddof)
+        msky = method(sky_clipped, std)
+
+    nsky = sky_clipped.size
+    nrej = sky.size - nsky
+
+    return msky, std, nsky, nrej
 
 
 def annul2values(ccd, annulus, mask=None):
@@ -164,18 +203,15 @@ def annul2values(ccd, annulus, mask=None):
         ``annulus``.
     """
     if isinstance(ccd, CCDData):
-        _ccd = ccd.copy()
-        _arr = _ccd.data
-        _mask = _ccd.mask
-    else:  # ndarrayk
-        _arr = np.array(ccd)
-        _mask = None
-
-    if _mask is None:
-        _mask = np.zeros_like(_arr).astype(bool)
-
-    if mask is not None:
-        _mask |= mask
+        arr = np.asarray(ccd.data)
+        base_mask = np.asarray(ccd.mask, dtype=bool)
+        if base_mask is None:
+            base_mask = np.zeros_like(arr).astype(bool)
+        if mask is not None:
+            base_mask = base_mask | np.asarray(mask, dtype=bool)
+    else:  # ndarray
+        arr = np.asarray(ccd)
+        base_mask = None if mask is None else np.asarray(mask, dtype=bool)
 
     an_masks = annulus.to_mask(method="center")
     try:
@@ -201,7 +237,7 @@ def annul2values(ccd, annulus, mask=None):
     #     # values.append(sky_values)
     #     values.append(np.array(skys_i[~mask_i].ravel(), dtype=_arr.dtype))
 
-    return [am.get_values(_arr, _mask) for am in an_masks]
+    return [am.get_values(arr, base_mask) for am in an_masks]
 
 
 def mmm_dao(
