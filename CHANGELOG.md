@@ -6,7 +6,10 @@
 * `background.sky_fit`
   * ``mode_option`` is removed. Instead of ``method="mode", mode_option="sex"``, use ``method="sex"``, etc.
   * Sky sigma-clipping can now be skipped. Use `sky_clipper` as a user-given function, `None`, or the default `utils.sigma_clipper`.
-*
+* `radprof.radial_profile`
+  * New `add_center` (default False) option. Adds (r, y) = (0, center_pixel) for convenience.
+  * Fix: standard deviation could be negative when `norm_by_center` is `True` and central pixel value is negative. Now fixed by using the absolute value of central pixel.
+
 
 ## [0.2]
 
