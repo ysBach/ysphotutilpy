@@ -73,8 +73,7 @@ def apphot_annulus(
     sky_keys : dict
         args/kwargs of `sky_fit`. If `None`(default), 3-sigma 5-iters clipping
         with ``ddof=1`` is performed, and then the modal sky value is estimated
-        by SExtractor estimator (mode = 2.5median - 1.5mean). To use different
-        parameters, give those kwargs to `sky_keys` as dict.
+        by SExtractor estimator; see `~ysphotutilpy.background.sky_fit`.
 
     sky_min : float
         The minimum value of the sky to be used for sky subtraction.
@@ -277,8 +276,7 @@ def apphot_annulus(
                 _arr,
                 annulus,
                 mask=_mask,
-                method="mode",
-                mode_option="sex",
+                method="sex",
                 sigma=3,
                 maxiters=5,
                 std_ddof=1,
