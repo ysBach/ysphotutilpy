@@ -3,11 +3,19 @@ A collection of temporary utilities, and likely be removed if similar
 functionality can be achieved by pre-existing packages.
 """
 
+from collections.abc import Callable
+from typing import Literal
+
+import bottleneck as bn
 import numpy as np
 from astropy.modeling.fitting import LevMarLSQFitter
 from astropy.modeling.functional_models import Gaussian2D
+from astropy.stats import sigma_clip
+from numpy.typing import ArrayLike, NDArray
 
 __all__ = [
+    "sample_std",
+    "sigma_clipper",
     "magsum",
     "sqsum",
     "err_prop",
@@ -21,6 +29,36 @@ __all__ = [
     "gaussian_kernel",
 ]
 
+
+def sample_std(arr, ddof=0, axis=None):
+    """Sample standard deviation, ignoring NaN values.
+    """
+    try:
+        return np.sqrt(arr.size / (arr.size - ddof)) * bn.nanstd(arr, axis=axis)
+    except ZeroDivisionError:
+        return np.array([], dtype=float)  # empty array
+
+
+def sigma_clipper(
+    data: ArrayLike,
+    sigma: float = 3.0,
+    sigma_lower: float | None = None,
+    sigma_upper: float | None = None,
+    maxiters: int | None = 5,
+    cenfunc: Literal["median", "mean"] | Callable = "median",
+    stdfunc: Literal["std", "mad_std"] | Callable = sample_std,
+) -> ArrayLike | tuple[ArrayLike, float, float] | tuple[ArrayLike, ...]:
+    """A simple wrapper of `astropy.stats.sigma_clip` with sample_std"""
+    return sigma_clip(
+        data,
+        masked=False,  # Hard coded
+        sigma=sigma,
+        sigma_lower=sigma_lower,
+        sigma_upper=sigma_upper,
+        maxiters=maxiters,
+        cenfunc=cenfunc,
+        stdfunc=stdfunc,
+    )
 
 def magsum(*args):
     """Calculates the "sum" of magnitudes.
