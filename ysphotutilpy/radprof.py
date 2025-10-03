@@ -61,7 +61,7 @@ def fwhm_r(popt, fun):
 
 
 def radial_profile(
-    im, center, radii=1, thickness=1, mask=None, norm_by_center=False, **kwargs
+    im, center, radii=1, thickness=1, mask=None, norm_by_center=False, add_center=False, **kwargs
 ):
     """Calculate radial profile of the image.
     Parameters
@@ -90,26 +90,33 @@ def radial_profile(
 
     """
     radii = np.asarray(radii).ravel()
-    profs = []
-    for i, r in enumerate(radii):
-        an = CircularAnnulus(
-            center, r_in=max(0.01, r - thickness / 2), r_out=r + thickness / 2
-        )
-        _skyfit = sky_fit(im, an, mask=mask, **kwargs).to_pandas()
-        _skyfit["r"] = r
-        profs.append(_skyfit)
 
-    profs = pd.concat(profs)
-    profs = profs.rename(columns={"msky": "mpix", "ssky": "spix", "nsky": "npix"})
-    profs["spix_n"] = profs["spix"] / np.sqrt(profs["npix"])
     center_val = im[
         *(np.round(center).astype(int)[::-1])
     ]  # reverse for (y, x) indexing
 
+    if add_center:
+        # use original names (names for sky_fit before renaming)
+        profs = [{"r": 0, "msky": center_val, "ssky": 0, "nsky": 1, "nrej": 0}]
+    else:
+        profs = []
+    for r in radii:
+        an = CircularAnnulus(
+            center, r_in=max(0.01, r - thickness / 2), r_out=r + thickness / 2
+        )
+        _skyfit = sky_fit(im, an, mask=mask, to_table=False, **kwargs)[0]
+        _skyfit["r"] = r
+        profs.append(_skyfit)
+
+    profs = pd.DataFrame.from_dict(profs)
+    profs = profs.rename(columns={"msky": "mpix", "ssky": "spix", "nsky": "npix"})
+    profs["spix_n"] = profs["spix"] / np.sqrt(profs["npix"])
+
     if norm_by_center:
-        profs["mpix"] /= center_val
-        profs["spix"] /= center_val
-        profs["spix_n"] /= center_val
+        _cval = np.abs(center_val)
+        profs["mpix"] /= _cval
+        profs["spix"] /= _cval
+        profs["spix_n"] /= _cval
     return profs, center_val
 
 
