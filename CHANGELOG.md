@@ -1,6 +1,14 @@
 # Changelog
 
-## [0.2] - unreleased
+## [0.2.1]
+
+### Major changes
+* `background.sky_fit`
+  * ``mode_option`` is removed. Instead of ``method="mode", mode_option="sex"``, use ``method="sex"``, etc.
+  * Sky sigma-clipping can now be skipped. Use `sky_clipper` as a user-given function, `None`, or the default `utils.sigma_clipper`.
+*
+
+## [0.2]
 
 ### Major changes
 
