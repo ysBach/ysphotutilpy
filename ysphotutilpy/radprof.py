@@ -81,6 +81,10 @@ def radial_profile(
     norm_by_center : bool, optional
         If True, normalize the profile by the value at the center position.
         Default is False.
+    add_center : bool, optional
+        If `True`, include the center pixel value as the first entry in the
+        profile (r = 0, mpix = center pixel value, spix = 0, npix = 1).
+        Default is `False`.
     **kwargs : dict, optional
         Additional keyword arguments to pass to the `sky_fit` function.
     Returns
