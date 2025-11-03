@@ -1,6 +1,8 @@
 """ Radial profiles
 """
 
+from itertools import repeat
+
 import numpy as np
 import pandas as pd
 from astropy.nddata import CCDData, Cutout2D
@@ -74,8 +76,8 @@ def radial_profile(
         The radii of the annulus.
     mask : 2D array, optional
         A mask to apply to the image. Pixels with True values will be ignored.
-    thickness : int, optional
-        The thickness of the annulus for the radial profile.
+    thickness : int, array of int, optional
+        The thickness(es) of the annulus for the radial profile.
     norm_by_center : bool, optional
         If True, normalize the profile by the value at the center position.
         Default is False.
@@ -90,6 +92,10 @@ def radial_profile(
 
     """
     radii = np.asarray(radii).ravel()
+    if np.isscalar(thickness):
+        thickness = repeat(thickness, len(radii))
+    else:
+        thickness = np.asarray(thickness).ravel()
 
     center_val = im[
         *(np.round(center).astype(int)[::-1])
@@ -100,9 +106,9 @@ def radial_profile(
         profs = [{"r": 0, "msky": center_val, "ssky": 0, "nsky": 1, "nrej": 0}]
     else:
         profs = []
-    for r in radii:
+    for r, _thick in zip(radii, thickness):
         an = CircularAnnulus(
-            center, r_in=max(0.01, r - thickness / 2), r_out=r + thickness / 2
+            center, r_in=max(0.01, r - _thick / 2), r_out=r + _thick / 2
         )
         _skyfit = sky_fit(im, an, mask=mask, to_table=False, **kwargs)[0]
         _skyfit["r"] = r
