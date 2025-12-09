@@ -13,9 +13,6 @@ from astropy.io.fits import Header
 from astropy.table import Table, vstack
 from astropy.wcs import WCS
 from astroquery.jplhorizons import Horizons, conf
-from astroquery.mast import Catalogs
-from astroquery.vizier import Vizier
-from astroquery.gaia import Gaia
 from scipy.interpolate import UnivariateSpline
 
 from .util import bezel_mask
@@ -434,6 +431,8 @@ class GaiaDR3:
         """
         https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html
         """
+        from astroquery.gaia import Gaia
+
         Gaia.ROW_LIMIT = -1
         self.coordinate = coordinate
         self.radius = radius
@@ -676,6 +675,7 @@ class MASTQuery:
         self.filters = filter_kw
 
     def query(self):
+        from astroquery.mast import Catalogs
         self.queried = Catalogs.query_criteria(
             coordinates=self.coordinates,
             radius=self.radius,
@@ -785,6 +785,7 @@ class PanSTARRS1:
         self.column_filters = column_filters
 
     def query(self):
+        from astroquery.vizier import Vizier
         vquery = Vizier(
             columns=self.columns, column_filters=self.column_filters, row_limit=-1
         )
