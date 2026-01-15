@@ -314,185 +314,147 @@ def mmm_dao(
         sky[(min_idx + max_idx + 1) // 2] + sky[(min_idx + max_idx) // 2 + 1]
     )
 
-    """
- cut1 = min( [skymid-sky[0],sky[nsky-1] - skymid] )
- if N_elements(highbad) EQ 1 then cut1 = cut1 < (highbad - skymid)
- cut2 = skymid + cut1
- cut1 = skymid - cut1
-
-; Select the pixels between Cut1 and Cut2
-
- good = where( (sky LE cut2) and (sky GE cut1), Ngood )
- if ( Ngood EQ 0 ) then begin
-      sigma=-1.0 &  skew = 0.0
-      message,/CON, NoPrint=Silent, $
-           'ERROR - No sky values fall within ' + strtrim(cut1,2) + $
-	   ' and ' + strtrim(cut2,2)
-      return
-   endif
-
- delta = sky[good] - skymid  ;Subtract median to improve arithmetic accuracy
- sum = total(delta,/double)
- sumsq = total(delta^2,/double)
-
- maximm = max( good,MIN=minimm )  ;Highest value accepted at upper end of vector
- minimm = minimm -1               ;Highest value reject at lower end of vector
-
-; Compute mean and sigma (from the first pass).
-
- skymed = 0.5*sky[(minimm+maximm+1)/2] + 0.5*sky[(minimm+maximm)/2 + 1] ;median
- skymn = float(sum/(maximm-minimm))                            ;mean
- sigma = sqrt(sumsq/(maximm-minimm)-skymn^2)             ;sigma
- skymn = skymn + skymid         ;Add median which was subtracted off earlier
-
-
-;    If mean is less than the mode, then the contamination is slight, and the
-;    mean value is what we really want.
-skymod =  (skymed LT skymn) ? 3.*skymed - 2.*skymn : skymn
-
-; Rejection and recomputation loop:
-
- niter = 0
- clamp = 1
- old = 0
-START_LOOP:
-   niter = niter + 1
-   if ( niter GT mxiter ) then begin
-      sigma=-1.0 &  skew = 0.0
-      message,/CON, NoPrint=Silent, $
-           'ERROR - Too many ('+strtrim(mxiter,2) + ') iterations,' + $
-           ' unable to compute sky'
-      return
-   endif
-
-   if ( maximm-minimm LT minsky ) then begin    ;Error?
-
-      sigma = -1.0 &  skew = 0.0
-      message,/CON,NoPrint=Silent, $
-            'ERROR - Too few ('+strtrim(maximm-minimm,2) +  $
-           ') valid sky elements, unable to compute sky'
-      return
-   endif
-
-; Compute Chauvenet rejection criterion.
-
-    r = alog10( float( maximm-minimm ) )
-    r = max( [ 2., ( -0.1042*r + 1.1695)*r + 0.8895 ] )
-
-; Compute rejection limits (symmetric about the current mode).
-
-    cut = r*sigma + 0.5*abs(skymn-skymod)
-    if integer then cut = cut > 1.5
-    cut1 = skymod - cut   &    cut2 = skymod + cut
-;
-; Recompute mean and sigma by adding and/or subtracting sky values
-; at both ends of the interval of acceptable values.
-
-    redo = 0B
-    newmin = minimm
-    tst_min = sky[newmin+1] GE cut1      ;Is minimm+1 above current CUT?
-    done = (newmin EQ -1) and tst_min    ;Are we at first pixel of SKY?
-    if ~done then  $
-        done =  (sky[newmin>0] LT cut1) and tst_min
-    if ~done then begin
-        istep = 1 - 2*fix(tst_min)
-        repeat begin
-                newmin = newmin + istep
-                done = (newmin EQ -1) || (newmin EQ nlast)
-                if ~done then $
-                    done = (sky[newmin] LE cut1) and (sky[newmin+1] GE cut1)
-        endrep until done
-        if tst_min then delta = sky[newmin+1:minimm] - skymid $
-                   else delta = sky[minimm+1:newmin] - skymid
-        sum = sum - istep*total(delta,/double)
-        sumsq = sumsq - istep*total(delta^2,/double)
-        redo = 1b
-        minimm = newmin
-     endif
-;
-   newmax = maximm
-   tst_max = sky[maximm] LE cut2           ;Is current maximum below upper cut?
-   done = (maximm EQ nlast) and tst_max    ;Are we at last pixel of SKY array?
-   if ~done then $
-       done = ( tst_max ) && (sky[(maximm+1)<nlast] GT cut2)
-    if ~done then begin                 ;Keep incrementing NEWMAX
-       istep = -1 + 2*fix(tst_max)         ;Increment up or down?
-       Repeat begin
-          newmax = newmax + istep
-          done = (newmax EQ nlast) or (newmax EQ -1)
-          if ~done then $
-                done = ( sky[newmax] LE cut2 ) and ( sky[newmax+1] GE cut2 )
-       endrep until done
-       if tst_max then delta = sky[maximm+1:newmax] - skymid $
-               else delta = sky[newmax+1:maximm] - skymid
-       sum = sum + istep*total(delta,/double)
-       sumsq = sumsq + istep*total(delta^2,/double)
-       redo = 1b
-       maximm = newmax
-    endif
-;
-; Compute mean and sigma (from this pass).
-;
-   nsky = maximm - minimm
-   if ( nsky LT minsky ) then begin    ;Error?
-       sigma = -1.0 &  skew = 0.0
-       message,NoPrint=Silent, /CON, $
-               'ERROR - Outlier rejection left too few sky elements'
-       return
-   endif
-
-   skymn = float(sum/nsky)
-   sigma = float( sqrt( (sumsq/nsky - skymn^2)>0 ))
+    skymn = float(deltasum / (max_idx - min_idx))
+    sigma = np.sqrt(deltasumsq / (max_idx - min_idx) - skymn**2)
     skymn = skymn + skymid
 
+    if skymed < skymn:
+        skymod = 3 * skymed - 2 * skymn
+    else:
+        skymod = skymn
 
-;  Determine a more robust median by averaging the central 20% of pixels.
-;  Estimate the median using the mean of the central 20 percent of sky
-;  values.   Be careful to include a perfectly symmetric sample of pixels about
-;  the median, whether the total number is even or odd within the acceptance
-;  interval
+    # Rejection and recomputation loop
+    niter = 0
+    clamp = 1
+    old = 0
 
-        center = (minimm + 1 + maximm)/2.
-        side = round(0.2*(maximm-minimm))/2.  + 0.25
-        J = round(CENTER-SIDE)
-        K = round(CENTER+SIDE)
+    # Python version of the IDL loop (START_LOOP)
+    while True:
+        niter += 1
+        if niter > maxiter:
+            sigma = -1.0
+            skew = 0.0
+            raise ValueError(f"Too many ({maxiter}) iterations, unable to compute sky.")
 
-;  In case  the data has a large number of of the same (quantized)
-;  intensity, expand the range until both limiting values differ from the
-;  central value by at least 0.25 times the read noise.
+        if max_idx - min_idx < min_nsky:
+            sigma = -1.0
+            skew = 0.0
+            # raise ValueError(f"Too few ({max_idx - min_idx}) valid sky elements.")
+            # It seems robust to just return the current estimate
+            break
 
-        if keyword_set(readnoise) then begin
-          L = round(CENTER-0.25)
-          M = round(CENTER+0.25)
-          R = 0.25*readnoise
-          while ((J GT 0) && (K LT Nsky-1) && $
-            ( ((sky[L] - sky[J]) LT R) || ((sky[K] - sky[M]) LT R))) do begin
-             J--
-             K++
-        endwhile
-        endif
-   skymed = total(sky[j:k])/(k-j+1)
+        # Compute Chauvenet rejection criterion
+        r = np.log10(float(max_idx - min_idx))
+        r = max(2.0, (-0.1042 * r + 1.1695) * r + 0.8895)
 
-;  If the mean is less than the median, then the problem of contamination
-;  is slight, and the mean is what we really want.
+        # Compute rejection limits
+        cut = r * sigma + 0.5 * np.abs(skymn - skymod)
+        if issubclass(sky.dtype.type, np.integer):
+            cut = max(cut, 1.5)
 
-   dmod = skymed LT skymn ?  3.*skymed-2.*skymn-skymod : skymn - skymod
+        cut1 = skymod - cut
+        cut2 = skymod + cut
 
-; prevent oscillations by clamping down if sky adjustments are changing sign
-   if dmod*old LT 0 then clamp = 0.5*clamp
-   skymod = skymod + clamp*dmod
-   old = dmod
-   if redo then goto, START_LOOP
+        # Recompute mean and sigma
+        redo = False
+        newmin = min_idx
 
-;
- skew = float( (skymn-skymod)/max([1.,sigma]) )
- nsky = maximm - minimm
+        # Adjust min_idx (minimm)
+        tst_min = sky[newmin + 1] >= cut1
+        done = (newmin == -1) and tst_min
 
- if keyword_set(DEBUG) or ( N_params() EQ 1 ) then begin
-        print, '% MMM: Number of unrejected sky elements: ', strtrim(nsky,2), $
-              '    Number of iterations: ',  strtrim(niter,2)
-        print, '% MMM: Mode, Sigma, Skew of sky vector:', skymod, sigma, skew
- endif
+        if not done:
+            done = (sky[max(newmin, 0)] < cut1) and tst_min
 
- return
- end"""
+        if not done:
+            istep = 1 - 2 * int(tst_min)
+            while True:
+                newmin += istep
+                done = (newmin == -1) or (newmin == (nsky - 1))
+                if not done:
+                     done = (sky[newmin] <= cut1) and (sky[newmin + 1] >= cut1)
+                if done:
+                    break
+
+            if tst_min:
+                delta = sky[newmin + 1 : min_idx + 1] - skymid
+            else:
+                delta = sky[min_idx + 1 : newmin + 1] - skymid
+
+            deltasum = deltasum - istep * np.sum(delta)
+            deltasumsq = deltasumsq - istep * np.sum(delta**2)
+            redo = True
+            min_idx = newmin
+
+        # Adjust max_idx (maximm)
+        newmax = max_idx
+        tst_max = sky[max_idx] <= cut2
+        done = (max_idx == nsky - 1) and tst_max
+        if not done:
+            done = tst_max and (sky[min(max_idx + 1, nsky - 1)] > cut2)
+
+        if not done:
+            istep = -1 + 2 * int(tst_max)
+            while True:
+                newmax += istep
+                done = (newmax == nsky - 1) or (newmax == -1)
+                if not done:
+                    done = (sky[newmax] <= cut2) and (sky[newmax + 1] >= cut2)
+                if done:
+                    break
+
+            if tst_max:
+                delta = sky[max_idx + 1 : newmax + 1] - skymid
+            else:
+                delta = sky[newmax + 1 : max_idx + 1] - skymid
+
+            deltasum = deltasum + istep * np.sum(delta)
+            deltasumsq = deltasumsq + istep * np.sum(delta**2)
+            redo = True
+            max_idx = newmax
+
+        # Compute mean and sigma
+        nsky_curr = max_idx - min_idx
+        if nsky_curr < min_nsky:
+            sigma = -1.0
+            skew = 0.0
+            # raise ValueError("Outlier rejection left too few sky elements.")
+            break
+
+        skymn = float(deltasum / nsky_curr)
+        sigma = float(np.sqrt(max(0, deltasumsq / nsky_curr - skymn**2)))
+        skymn = skymn + skymid
+
+        # Determine robust median
+        center = (min_idx + 1 + max_idx) / 2.0
+        side = round(0.2 * (max_idx - min_idx)) / 2.0 + 0.25
+        J = int(round(center - side))
+        K = int(round(center + side))
+
+        if readnoise > 0:
+            L = int(round(center - 0.25))
+            M = int(round(center + 0.25))
+            R = 0.25 * readnoise
+            while (J > 0) and (K < nsky - 1) and \
+                  ((sky[L] - sky[J] < R) or (sky[K] - sky[M] < R)):
+                J -= 1
+                K += 1
+
+        skymed = np.sum(sky[J : K + 1]) / (K - J + 1)
+
+        if skymed < skymn:
+            dmod = 3 * skymed - 2 * skymn - skymod
+        else:
+            dmod = skymn - skymod
+
+        if dmod * old < 0:
+            clamp = 0.5 * clamp
+
+        skymod = skymod + clamp * dmod
+        old = dmod
+
+        if not redo:
+            break
+
+    return skymod
+
