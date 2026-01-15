@@ -23,14 +23,14 @@ __all__ = [
 ]
 
 
-def circular_slice(shape, pos, radius, resturn_offset=False):
+def circular_slice(shape, pos, radius, return_offset=False):
     offset = np.array([max(0, _p - radius) for _p in pos])
     slices = [
         slice(int(_o), min(_n, int(_p + radius) + 1))
         for _o, _p, _n in zip(offset[::-1], pos[::-1], shape)
     ]
     #         flooring by `int`, ceiling by "`int` and +1"
-    if resturn_offset:
+    if return_offset:
         return tuple(slices), np.array([sl.start for sl in slices[::-1]])
     return tuple(slices)
 
@@ -45,7 +45,7 @@ def circular_bbox_cut(img, pos, radius, return_dists=False):
     """
     img = np.array(img)
     # position difference between the current position and cutout position
-    sl, offset = circular_slice(img.shape, pos, radius, resturn_offset=True)
+    sl, offset = circular_slice(img.shape, pos, radius, return_offset=True)
     cut = img[sl]
     pos_cut = np.array(pos) - offset
     if return_dists:
@@ -207,7 +207,7 @@ def _center_sep(
 
     """
     cut_slices, cut_offset = circular_slice(
-        data.shape, position, crad, resturn_offset=True
+        data.shape, position, crad, return_offset=True
     )
     cut, pos_cut, offset, dists = circular_bbox_cut(
         data, position, crad, return_dists=True
