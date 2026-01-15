@@ -1,5 +1,12 @@
+"""
+Shared test data and utilities for ysphotutilpy tests.
+"""
+
 import numpy as np
 
+# =============================================================================
+# Legacy test data (for backward compatibility with existing tests)
+# =============================================================================
 STAR_1_2 = np.ones((50, 50))
 STAR_1_2[:25, :] *= 2
 STAR_1_2[23:27, 23:27] = np.array([
@@ -13,4 +20,10 @@ STAR_1_2[15, 25] = 500
 RDN = 2.5
 GAIN = 2
 STAR_1_2_err = np.sqrt(STAR_1_2/GAIN) + RDN/GAIN
+
+
+# =============================================================================
+# Helper functions available to all test modules
+# =============================================================================
+__all__ = ['STAR_1_2', 'STAR_1_2_err', 'RDN', 'GAIN']
 
