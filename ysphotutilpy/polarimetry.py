@@ -760,7 +760,7 @@ class LinPolOE4(PolObjMixin):
             The position angle (North to East) of the instrument.
             If array-like, it must have the same length as
             ``ixxx_[oe]``.
-        theta_inst, dtheta_inst : float, optinoal.
+        theta_inst, dtheta_inst : float, optional.
             The instrumental polarization rotation angle theta and its
             error.
         percent : bool, optional.
