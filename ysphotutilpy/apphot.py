@@ -368,7 +368,7 @@ def apphot_ellip_sep(
     exposure_key="EXPTIME",
     error=None,
     mask=None,
-    sky_keys={},
+    sky_keys=None,
     aparea_exact=False,
     t_exposure_unit=u.s,
     verbose=False,
@@ -383,6 +383,9 @@ def apphot_ellip_sep(
         import sep
     except ImportError:
         raise ImportError("sep is required for apphot_annulus_sep")
+
+    if sky_keys is None:
+        sky_keys = {}
 
     _ccd = ccd.copy()
 

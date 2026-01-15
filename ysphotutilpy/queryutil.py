@@ -701,7 +701,7 @@ class PanSTARRS1:
         width=None,
         height=None,
         columns=["**", "+_r"],
-        column_filters={},
+        column_filters=None,
     ):
         """Query PanSTARRS @ VizieR using astroquery.vizier
 
@@ -750,6 +750,9 @@ class PanSTARRS1:
         -----
         All columns: http://vizier.u-strasbg.fr/viz-bin/VizieR?-source=II/349
         """
+        if column_filters is None:
+            column_filters = {}
+
         _params = dict(
             ra=ra,
             dec=dec,
@@ -1607,11 +1610,14 @@ def panstarrs_query(
     width=None,
     height=None,
     columns=None,
-    column_filters={},
+    column_filters=None,
 ):
     """
     DEPRECATED
     """
+    if column_filters is None:
+        column_filters = {}
+
     warn("DEPRECATED: Use PanSTARRS1 class instead.", DeprecationWarning, stacklevel=2)
     ps1 = PanSTARRS1(
         ra=ra_deg * u.deg,

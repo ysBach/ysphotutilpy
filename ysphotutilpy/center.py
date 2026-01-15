@@ -712,7 +712,7 @@ def find_center_2dg(
     msky=None,
     ssky=0,
     sky_annulus=None,
-    sky_kw={},
+    sky_kw=None,
     maxiters=5,
     error=None,
     atol_shift=1.0e-4,
@@ -805,6 +805,9 @@ def find_center_2dg(
         The history of ``x`` and ``y`` positions. The 0-th element is the
         initial position and the last element is the final fitted position.
     """
+    if sky_kw is None:
+        sky_kw = {}
+
     if sky_annulus is not None:
         import copy
 
