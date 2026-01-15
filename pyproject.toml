@@ -1,5 +1,53 @@
 [build-system]
-requires = [
-    "setuptools"
-]
+requires = ["setuptools>=61.0", "setuptools_scm>=8.0"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "ysphotutilpy"
+dynamic = ["version"]
+description = "Convenience utilities made by ysBach especially for photometry"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "BSD 3-clause"}
+authors = [
+    {name = "Yoonsoo P. Bach", email = "ysbach93@gmail.com"}
+]
+keywords = ["astronomy", "data reduction", "image analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Education",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "numpy >= 1.20",
+    "scipy >= 1.5",
+    "astropy >= 5.0",
+    "photutils >= 2.0, < 3.0",
+    "ccdproc >= 2.0",
+    "pandas >= 1.0",
+    "bottleneck",
+    "astroscrappy",
+    "astroquery",
+]
+
+[project.urls]
+Homepage = "https://github.com/ysBach/ysphotutilpy"
+Source = "https://github.com/ysBach/ysphotutilpy"
+Tracker = "https://github.com/ysBach/ysphotutilpy/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+namespaces = false
+
+[tool.setuptools_scm]
