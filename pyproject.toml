@@ -51,3 +51,11 @@ include-package-data = true
 namespaces = false
 
 [tool.setuptools_scm]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    # Ignore expected runtime warnings from library edge cases
+    "ignore:divide by zero:RuntimeWarning",
+    "ignore:invalid value encountered:RuntimeWarning",
+    "ignore:Object with initial position.*shifted larger than:UserWarning",
+]
