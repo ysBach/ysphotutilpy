@@ -6,9 +6,11 @@ All expected values are analytically derived.
 
 import numpy as np
 import pytest
-from numpy.testing import assert_allclose
 from astropy.nddata import CCDData
+from numpy.testing import assert_allclose
+from photutils.aperture import CircularAnnulus
 
+from ..background import annul2values
 from ..radprof import (
     gauss_r,
     moffat_r,
@@ -347,12 +349,9 @@ class TestRadialProfileAnalytical:
         Annulus area = pi * (r_out^2 - r_in^2)
         For r_in=5, r_out=7: area = pi * (49 - 25) = 24*pi ≈ 75.4
         """
-        from photutils.aperture import CircularAnnulus
-
         an = CircularAnnulus((50, 50), r_in=5, r_out=7)
 
-        # Using sky_fit to count pixels
-        from ..background import annul2values
+        # Using annul2values to count pixels
         vals = annul2values(uniform_100x100, an)
 
         # Should have approximately pi * (49 - 25) = 75.4 pixels

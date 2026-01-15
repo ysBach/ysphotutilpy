@@ -11,6 +11,7 @@ from photutils.aperture import CircularAnnulus, EllipticalAnnulus
 
 from . import STAR_1_2
 from ..background import annul2values, sky_fit, quick_sky_circ, mmm_dao
+from ..util import sigma_clipper
 
 
 # =============================================================================
@@ -329,7 +330,6 @@ class TestSkyFitAnalytical:
         result = sky_fit(sky, annulus=None, method='iraf')
 
         # Apply same sigma clipping as sky_fit does internally
-        from ..util import sigma_clipper
         sky_clipped = sigma_clipper(sky)
         sky_clipped = sky_clipped[~np.isnan(sky_clipped)]  # Remove NaN
 
@@ -355,7 +355,6 @@ class TestSkyFitAnalytical:
         result = sky_fit(sky, annulus=None, method='mmm')
 
         # Apply same sigma clipping as sky_fit does internally
-        from ..util import sigma_clipper
         sky_clipped = sigma_clipper(sky)
         sky_clipped = sky_clipped[~np.isnan(sky_clipped)]  # Remove NaN
 

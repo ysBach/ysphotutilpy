@@ -5,9 +5,14 @@ All expected values are analytically derived.
 """
 
 import numpy as np
-import pytest
-from numpy.testing import assert_allclose, assert_array_equal
-from astropy.nddata import CCDData
+from astropy.nddata import CCDData, Cutout2D
+from numpy.testing import assert_allclose
+from photutils.aperture import (
+    CircularAperture,
+    CircularAnnulus,
+    EllipticalAperture,
+    RectangularAperture,
+)
 
 from ..aperture import (
     circ_ap_an,
@@ -256,8 +261,6 @@ class TestCutoutFromAp:
 
     def test_cutout_from_ap_shape(self, uniform_100x100):
         """Test cutout has correct shape from aperture bounding box."""
-        from photutils.aperture import CircularAperture
-
         ccd = CCDData(uniform_100x100, unit='adu')
         ap = CircularAperture((50, 50), r=10)
 
@@ -270,8 +273,6 @@ class TestCutoutFromAp:
 
     def test_cutout_from_ap_values(self, uniform_100x100):
         """Test cutout contains correct values."""
-        from photutils.aperture import CircularAperture
-
         ccd = CCDData(uniform_100x100, unit='adu')
         ap = CircularAperture((50, 50), r=5)
 
@@ -286,9 +287,6 @@ class TestApToCutoutPosition:
 
     def test_position_update(self, uniform_100x100):
         """Test aperture position is correctly updated for cutout."""
-        from photutils.aperture import CircularAperture
-        from astropy.nddata import Cutout2D
-
         ccd = CCDData(uniform_100x100, unit='adu')
         ap = CircularAperture((50, 50), r=5)
 
@@ -311,8 +309,6 @@ class TestApertureAreaFormulas:
 
         For r = 7: area = pi * 49 = 153.9380...
         """
-        from photutils.aperture import CircularAperture
-
         ap = CircularAperture((0, 0), r=7)
         expected = np.pi * 49
         assert_allclose(ap.area, expected, rtol=1e-10)
@@ -323,8 +319,6 @@ class TestApertureAreaFormulas:
 
         For r_in = 5, r_out = 10: area = pi * (100 - 25) = 75 * pi = 235.6194...
         """
-        from photutils.aperture import CircularAnnulus
-
         an = CircularAnnulus((0, 0), r_in=5, r_out=10)
         expected = np.pi * 75
         assert_allclose(an.area, expected, rtol=1e-10)
@@ -335,8 +329,6 @@ class TestApertureAreaFormulas:
 
         For a = 8, b = 4: area = pi * 32 = 100.5309...
         """
-        from photutils.aperture import EllipticalAperture
-
         ap = EllipticalAperture((0, 0), a=8, b=4, theta=0)
         expected = np.pi * 32
         assert_allclose(ap.area, expected, rtol=1e-10)
@@ -347,8 +339,6 @@ class TestApertureAreaFormulas:
 
         For w = 10, h = 5: area = 50
         """
-        from photutils.aperture import RectangularAperture
-
         ap = RectangularAperture((0, 0), w=10, h=5, theta=0)
         expected = 50.0
         assert_allclose(ap.area, expected, rtol=1e-10)

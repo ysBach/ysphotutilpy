@@ -6,9 +6,11 @@ All expected values are analytically derived.
 
 import numpy as np
 import pytest
-from numpy.testing import assert_allclose, assert_array_equal
 from astropy.nddata import CCDData
+from numpy.testing import assert_allclose, assert_array_equal
+from photutils.centroids import centroid_com
 
+from .conftest import make_gaussian_2d
 from ..center import (
     circular_slice,
     circular_bbox_cut,
@@ -312,9 +314,6 @@ class TestCentroidingAnalytical:
         For G(x, y) = A * exp(-((x-x0)^2 + (y-y0)^2) / (2*sigma^2)),
         the center of mass is (x0, y0).
         """
-        from photutils.centroids import centroid_com
-        from .conftest import make_gaussian_2d
-
         # Create symmetric Gaussian at known position
         x_true, y_true = 25.5, 30.3
         data = make_gaussian_2d(
@@ -339,9 +338,6 @@ class TestCentroidingAnalytical:
         (this is only true if we use pixels above a threshold that
         excludes the background).
         """
-        from photutils.centroids import centroid_com
-        from .conftest import make_gaussian_2d
-
         x_true, y_true = 25.0, 25.0
 
         # Without background

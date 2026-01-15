@@ -5,6 +5,7 @@ All expected values are analytically derived.
 """
 
 import numpy as np
+from astropy.modeling.functional_models import Gaussian2D
 from numpy.testing import assert_allclose, assert_array_equal
 
 from ..util import (
@@ -373,8 +374,6 @@ class TestGaussian2DCorrect:
         """
         When y_stddev > x_stddev, axes should be swapped and theta adjusted.
         """
-        from astropy.modeling.functional_models import Gaussian2D
-
         # Create Gaussian with y_stddev > x_stddev
         g = Gaussian2D(amplitude=1, x_mean=0, y_mean=0, x_stddev=1, y_stddev=2, theta=0)
         g_corrected = Gaussian2D_correct(g)
@@ -386,8 +385,6 @@ class TestGaussian2DCorrect:
         """
         Theta should be normalized to [-pi/2, pi/2].
         """
-        from astropy.modeling.functional_models import Gaussian2D
-
         g = Gaussian2D(amplitude=1, x_mean=0, y_mean=0, x_stddev=2, y_stddev=1, theta=5.0)
         g_corrected = Gaussian2D_correct(g)
 
@@ -397,8 +394,6 @@ class TestGaussian2DCorrect:
         """
         Corrected Gaussian should produce identical output.
         """
-        from astropy.modeling.functional_models import Gaussian2D
-
         g = Gaussian2D(amplitude=100, x_mean=5, y_mean=5, x_stddev=1, y_stddev=2, theta=0.5)
         g_corrected = Gaussian2D_correct(g)
 

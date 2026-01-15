@@ -213,10 +213,10 @@ def uniform_with_noise():
     """
     Uniform array (mean=100) with Gaussian noise (std=10).
 
-    Uses fixed seed for reproducibility.
+    Uses isolated RNG for reproducibility without affecting global state.
     """
-    np.random.seed(RANDOM_SEED)
-    return np.random.normal(loc=100.0, scale=10.0, size=SHAPE_MEDIUM)
+    rng = np.random.default_rng(RANDOM_SEED)
+    return rng.normal(loc=100.0, scale=10.0, size=SHAPE_MEDIUM)
 
 
 @pytest.fixture

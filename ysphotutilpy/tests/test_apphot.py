@@ -5,9 +5,9 @@ All expected values are analytically derived.
 """
 
 import numpy as np
-from numpy.testing import assert_allclose
 from astropy.nddata import CCDData
-from photutils.aperture import CircularAperture, CircularAnnulus
+from numpy.testing import assert_allclose
+from photutils.aperture import CircularAperture, CircularAnnulus, aperture_photometry
 
 from ..apphot import apphot_annulus
 
@@ -183,8 +183,6 @@ class TestPhotometryAnalytical:
         Image value = V, aperture area = A
         aperture_sum = V * A
         """
-        from photutils.aperture import aperture_photometry
-
         value = 50.0
         radius = 10.0
         data = np.full((100, 100), value)
