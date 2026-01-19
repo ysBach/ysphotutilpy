@@ -6,35 +6,42 @@ from astropy.nddata import Cutout2D
 from astropy.table import Table, vstack
 from photutils.psf import DAOGroup
 
-__all__ = ["dao_nstar_clamp", "dao_weight_map", "dao_nstar",
-           "daophot_concat", "IntegratedGaussianPRF", "IntegratedGaussian2D"]
+__all__ = [
+    "dao_nstar_clamp",
+    "dao_weight_map",
+    "dao_nstar",
+    "daophot_concat",
+    "IntegratedGaussianPRF",
+    "IntegratedGaussian2D",
+]
 
 
 def dao_nstar_clamp(p_old, p_new_raw, p_clamp):
-    ''' The "clamp" for NSTAR routine
+    """The "clamp" for NSTAR routine
     Notes
     -----
     StetsonPB 1987, PASP, 99, 191, p.208
-    '''
+    """
     dp_raw = p_new_raw - p_old
     p_new = p_old + dp_raw / (1 + np.abs(dp_raw) / p_clamp)
     return p_new
 
 
 def dao_weight_map(data, position, r_fit):
-    ''' The weight for centering routine
+    """The weight for centering routine
     Notes
     -----
     StetsonPB 1987, PASP, 99, 191, p.207
     https://iraf.net/irafhelp.php?val=daopars&help=Help+Page
     https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/daophot/daopars.html
-    '''
+    """
     x0, y0 = position
     is_cut = False
     if np.any(np.array(data.shape) > (2 * r_fit + 1)):  # To save CPU
         is_cut = True
-        cut = Cutout2D(data=data, position=(x0, y0),
-                       size=(2 * r_fit + 1), mode='partial')
+        cut = Cutout2D(
+            data=data, position=(x0, y0), size=(2 * r_fit + 1), mode="partial"
+        )
         data = cut.data
         x0, y0 = cut.to_cutout_position((x0, y0))
 
@@ -42,18 +49,27 @@ def dao_weight_map(data, position, r_fit):
     yy_data, xx_data = np.mgrid[:ny, :nx]
 
     # add 1.e-6 to avoid zero division
-    distance_map = np.sqrt((xx_data - x0)**2 + (yy_data - y0)**2) + 1.e-6
+    distance_map = np.sqrt((xx_data - x0) ** 2 + (yy_data - y0) ** 2) + 1.0e-6
     dist = np.ma.array(data=distance_map, mask=(distance_map > r_fit))
     rsq = dist**2 / r_fit**2
     weight_map = 5.0 / (5.0 + rsq / (1.0 - rsq))
     return weight_map
 
 
-def dao_nstar(data, psf, position=None, r_fit=2, flux_init=1, sky=0, err=None,
-              fitter=LevMarLSQFitter(), full=True):
-    '''
-    psf: photutils.psf.FittableImageModel
-    '''
+def dao_nstar(
+    data,
+    psf,
+    position=None,
+    r_fit=2,
+    flux_init=1,
+    sky=0,
+    err=None,
+    fitter=LevMarLSQFitter(),
+    full=True,
+):
+    """
+    psf : `~photutils.psf.FittableImageModel`
+    """
     if position is None:
         position = ((data.shape[1] - 1) / 2, (data.shape[0] - 1) / 2)
 
@@ -64,9 +80,8 @@ def dao_nstar(data, psf, position=None, r_fit=2, flux_init=1, sky=0, err=None,
     psf_init.flux = flux_init
 
     fbox = 2 * r_fit + 1  # fitting box size
-    fcut = Cutout2D(data, position=position, size=fbox,
-                    mode='partial')  # "fitting" cut
-    fcut_err = Cutout2D(err, position=position, size=fbox, mode='partial').data
+    fcut = Cutout2D(data, position=position, size=fbox, mode="partial")  # "fitting" cut
+    fcut_err = Cutout2D(err, position=position, size=fbox, mode="partial").data
     fcut_skysub = fcut.data - sky  # Must be sky subtracted before PSF fitting
     pos_fcut_init = fcut.to_cutout_position(position)  # Order of x, y
     psf_init.x_0, psf_init.y_0 = fcut.center_cutout
@@ -76,14 +91,13 @@ def dao_nstar(data, psf, position=None, r_fit=2, flux_init=1, sky=0, err=None,
     astropy_weight = np.sqrt(dao_weight.data) / fcut_err
     astropy_weight[dao_weight.mask] = 0
 
-    yy_fit, xx_fit = np.mgrid[:fcut_skysub.shape[1], :fcut_skysub.shape[0]]
+    yy_fit, xx_fit = np.mgrid[: fcut_skysub.shape[1], : fcut_skysub.shape[0]]
     fit = fitter(psf_init, xx_fit, yy_fit, fcut_skysub, weights=dao_weight)
     pos_fit = fcut.to_original_position((fit.x_0, fit.y_0))
     fit.x_0, fit.y_0 = pos_fit
 
     if full:
-        return (fit, pos_fit, fitter,
-                astropy_weight, fcut, fcut_skysub, fcut_err)
+        return (fit, pos_fit, fitter, astropy_weight, fcut, fcut_skysub, fcut_err)
 
     else:
         return fit, pos_fit, fitter
@@ -93,12 +107,20 @@ def dao_substar(data, position, fitted_psf, size):
     pass
 
 
-def daophot_concat(filelist, crit_separation, xcol="x", ycol="y",
-                   table_reader=Table.read, reader_kwargs={}):
-    ''' Concatenates the DAOPHOT-like results
+def daophot_concat(
+    filelist,
+    crit_separation,
+    xcol="x",
+    ycol="y",
+    table_reader=Table.read,
+    reader_kwargs=None,
+):
+    """Concatenates the DAOPHOT-like results
     filelist : list of path-like
         The list of file paths to be concatenated.
-    '''
+    """
+    if reader_kwargs is None:
+        reader_kwargs = {}
 
     tablist = []
     for fpath in filelist:
@@ -166,7 +188,7 @@ class IntegratedGaussianPRF(Fittable2DModel):
     where ``erf`` denotes the error function and ``F`` the total integrated
     flux.
 
-    The only difference from photutils.psf.IntegratedGaussianPRF is that the
+    The only difference from `~photutils.psf.IntegratedGaussianPRF` is that the
     bounding box is 7-sigma, following DAOPHOT ver 4 mathsubs.f/DAOERF
     function.
     """
@@ -181,14 +203,22 @@ class IntegratedGaussianPRF(Fittable2DModel):
     @property
     def bounding_box(self):
         halfwidth = 7 * self.sigma
-        return ((int(self.y_0 - halfwidth), int(self.y_0 + halfwidth)),
-                (int(self.x_0 - halfwidth), int(self.x_0 + halfwidth)))
+        return (
+            (int(self.y_0 - halfwidth), int(self.y_0 + halfwidth)),
+            (int(self.x_0 - halfwidth), int(self.x_0 + halfwidth)),
+        )
 
-    def __init__(self, sigma=sigma.default,
-                 x_0=x_0.default, y_0=y_0.default, flux=flux.default,
-                 **kwargs):
+    def __init__(
+        self,
+        sigma=sigma.default,
+        x_0=x_0.default,
+        y_0=y_0.default,
+        flux=flux.default,
+        **kwargs,
+    ):
         if self._erf is None:
             from scipy.special import erf
+
             self.__class__._erf = erf
 
         super().__init__(n_models=1, sigma=sigma, x_0=x_0, y_0=y_0, flux=flux, **kwargs)
@@ -196,12 +226,20 @@ class IntegratedGaussianPRF(Fittable2DModel):
     def evaluate(self, x, y, flux, x_0, y_0, sigma):
         """Model function Gaussian PSF model."""
         sqrt2sig = np.sqrt(2) * sigma
-        return (flux / 4
-                * ((self._erf((x - x_0 + 0.5) / sqrt2sig)
-                    - self._erf((x - x_0 - 0.5) / sqrt2sig))
-                   * (self._erf((y - y_0 + 0.5) / sqrt2sig)
-                      - self._erf((y - y_0 - 0.5) / sqrt2sig))))
-
+        return (
+            flux
+            / 4
+            * (
+                (
+                    self._erf((x - x_0 + 0.5) / sqrt2sig)
+                    - self._erf((x - x_0 - 0.5) / sqrt2sig)
+                )
+                * (
+                    self._erf((y - y_0 + 0.5) / sqrt2sig)
+                    - self._erf((y - y_0 - 0.5) / sqrt2sig)
+                )
+            )
+        )
 
 
 TWOPI = 2 * np.pi
@@ -212,6 +250,7 @@ FLOAT_EPSILON = float(np.finfo(np.float32).tiny)
 # is loaded.
 GAUSSIAN_SIGMA_TO_FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0))
 from scipy.special import erf
+
 
 class IntegratedGaussian2D(Fittable2DModel):
     r"""
@@ -227,12 +266,12 @@ class IntegratedGaussian2D(Fittable2DModel):
     x_stddev : float or `~astropy.units.Quantity` or None.
         Standard deviation of the Gaussian in x before rotating by theta. Must
         be None if a covariance matrix (``cov_matrix``) is provided. If no
-        ``cov_matrix`` is given, ``None`` means the default value (1).
+        ``cov_matrix`` is given, `None` means the default value (1).
     y_stddev : float or `~astropy.units.Quantity` or None.
         Standard deviation of the Gaussian in y before rotating by theta. Must
         be None if a covariance matrix (``cov_matrix``) is provided. If no
-        ``cov_matrix`` is given, ``None`` means the default value (1).
-    theta : float or `~astropy.units.Quantity`, optional.
+        ``cov_matrix`` is given, `None` means the default value (1).
+    theta : float or `~astropy.units.Quantity`, optional
         The rotation angle as an angular quantity
         (`~astropy.units.Quantity` or `~astropy.coordinates.Angle`)
         or a value in radians (as a float). The rotation angle
@@ -290,9 +329,7 @@ class IntegratedGaussian2D(Fittable2DModel):
     y_mean = Parameter(
         default=0, description="Peak position (along y axis) of Gaussian"
     )
-    stddev = Parameter(
-        default=1, description="Standard deviation of the Gaussian"
-    )
+    stddev = Parameter(default=1, description="Standard deviation of the Gaussian")
 
     def __init__(
         self,
@@ -374,11 +411,20 @@ class IntegratedGaussian2D(Fittable2DModel):
     def evaluate(x, y, flux, x_mean, y_mean, stddev):
         """Two dimensional Gaussian function."""
         sqrt2sig = np.sqrt(2) * stddev
-        return (flux / 4
-                * ((erf((x - x_mean + 0.5) / sqrt2sig)
-                    - erf((x - x_mean - 0.5) / sqrt2sig))
-                   * (erf((y - y_mean + 0.5) / sqrt2sig)
-                      - erf((y - y_mean - 0.5) / sqrt2sig))))
+        return (
+            flux
+            / 4
+            * (
+                (
+                    erf((x - x_mean + 0.5) / sqrt2sig)
+                    - erf((x - x_mean - 0.5) / sqrt2sig)
+                )
+                * (
+                    erf((y - y_mean + 0.5) / sqrt2sig)
+                    - erf((y - y_mean - 0.5) / sqrt2sig)
+                )
+            )
+        )
 
     @staticmethod
     def fit_deriv(x, y, flux, x_mean, y_mean, stddev):
@@ -390,20 +436,23 @@ class IntegratedGaussian2D(Fittable2DModel):
         x2 = x - x_mean + 0.5
         y1 = y - y_mean - 0.5
         y2 = y - y_mean + 0.5
-        e_x1_2s_sq = np.exp(-x1**2 / twosigsq)
-        e_x2_2s_sq = np.exp(-x2**2 / twosigsq)
-        e_y1_2s_sq = np.exp(-y1**2 / twosigsq)
-        e_y2_2s_sq = np.exp(-y2**2 / twosigsq)
+        e_x1_2s_sq = np.exp(-(x1**2) / twosigsq)
+        e_x2_2s_sq = np.exp(-(x2**2) / twosigsq)
+        e_y1_2s_sq = np.exp(-(y1**2) / twosigsq)
+        e_y2_2s_sq = np.exp(-(y2**2) / twosigsq)
         erfxx = erf(x2 / sqrt2sig) - erf(x1 / sqrt2sig)
         erfyy = erf(y2 / sqrt2sig) - erf(y1 / sqrt2sig)
 
-        dg_df = (erfxx * erfyy)/4
-        dg_dx_mean = flux_2sqrtpi*(e_x1_2s_sq - e_x2_2s_sq) * erfyy
-        dg_dy_mean = flux_2sqrtpi*(e_y1_2s_sq - e_y2_2s_sq) * erfxx
+        dg_df = (erfxx * erfyy) / 4
+        dg_dx_mean = flux_2sqrtpi * (e_x1_2s_sq - e_x2_2s_sq) * erfyy
+        dg_dy_mean = flux_2sqrtpi * (e_y1_2s_sq - e_y2_2s_sq) * erfxx
         dg_dstddev = (
-            flux/(twosigsq*np.sqrt(2*np.pi))
-            *((x1*e_x1_2s_sq - x2*e_x2_2s_sq)*erfyy
-              + (y1*e_y1_2s_sq - y2*e_y2_2s_sq)*erfxx)
+            flux
+            / (twosigsq * np.sqrt(2 * np.pi))
+            * (
+                (x1 * e_x1_2s_sq - x2 * e_x2_2s_sq) * erfyy
+                + (y1 * e_y1_2s_sq - y2 * e_y2_2s_sq) * erfxx
+            )
         )
 
         return [dg_df, dg_dx_mean, dg_dy_mean, dg_dstddev]
