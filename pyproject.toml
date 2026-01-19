@@ -39,8 +39,16 @@ dependencies = [
     "astroquery",
 ]
 
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7.0",
+    "pydata-sphinx-theme",
+    "numpydoc",
+]
+
 [project.urls]
 Homepage = "https://github.com/ysBach/ysphotutilpy"
+Documentation = "https://ysphotutilpy.readthedocs.io"
 Source = "https://github.com/ysBach/ysphotutilpy"
 Tracker = "https://github.com/ysBach/ysphotutilpy/issues"
 
