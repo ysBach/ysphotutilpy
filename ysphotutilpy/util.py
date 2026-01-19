@@ -121,16 +121,16 @@ def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
     """Converts units among non-physical units (%, deg-radian, etc).
     Parameters
     ----------
-    factor : float, optional.
+    factor : float, optional
         The factor to convert natural unit (dimensionless) to desired unit.
         ``factor=100`` will be **multiplied** to convert to %, and will be
         **divided** to convert the value to natural unit.
 
-    already : bool, optional.
+    already : bool, optional
         Whether the input args are already in the desired unit specified by
         ``factor``.
 
-    convert2unit : bool, optional.
+    convert2unit : bool, optional
         Whether to convert the input args to the unit specified by ``factor``.
 
 
@@ -182,7 +182,7 @@ def bezel_mask(xvals, yvals, nx, ny, bezel=(0, 0), bezel_x=None, bezel_y=None):
 
     bezel : int, float, array-like, optional
         The bezel size. If array-like, it should be ``(lower, upper)``. If only
-        this is given and ``bezel_x`` and/or ``bezel_y`` is/are ``None``,
+        this is given and ``bezel_x`` and/or ``bezel_y`` is/are `None`,
         it/both will be replaced by ``bezel``. If you want to keep some stars
         outside the edges, put negative values (e.g., ``-5``).
 
@@ -230,13 +230,13 @@ def normalize(num, lower=0, upper=360, b=False):
         The number to be normalized.
 
     lower : int
-        Lower limit of range. Default is 0.
+        Lower limit of range. Default is ``0``.
 
     upper : int
-        Upper limit of range. Default is 360.
+        Upper limit of range. Default is ``360``.
 
     b : bool
-        Type of normalization. Default is False. See notes. When b=True, the
+        Type of normalization. Default is `False`. See notes. When b=True, the
         range must be symmetric about 0. When b=False, the range must be
         symmetric about 0 or ``lower`` must be equal to 0.
 
@@ -577,24 +577,24 @@ def gaussian_kernel(fwhm=None, sigma=None, theta=0, nsigma=5, normalize_area=Fal
 
     Parameters
     ----------
-    fwhm, sigma : float, array-like, optional.
+    fwhm, sigma : float, array-like, optional
         The full-width at half-maximum (FWHM) and standard deviation (sigma) of
         the Gaussian. One and only one of these should be given. If array-like,
         it should be ``(sigma_or_fwhm_x, sigma_or_fwhm_y)``. If only one value
         is given, it will be used for both x and y.
 
-    theta : float, optional.
+    theta : float, optional
         The rotation angle of the Gaussian in degrees.
 
-    nsigma : int or float, optional.
+    nsigma : int or float, optional
         The number of sigma to be used for the kernel size. The kernel size
         will be ``ceil(nsigma*sigma)`` along each direction. If variable size
         is desired, use size-2 array (e.g., ``nsigma=(5, 10)`` to make 5-sigma
         along the x- and 10-sigma along the y-direction).
 
-    normalize_area : bool, optional.
-        Whether to normalize the area of the Gaussian to 1. If ``False``, the
-        amplitude will be 1. If ``True``, the amplitude will be
+    normalize_area : bool, optional
+        Whether to normalize the area of the Gaussian to 1. If `False`, the
+        amplitude will be 1. If `True`, the amplitude will be
         1/(2*pi*sigma_x*sigma_y).
 
     Returns

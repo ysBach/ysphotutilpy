@@ -29,7 +29,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
-    "numpydoc",
+    "sphinx_copybutton",
 ]
 
 # Napoleon settings for NumPy-style docstrings
@@ -42,13 +42,9 @@ napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
-napoleon_use_param = True
+napoleon_use_param = False
 napoleon_use_rtype = True
 napoleon_preprocess_types = True
-
-# numpydoc settings
-numpydoc_show_class_members = False
-numpydoc_class_members_toctree = False
 
 # Autodoc settings
 autodoc_default_options = {
@@ -59,8 +55,19 @@ autodoc_default_options = {
 autodoc_member_order = "bysource"
 autodoc_typehints = "description"
 
+# Mock imports for modules that might not be available
+autodoc_mock_imports = [
+    "sep",
+    "bottleneck",
+    "astroscrappy",
+    "ccdproc",
+]
+
 # Autosummary
 autosummary_generate = True
+
+# Default role for backticks (allows `PanSTARRS1` instead of :obj:`PanSTARRS1`)
+default_role = "obj"
 
 # -- Intersphinx configuration -----------------------------------------------
 intersphinx_mapping = {
@@ -70,17 +77,21 @@ intersphinx_mapping = {
     "astropy": ("https://docs.astropy.org/en/stable/", None),
     "photutils": ("https://photutils.readthedocs.io/en/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
+    "ccdproc": ("https://ccdproc.readthedocs.io/en/latest/", None),
+    "astroquery": ("https://astroquery.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
-html_theme = "pydata_sphinx_theme"
-html_theme_options = {
-    "github_url": "https://github.com/ysBach/ysphotutilpy",
-    "navbar_end": ["theme-switcher", "navbar-icon-links"],
-    "show_prev_next": False,
-}
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
-html_css_files = []
+
+html_theme_options = {
+    "navigation_depth": 4,
+    "collapse_navigation": False,
+}
+
+# Suppress warnings for missing references in external packages
+nitpicky = False
 
 # -- Templates ---------------------------------------------------------------
 templates_path = ["_templates"]
@@ -89,3 +100,4 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # -- Source suffix -----------------------------------------------------------
 source_suffix = ".rst"
 master_doc = "index"
+

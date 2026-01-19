@@ -11,6 +11,7 @@ from scipy import ndimage
 from scipy.optimize import curve_fit
 
 from .background import sky_fit
+from .logging import logger
 from .seputil import _sanitize_byteorder, _sep_extract, sep_default_kernel, sep_extract
 from .util import Gaussian2D_correct
 
@@ -65,11 +66,11 @@ def _scaling_shift(pos_old, pos_new_raw, max_shift_step=None, verbose=False):
         return dxdy, shift
 
     if shift > max_shift_step:
-        if verbose:
-            print(
-                f"\tshift({shift:.3f}) > max_shift_step({max_shift_step:.3f}): "
-                + f"shift truncated to {max_shift_step:.3f} pixels."
-            )
+        # if verbose:
+        logger.info(
+            f"\tshift({shift:.3f}) > max_shift_step({max_shift_step:.3f}): "
+            + f"shift truncated to {max_shift_step:.3f} pixels."
+        )
         scale = max_shift_step / shift
         shift *= scale
         dxdy *= scale
@@ -94,6 +95,8 @@ def _background(data, bkg="min"):
          * "median": use the median value of the data.
          * float: use the given value as the background level.
          * array_like: use the given array as the background level.
+
+        Default is ``"min"``.
     """
     if bkg == "min":
         # min/nanmin takes short time.
@@ -236,15 +239,15 @@ def _center_sep(
 
     nobj = len(obj)
     if nobj == 0:
-        if verbose:
-            print("No object found in the cutout.")
+        # if verbose:
+        logger.info("No object found in the cutout.")
         if full:
             return position, np.array([0, 0]), obj, seg
         return position, np.array([0, 0])
 
     if nobj > 1:
-        if verbose:
-            print(f"{nobj} objects found in the cutout. Selecting the brightest...")
+        # if verbose:
+        logger.info(f"{nobj} objects found in the cutout. Selecting the brightest...")
         obj = obj[obj["flux"] == obj["flux"].max()]
 
     dxdy, shift = _scaling_shift(
@@ -261,11 +264,11 @@ def _center_sep(
     n_circ = np.sum(in_circ)
     n_src = np.sum(seg == 1)
 
-    if verbose:
-        print(
-            f"\t{n_circ} / {cut.size} pixels used for SEP, {n_src} pixels "
-            "identified as the source."
-        )
+    # if verbose:
+    logger.info(
+        f"\t{n_circ} / {cut.size} pixels used for SEP, {n_src} pixels "
+        "identified as the source."
+    )
 
     overflow = True if n_src > n_circ else False
 
@@ -301,49 +304,109 @@ def center_sep(
 
     Parameters
     ----------
-    data : CCDData, array_like
+    data : `~astropy.nddata.CCDData`, array_like
         The data array.
 
-    position_xy : array-like
-        The position of the initial guess in image XY coordinate.
+    position : array-like
+        The position of the initial guess in image XY coordinate (0-indexed).
 
-    crad : float
+    err, var : float or `~numpy.ndarray`, optional
+        Error or variance array. At most one can be given.
+
+    crad : float, optional
         The radius of the circular cutout from data for center finding.
         Approximately 2-4 times FWHM is recommended, but not too large so that
         only one single object is contained in the cutout. Approximately
         ``2*crad+1`` is the side length of the cutout array called **cbox**
-        (stands for "centering box", identical to bounding box)
+        (stands for "centering box", identical to bounding box). Default is ``3``.
 
     bkg : {'min', 'mean', 'median', float, array_like, sep.Background}, optional
-        The background estimation method within the cbox::
+        The background estimation method within the cbox:
 
-         * "min": use the minimum value of the data.
-         * "mean": use the mean value of the data.
-         * "median": use the median value of the data.
-         * float: use the given value as the background level.
-         * array_like: use the given array as the background level.
+        * ``"min"``: use the minimum value of the data.
+        * ``"mean"``: use the mean value of the data.
+        * ``"median"``: use the median value of the data.
+        * float: use the given value as the background level.
+        * array_like: use the given array as the background level.
 
-    tol_shift : float
+        Default is ``"min"``.
+
+    mask : `~numpy.ndarray`, optional
+        Boolean mask array. True values are masked.
+
+    maskthresh : float, optional
+        Mask threshold. Pixels with mask values > maskthresh are masked.
+        Default is ``0.0``.
+
+    minarea : int, optional
+        Minimum number of pixels for detection. Default is ``5``.
+
+    filter_kernel : `~numpy.ndarray` or None, optional
+        Filter kernel for object detection. Default is the SEP default kernel.
+
+    filter_type : {'matched', 'conv'}, optional
+        Filter type. Default is ``"matched"``.
+
+    deblend_nthresh : int, optional
+        Number of deblending thresholds. Default is ``32``.
+
+    deblend_cont : float, optional
+        Minimum contrast for deblending. Set to 1 to disable deblending.
+        Default is 1 (no deblending).
+
+    clean : bool, optional
+        Perform cleaning to remove spurious detections. Default is `False`.
+
+    clean_param : float, optional
+        Cleaning parameter. Default is ``1.0``.
+
+    maxiters : int, optional
+        Maximum number of iterations. Default is ``50``.
+
+    tol_shift : float, optional
         The absolute tolerance for the shift. If the shift in centroid after
-        iteration is smaller than this, iteration stops.
+        iteration is smaller than this, iteration stops. Default is ``1e-3``.
 
-    max_shift: float
-        The maximum acceptable shift. If shift is larger than this, raises
-        warning.
+    max_shift : float, optional
+        The maximum acceptable total shift. If shift is larger than this,
+        raises warning. Default is ``1``.
 
-    max_shift_step : float, None, optional
-        The maximum acceptable shift for each iteration. If the shift (call it
-        ``shift_raw``) is larger than this, the actual shift will be
-        `max_shift_step` towards the direction identical to ``shift_raw``. If
-        `None` (default), no such truncation is done.
+    max_shift_step : float or None, optional
+        The maximum acceptable shift per iteration. If the shift exceeds this,
+        it will be truncated to this value in the same direction. If `None`,
+        no truncation is done. Default is ``1``.
 
-    deblend_cont = 1: no deblending (sep default = 0.005)
-    clean = False (sep default = True)
-    crad : float
-        The radius of the circular cutout from data.
-        It is expected `crad` cutout array is a very small array (optimally
-        side length 2-4 times FWHM) containing only a single object.
+    verbose : int, optional
+        Verbosity level. 0=silent, 1=summary, 2=detailed. Default is ``0``.
 
+    full : bool, optional
+        If `True`, return additional information. Default is `False`.
+
+    Returns
+    -------
+    pos : `~numpy.ndarray`
+        The final (x, y) position of the centroid.
+
+    dxdy : `~numpy.ndarray`
+        The (dx, dy) shift from initial position to final position.
+        Only returned if ``full=True``.
+
+    total : float
+        The total shift in pixels. Only returned if ``full=True``.
+
+    objs : list
+        List of SEP object arrays from each iteration.
+        Only returned if ``full=True``.
+
+    segs : list
+        List of segmentation maps from each iteration.
+        Only returned if ``full=True``.
+
+    Notes
+    -----
+    Uses the SEP library (Source Extractor Python) for object detection.
+    The algorithm iteratively finds the centroid of the brightest object
+    in the cutout region until convergence or max iterations reached.
     """
     pos = np.array(position)
     positions = [pos]
@@ -351,19 +414,19 @@ def center_sep(
     crad = max(crad, 1)
 
     if verbose >= 1:
-        print("*** Centering by SEP ***")
-        print(
+        logger.info("*** Centering by SEP ***")
+        logger.info(
             f"Initial xy: ({positions[0][0]}, {positions[0][1]}) [0-index]"
             + f"\n\t{crad=:.1f}, {maxiters=:d}, {tol_shift=:.1e}"
         )
         if bkg in ["min", "mean", "median"]:
-            print(f"\tBackgound = **{bkg}** value inside the cutout")
+            logger.info(f"\tBackgound = **{bkg}** value inside the cutout")
         elif isinstance(bkg, (int, float)):
-            print(f"\tConstant backgound = {bkg}")
+            logger.info(f"\tConstant backgound = {bkg}")
         elif isinstance(bkg, np.ndarray):
-            print(f"\tBackgound array: {bkg.shape}")
+            logger.info(f"\tBackgound array: {bkg.shape}")
         else:
-            print(f"\tBackgound: {bkg} (sep.Background)")
+            logger.info(f"\tBackgound: {bkg} (sep.Background)")
 
     try:
         bkg = bkg.back()  # convert to ndarray
@@ -372,7 +435,7 @@ def center_sep(
 
     for i_iter in range(maxiters):
         if verbose >= 2:
-            print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.debug(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
 
         pos, d, obj, seg = _center_sep(
             data,
@@ -401,13 +464,13 @@ def center_sep(
         segs.append(seg)
 
         if verbose >= 2:
-            print(
+            logger.debug(
                 f"\t({pos[0]:.2f}, {pos[1]:.2f}) [dx = {pos[0] - positions[-2][0]:.2f}, "
                 + f"dy = {pos[1] - positions[-2][1]:.2f} --> shift = {d:.2f}]"
             )
         if d < tol_shift:
             if verbose >= 2:
-                print(f"*** Finished at iteration {i_iter+1}. ***")
+                logger.debug(f"*** Finished at iteration {i_iter+1}. ***")
             break
 
     # `pos` is the final position
@@ -415,12 +478,12 @@ def center_sep(
     total = np.linalg.norm(dxdy)
 
     if verbose >= 1:
-        print(f"   (x, y) = ({positions[0][0]:8.2f}, {positions[0][1]:8.2f})")
-        print(
+        logger.info(f"   (x, y) = ({positions[0][0]:8.2f}, {positions[0][1]:8.2f})")
+        logger.info(
             f"        --> ({positions[-1][0]:8.2f}, {positions[-1][1]:8.2f}) [0-index]"
         )
-        print(f" (dx, dy) = ({dxdy[0]:+8.2f}, {dxdy[1]:+8.2f})")
-        print(f" total shift {total:8.2f} pixels")
+        logger.info(f" (dx, dy) = ({dxdy[0]:+8.2f}, {dxdy[1]:+8.2f})")
+        logger.info(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
         warn(
@@ -483,7 +546,7 @@ def _centroiding_iteration(
         (e.g., sample standard deviation of sky) is assumed. If array-like, it
         should be in the shape of ccd. Ignored if `csigma` is
         `None` or `0`.
-        Default is 0.
+        Default is ``0``.
 
     max_shift_step : float, None, optional
         The maximum acceptable shift for each iteration. If the shift (call it
@@ -526,8 +589,8 @@ def _centroiding_iteration(
         cthresh = msky + csigma * error
         if cthresh < _mindata:
             if verbose:
-                print(f"\tthreshold = {cthresh:.3f} < (min of pixels in cbox).")
-                print(f"\t∴ threshold = {_mindata:.3f} (min of pixels in cbox)...")
+                logger.info(f"\tthreshold = {cthresh:.3f} < (min of pixels in cbox).")
+                logger.info(f"\t∴ threshold = {_mindata:.3f} (min of pixels in cbox)...")
             # msky = _mindata
             cthresh = _mindata
 
@@ -552,7 +615,7 @@ def _centroiding_iteration(
                 info += f"({msky=:.3f}) + ({csigma=}) * {error=:.3f}]"
             else:
                 info += f"({msky=:.3f}) + ({csigma=}) * (error=ndarray)]"
-        print(info)
+        logger.info(info)
 
     x_c_cut, y_c_cut = centroider(data=cutccd.data, mask=mask)
     # The position is in the cutout image coordinate, e.g., (3, 3).
@@ -741,6 +804,7 @@ def find_center_2dg(
         extended source (e.g., comet), recommend larger cbox.
         See:
         https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
+        Default is ``5.0``.
 
     csigma : float or int, optional
         The parameter to use in sigma-clipping. Using pixels only above 3-simga
@@ -754,20 +818,21 @@ def find_center_2dg(
         ``csigma*ssky`` will be used for centroid, following the default of
         IRAF's ``noao.digiphot.apphot``:
         https://iraf.readthedocs.io/en/latest/tasks/noao/digiphot/apphot/centerpars.html
+        Default is ``0``.
 
-    sky_annulus : `~photutils.Aperture` annulus object
+    sky_annulus : `~photutils.aperture.Aperture` annulus object
         The annulus to estimate the sky. All `_shape_params` of the object will
         be kept, while positions will be updated according to the new
         centroids. The initial input, therefore, does not need to have the
         position information (automatically initialized by `position_xy`). If
         `None` (default), the constant `ssky` value will be used instead.
 
-    sky_kw : dict, optional.
-        The keyword arguments of `.backgroud.sky_fit`.
+    sky_kw : dict, optional
+        The keyword arguments of `.backgroud.sky_fit`. Default is `None`.
 
     tol_shift : float
         The absolute tolerance for the shift. If the shift in centroid after
-        iteration is smaller than this, iteration stops.
+        iteration is smaller than this, iteration stops. Default is ``1.0e-4``.
 
     max_shift: float
         The maximum acceptable shift. If shift is larger than this, raises
@@ -779,20 +844,23 @@ def find_center_2dg(
         `max_shift_step` towards the direction identical to `shift_raw`. If
         `None` (default), no such truncation is done.
 
-    error : CCDData or ndarray
-        The 1-sigma uncertainty map used for fitting.
+    error : CCDData or ndarray, optional
+        The 1-sigma uncertainty map used for fitting. Default is `None`.
 
-    verbose : bool
+    verbose : bool, optional
         Whether to print how many iterations were needed for the centroiding.
+        Default is `False`.
 
-    full : bool
+    full : bool, optional
         Whether to return the original and final cutout images.
+        Default is `True`.
 
     full_history : bool, optional
         Whether to return all the history of memory-heavy objects, including
         cutout ccd, cutout of the error frame, evaluated array of the fitted
         models. Most likely this is turned on only to check whether the
         centroiding process works correctly (i.e., kind of debugging purpose).
+        Default is `False`.
 
     Returns
     -------
@@ -863,7 +931,7 @@ def find_center_2dg(
         if verbose:
             n_all = np.size(mask)
             n_rej = np.count_nonzero(mask.astype(int))
-            print(
+            logger.info(
                 f"\t{n_rej} / {n_all} rejected [threshold = {cthresh:.3f} from min "
                 + f"({np.min(cut.data):.3f}) + ({csigma = }) * ({ssky = :.3f})]"
             )
@@ -916,7 +984,7 @@ def find_center_2dg(
             fit_params[k] = []
 
     if verbose:
-        print(
+        logger.info(
             f"Initial xy: {position_init} [0-indexing]\n"
             + f"\t(max iteration {maxiters:d}, "
             + f"shift tolerance {atol_shift} pixel)"
@@ -926,7 +994,7 @@ def find_center_2dg(
         xy_old = positions[-1]
 
         if verbose:
-            print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.debug(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
 
         res = _center_2dg_iteration(
             ccd=_ccd,
@@ -943,7 +1011,7 @@ def find_center_2dg(
 
         if d < atol_shift:
             if verbose:
-                print(f"Finishing iteration (shift {d:.5f} < tol_shift).")
+                logger.info(f"Finishing iteration (shift {d:.5f} < tol_shift).")
             break
 
         positions.append(newpos)
@@ -958,13 +1026,13 @@ def find_center_2dg(
             fits.append(fit)
 
         if verbose:
-            print(f"\t({newpos[0]:.2f}, {newpos[1]:.2f}), shifted {d:.2f}")
+            logger.info(f"\t({newpos[0]:.2f}, {newpos[1]:.2f}), shifted {d:.2f}")
 
     total_dx_dy = positions[-1] - positions[0]
     total_shift = np.sqrt(np.sum(total_dx_dy**2))
 
     if verbose:
-        print(
+        logger.info(
             f"Final shift: dx={total_dx_dy[0]:+.2f}, dy={total_dx_dy[1]:+.2f}, "
             + f"total_shift={total_shift:.2f}"
         )
@@ -1023,15 +1091,15 @@ def find_centroid(
     -----
     Cut out small box region (`cbox_size`) around the initial position, use
     pixels above certain threshold, and find the intensity-weighted centroid of
-    the box after subtracting "background"::
+    the box after subtracting "background":
 
-      * If `csigma=0` (or < 1.e-6), use pixels only above the mean of the box.
+      * `csigma=0` (or < 1.e-6): Use pixels only above the mean of the box.
         Ignore `msky` and `error`. (IRAF default?)
-      * If `csigma=None`, use pixels only above the minimum of the box. Ignore
+      * `csigma=None`: Use pixels only above the minimum of the box. Ignore
         `msky` and `error`.
-      * If `csigma` is a positive number, use pixels above ``msky +
+      * `csigma` is a positive number: Use pixels above ``msky +
         csigma*error``.
-        * If `msky` is not given, use the minimum pixel value within the box.
+      * If `msky` is not given, use the minimum pixel value within the box.
 
     Simply run `_centroiding_iteration` function iteratively for `maxiters`
     times. Given the initial guess of centroid position in image xy coordinate,
@@ -1077,15 +1145,15 @@ def find_centroid(
         (e.g., sample standard deviation of sky) is assumed. If array-like, it
         should be in the shape of ccd. Ignored if `csigma` is
         `None` or `0`.
-        Default is 0.
+        Default is ``0``.
 
     tol_shift : float
         The absolute tolerance for the shift. If the shift in centroid after
-        iteration is smaller than this, iteration stops.
+        iteration is smaller than this, iteration stops. Default is ``1.0e-4``.
 
     max_shift: float
         The maximum acceptable shift. If shift is larger than this, raises
-        warning.
+        warning. Default is ``1``.
 
     max_shift_step : float, None, optional
         The maximum acceptable shift for each iteration. If the shift (call it
@@ -1116,14 +1184,14 @@ def find_centroid(
     shift = []
 
     if verbose >= 1:
-        print(
+        logger.info(
             f"Initial xy: ({xc_iter[0]}, {yc_iter[0]}) [0-index]"
             + f"\n\t({maxiters = :d}, {tol_shift = :.2e})"
         )
 
     for i_iter in range(maxiters):
         if verbose >= 2:
-            print(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
+            logger.debug(f"Iteration {i_iter+1:d} / {maxiters:d}: ")
         (x, y), d = _centroiding_iteration(
             ccd=_ccd,
             position_xy=(x, y),
@@ -1139,13 +1207,13 @@ def find_centroid(
         yc_iter.append(y)
         shift.append(d)
         if verbose >= 2:
-            print(
+            logger.debug(
                 f"\t({x:.2f}, {y:.2f}) [dx = {x - xc_iter[-2]:.2f}, "
                 + f"dy = {y - yc_iter[-2]:.2f} --> shift = {d:.2f}]"
             )
         if d < tol_shift:
             if verbose >= 2:
-                print(f"*** Finished at {i_iter}th-iteration. ***")
+                logger.debug(f"*** Finished at {i_iter}th-iteration. ***")
             break
 
     newpos = [xc_iter[-1], yc_iter[-1]]
@@ -1154,10 +1222,10 @@ def find_centroid(
     total = np.sqrt(dx**2 + dy**2)
 
     if verbose >= 1:
-        print(f"   (x, y) = ({xc_iter[0]:8.2f}, {yc_iter[0]:8.2f})")
-        print(f"        --> ({xc_iter[-1]:8.2f}, {yc_iter[-1]:8.2f}) [0-index]")
-        print(f" (dx, dy) = ({dx:+8.2f}, {dy:+8.2f})")
-        print(f" total shift {total:8.2f} pixels")
+        logger.info(f"   (x, y) = ({xc_iter[0]:8.2f}, {yc_iter[0]:8.2f})")
+        logger.info(f"        --> ({xc_iter[-1]:8.2f}, {yc_iter[-1]:8.2f}) [0-index]")
+        logger.info(f" (dx, dy) = ({dx:+8.2f}, {dy:+8.2f})")
+        logger.info(f" total shift {total:8.2f} pixels")
 
     if total > max_shift:
         warn(

@@ -50,13 +50,17 @@ def bivt_r(r, amp=1, num2=1, sig=1, const=0):
     r : array-like
         Radial distance.
     amp : float, optional
-        Amplitude. Default is 1.
+        Amplitude.
+        Default is ``1``.
     num2 : float, optional
         The degrees of freedom (nu) minus 2.
+        Default is ``1``.
     sig : float, optional
-        Scale parameter (sigma). Default is 1.
+        Scale parameter (sigma).
+        Default is ``1``.
     const : float, optional
-        Constant background. Default is 0.
+        Constant background.
+        Default is ``0``.
 
     Returns
     -------
@@ -93,11 +97,13 @@ def radial_profile(
         The radii of the annulus.
     mask : 2D array, optional
         A mask to apply to the image. Pixels with True values will be ignored.
+        Default is `None`.
     thickness : int or array of int, optional
         The thickness(es) of the annulus for the radial profile.
+        Default is ``1``.
     norm_by_center : bool, optional
-        If True, normalize the profile by the value at the center position.
-        Default is False.
+        If `True`, normalize the profile by the value at the center position.
+        Default is `False`.
     add_center : bool, optional
         If `True`, include the center pixel value as the first entry in the
         profile (r = 0, mpix = center pixel value, spix = 0, npix = 1).
@@ -159,8 +165,10 @@ def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None, ref
         The xy coordinates of the center of the object (0-indexing).
     rmax : int, optional
         The maximum radius to be profiled.
+        Default is ``10``.
     refit : float, None, optional
         If not None, refit the profile for pixels within max(refit*FWHM, 3). It this exceeds rmax, refit is ignored.
+        Default is ``1``.
 
     Example
     -------

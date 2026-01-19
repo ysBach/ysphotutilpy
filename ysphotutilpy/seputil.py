@@ -80,8 +80,8 @@ def sep_back(
     data : CCDData or array-like
         The 2D array from which to estimate the background.
 
-    mask : 2-d `~numpy.ndarray`, optional
-        Mask array.
+    mask : `~numpy.ndarray`, optional
+        2-d mask array.
 
     maskthresh : float, optional
         Only in `sep`. The effective mask will be ``m = (mask.astype(float) >
@@ -95,18 +95,20 @@ def sep_back(
           * **photutils**: In photutils, sigma clipping is used (need check).
 
     filter_threshold : int, optional
-        Name in photutils; `fthresh` in the oritinal sep. Default is 0.0 ::
+        Name in photutils; `fthresh` in the oritinal sep. Default is ``0``.0 ::
 
-        * **sep**: Filter threshold. Default is 0.0.
+        * **sep**: Filter threshold. Default is ``0.0``.
         * **photutils**: The threshold value for used for selective median
           filtering of the low-resolution 2D background map. The median filter
           will be applied to only the background meshes with values larger than
           `filter_threshold`.  Set to `None` to filter all meshes (default).
 
     box_size : int or array_like (int)
-        Name in photutils; `bh`, `bw` order in sep. Default is ``(64, 64)``::
+        Name in photutils; `bh`, `bw` order in sep. Default is ``(64, 64)``
 
-          * **sep**: Size of background boxes in pixels. Default is 64.
+        .. code-block:: text
+
+          * **sep**: Size of background boxes in pixels. Default is ``64``.
           * **photutils**: The box size along each axis. If `box_size` is a
             scalar then a square box of size `box_size` will be used. If
             `box_size` has two elements, they should be in ``(ny, nx)`` order.
@@ -116,9 +118,11 @@ def sep_back(
             keyword for more options.
 
     filter_size : int or array_like (int), optional
-        Name in photutils; `fh`, `fw` order in sep. Default is ``(3, 3)``.::
+        Name in photutils; `fh`, `fw` order in sep. Default is ``(3, 3)``.
 
-          * **sep**: Filter width and height in boxes. Default is 3.
+        .. code-block:: text
+
+          * **sep**: Filter width and height in boxes. Default is ``3``.
           * **photutils**: The window size of the 2D median filter to apply to
             the low-resolution background map. If `filter_size` is a scalar
             then a square box of size `filter_size` will be used. If
@@ -206,7 +210,7 @@ def _sep_extract(
     data : CCDData or array-like
         The 2D array from which to estimate the background.
 
-    thresh : float, optional.
+    thresh : float, optional
         Only in sep. Threshold pixel value for detection. If an `err` or `var`
         array is **not** given, this is interpreted as an absolute threshold.
         If `err` or `var` is given, this is interpreted as a relative
@@ -242,7 +246,7 @@ def _sep_extract(
         no Poisson noise will be added.
 
     minarea : int, optional
-        Minimum number of pixels required for an object. Default is 5.
+        Minimum number of pixels required for an object. Default is ``5``.
 
     filter_kernel : `~numpy.ndarray` or None, optional
         Filter kernel used for on-the-fly filtering (used to enhance
@@ -261,19 +265,19 @@ def _sep_extract(
         exposures). The two options are equivalent when noise is constant.
 
     deblend_nthresh : int, optional
-        Number of thresholds used for object deblending. Default is 32.
+        Number of thresholds used for object deblending. Default is ``32``.
 
     deblend_cont : float, optional
-        Minimum contrast ratio used for object deblending. Default is 0.005. To
+        Minimum contrast ratio used for object deblending. Default is ``0.005``. To
         entirely disable deblending, set to 1.0.
 
     clean : bool, optional
         Whether to perform cleaning (remove false positives especially nearby
         bright sources).
-        Default is True. (see Notes)
+        Default is `True`. (see Notes)
 
     clean_param : float, optional
-        The Moffat power index for cleaning processes (see Notes). Default is 1.0.
+        The Moffat power index for cleaning processes (see Notes). Default is ``1.0``.
 
     Returns
     -------
@@ -379,20 +383,20 @@ def sep_extract(
     data : CCDData or array-like
         The 2D array from which to estimate the background.
 
-    pos_ref : `None`, list-like of two floats, optional.
+    pos_ref : `None`, list-like of two floats, optional
         If not `None`, it must be the (x, y) position of the reference point.
         The returned `obj` will have ``'dist_ref'`` column which is the
         distance of the object's position (``sqrt((obj["x"] - pos_ref[0])**2 +
         (obj["y"] - pos_ref[1])**2)``) and sorted based on this by default,
         unless `sort_by` is specified (see `sort_by`).
 
-    sort_by : str, optional.
+    sort_by : str, optional
         The column name to sort the output. If `pos_ref` is not `None`, a new
         column is added to the `sep` results, called ``"dist_ref"`` and
         `sort_by` is based on this column by default. Otherwise, it should be a
         name of column in `sep` result.
 
-    sort_ascending : bool, optional.
+    sort_ascending : bool, optional
         Sort ascending vs. descending. Specify list for multiple sort orders.
         If this is a list of bools, must match the length of the `sort_by`.
 
@@ -541,12 +545,12 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #     ccd : CCDData or ndarray.
 #         The CCD or ndarray to find object.
 
-#     thresh_tests : list-like of float, optional.
+#     thresh_tests : list-like of float, optional
 #         The SNR thresholds to be used for finding the object. It is
 #         first sorted in descending order, and if more than one object is
 #         found, that value is used.
 
-#     bezel_x, bezel_y : int, float, list of such, optional.
+#     bezel_x, bezel_y : int, float, list of such, optional
 #         The x and y bezels, in ``[lower, upper]`` convention.
 
 #     box_size : int or array-like (int) optional.
@@ -568,7 +572,7 @@ def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
 #         entirely disable deblending, set to 1.0 (default). Default of
 #         sep was 0.005.
 
-#     # gauss_fbox : int, float, array-like of such, optional.
+#     # gauss_fbox : int, float, array-like of such, optional
 #     #     The fitting box size to fit a Gaussian2D function to the
 #     #     objects found by `sep`. This is done to automatically set
 #     #     aperture sizes of the object.

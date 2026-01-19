@@ -42,8 +42,8 @@ dependencies = [
 [project.optional-dependencies]
 docs = [
     "sphinx>=7.0",
-    "pydata-sphinx-theme",
-    "numpydoc",
+    "sphinx-rtd-theme",
+    "sphinx-copybutton",
 ]
 
 [project.urls]

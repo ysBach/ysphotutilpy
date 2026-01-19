@@ -35,20 +35,20 @@ def sky_fit(
     ccd: `~astropy.nddata.CCDData`, HDU, ndarray
         The image data to extract sky at given annulus.
 
-    annulus: annulus object, optional.
+    annulus: annulus object, optional
         The annulus which will be used to estimate sky values.
         If `None` (default), the whole image will be used.
 
-    method : {"sex", "IRAF", "MMM", "mean", "median"}, callable, optional.
+    method : {"sex", "IRAF", "MMM", "mean", "median"}, callable, optional
         The method to estimate sky value.
 
-          * mean/median: simple nanmean/nanmedian of the sky values.
-          * sex  == (med_factor, mean_factor) = (2.5, 1.5)
-          * IRAF == (med_factor, mean_factor) = (3, 2)
-          * MMM  == (med_factor, mean_factor) = (3, 2)
+          * ``"mean"``/``"median"``: simple nanmean/nanmedian of the sky values.
+          * ``"sex"``  == (med_factor, mean_factor) = (2.5, 1.5)
+          * ``"IRAF"`` == (med_factor, mean_factor) = (3, 2)
+          * ``"MMM"``  == (med_factor, mean_factor) = (3, 2)
 
         where ``msky = (med_factor * med) - (mean_factor * mean)``.
-        For the `"sex"` method, if (mean - median)/std < 0.3, median is used
+        For the ``"sex"`` method, if (mean - median)/std < 0.3, median is used
         instead of the above formula, which mimics the SExtractor's way.
         If a callable is given, it should have the signature
         ``func(skyarr, ssky) -> msky`` where `skyarr` is the 1-d array of sky
@@ -56,7 +56,7 @@ def sky_fit(
         `sky_clipper`. Example: ``method = lambda x, s: np.median(x)``.
         The default is ``"sex"``.
 
-    sky_clipper : callable, `None`, optional.
+    sky_clipper : callable, `None`, optional
         The function to be used to clip the sky values before estimating the
         sky value. The function should have the signature
         ``func(skyarr, **kwargs) -> clipped_skyarr`` where `skyarr` is the 1-d
@@ -64,18 +64,18 @@ def sky_fit(
         (i.e., ``lambda x: x[~np.isnan(x)]`` is used).
         The default is `ysphotutilpy.util.sigma_clipper`.
 
-    std_ddof : int, optional.
+    std_ddof : int, optional
         The "delta-degrees of freedom" for sky standard deviation calculation.
 
-    to_table : bool, optional.
-        If True, the output will be a `~astropy.table.Table` object. Otherwise,
+    to_table : bool, optional
+        If `True`, the output will be a `~astropy.table.Table` object. Otherwise,
         return a `dict`.
 
-    return_skyarr : bool, optional.
-        If True, the 1-d array (or list of such if multiple annuli) of sky
+    return_skyarr : bool, optional
+        If `True`, the 1-d array (or list of such if multiple annuli) of sky
         values will be returned.
 
-    kwargs : dict, optional.
+    kwargs : dict, optional
         The keyword arguments for `sky_clipper`.
 
     Returns
@@ -189,18 +189,20 @@ def annul2values(ccd, annulus, mask=None):
     Parameters
     ----------
     ccd : CCDData, ndarray
-        The image which the annuli in ``annulus`` are to be applied.
-    annulus : `~photutils.Aperture` object
+        The image which the annuli in `annulus` are to be applied.
+
+    annulus : `~photutils.aperture.Aperture` object
         The annuli to be used to extract the pixel values.
-    # fill_value: float or nan
-    #     The pixels which are masked by ``ccd.mask`` will be replaced with
-    #     this value.
+
+    mask : None or array_like, optional
+        A boolean mask with the same shape as `ccd`. The pixels with True
+        values will be masked.
 
     Returns
     -------
     values: list of ndarray
         The list of pixel values. Length is the same as the number of annuli in
-        ``annulus``.
+        `annulus`.
     """
     if isinstance(ccd, CCDData):
         arr = np.asarray(ccd.data)
@@ -261,10 +263,10 @@ def mmm_dao(
         the object mask.
 
     highbad : bool, optional
-        If True, the sky values are assumed to be high values, and the
-        algorithm will search for low values. If False, the sky values are
+        If `True`, the sky values are assumed to be high values, and the
+        algorithm will search for low values. If `False`, the sky values are
         assumed to be low values, and the algorithm will search for high
-        values. If None, the algorithm will search for both high and low
+        values. If `None`, the algorithm will search for both high and low
         values. The default is None.
 
     min_nsky : float or int, optional

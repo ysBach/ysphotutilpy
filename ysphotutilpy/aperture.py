@@ -41,26 +41,33 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
 
     Parameters
     ----------
-    ap : `photutils.Aperture`
+    ap : `~photutils.aperture.Aperture`
         Aperture or annulus to cut the ccd.
 
     ccd : `astropy.nddata.CCDData` or ndarray
         The ccd to be cutout.
 
-    method : str
+    method : {"bbox", "exact", "center", "subpixel"}
         The method to cutout.
 
-          * "bbox" : use the bounding box of the aperture/annulus.
-          * {"exact", "center", "subpixel"} : use the aperture mask
+          * ``"bbox"`` : use the bounding box of the aperture/annulus.
+          * {``"exact"``, ``"center"``, ``"subpixel"``} : See `~photutils.aperture.ApertureMask`
 
-        Default is "bbox" which uses the bounding box to cutout rectangular
-        region. Otherwise, "center" is a reasonable option to cutout circular
+        Default is ``"bbox"`` which uses the bounding box to cutout rectangular
+        region. Otherwise, ``"center"`` is a reasonable option to cutout circular
         region around the aperture/annulus.
+
+    subpixels : int, optional
+        Resolution of the subpixel sampling. Default is ``5``.
+
+    fill_value : float, optional
+        Value to fill pixels outside of the aperture. Default is ``np.nan``.
 
     Note
     ----
-    photutils ApertureMask has .cutout and .multiply, but they are not "Cutout2D" object.
-    But do I really need Cutout2D instead of ndarray?
+    `~photutils.aperture.ApertureMask` has ``.cutout`` and ``.multiply``, but
+    they are not "Cutout2D" object. But do I really need Cutout2D instead of
+    ndarray?
     """
     # if not isinstance(ccd, CCDData):
     #     ccd = CCDData(ccd, unit="adu")  # dummy unit
@@ -98,7 +105,7 @@ def ap_to_cutout_position(ap, cutout2d):
 
     Parameters
     ----------
-    ap : `photutils.Aperture`
+    ap : `~photutils.aperture.Aperture`
         Aperture or annulus to update the ``.positions``.
 
     cutout2d : `astropy.nddata.Cutout2D`
@@ -123,7 +130,7 @@ def cut_for_ap(to_move, based_on=None, ccd=None):
 
     Parameters
     ----------
-    to_move, based_on : `~photutils.Aperture`
+    to_move, based_on : `~photutils.aperture.Aperture`
         The aperture to be moved, and the reference.
     '''
     import copy
@@ -162,7 +169,7 @@ def cut_for_ap(to_move, based_on=None, ccd=None):
 
     Parameters
     ----------
-    to_move, based_on : `~photutils.Aperture`
+    to_move, based_on : `~photutils.aperture.Aperture`
         The aperture to be moved, and the reference.
     '''
     import copy
@@ -248,19 +255,19 @@ def circ_ap_an(
     ----------
     positions : array_like or `~astropy.units.Quantity`
         The pixel coordinates of the aperture center(s) in one of the
-        following formats::
+        following formats:
 
           * single ``(x, y)`` pair as a tuple, list, or `~numpy.ndarray`
-          * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
+          * `tuple`, `list`, or `~numpy.ndarray` of ``(x, y)`` pairs
           * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in pixel units
 
-    r_ap, r_in, r_out : float, optional.
+    r_ap, r_in, r_out : float, optional
         The aperture, annular inner, and annular outer radii.
 
-    fwhm : float, optional.
+    fwhm : float, optional
         The FWHM in pixel unit.
 
-    f_ap, f_in, f_out: int or float, optional.
+    f_ap, f_in, f_out: int or float, optional
         The factors multiplied to ``fwhm`` to set the aperture radius, inner
         sky radius, and outer sky radius, respectively. Defaults are ``1.5``,
         ``4.0``, and ``6.0``, respectively, which are de facto standard values
@@ -268,7 +275,7 @@ def circ_ap_an(
 
     Returns
     -------
-    ap, an : `~photutils.CircularAperture` and `~photutils.CircularAnnulus`
+    ap, an : `~photutils.aperture.CircularAperture` and `~photutils.aperture.CircularAnnulus`
         The object aperture and sky annulus.
     """
     r_ap = _sanitize_apsize(r_ap, fwhm=fwhm, factor=f_ap, name="r_ap")
@@ -303,7 +310,7 @@ def ellip_ap_an(
           * tuple, list, or `~numpy.ndarray` of ``(x, y)`` pairs
           * `~astropy.units.Quantity` instance of ``(x, y)`` pairs in pixel units
 
-    r_ap, r_in, r_out: int or float, list or tuple of such, optional.
+    r_ap, r_in, r_out: int or float, list or tuple of such, optional
         The aperture, annular inner, and annular outer radii. If list-like, the
         0-th element is regarded as the "semi-major" axis, even though it is
         smaller than the 1-th element. Thus, ``a, b = r_xx[0], r_xx[1]``
@@ -329,7 +336,7 @@ def ellip_ap_an(
 
     Returns
     -------
-    ap, an : `~photutils.EllipticalAperture` and `~photutils.EllipticalAnnulus`
+    ap, an : `~photutils.aperture.EllipticalAperture` and `~photutils.aperture.EllipticalAnnulus`
         The object aperture and sky annulus.
     """
     a_ap, b_ap = _sanitize_apsize(r_ap, fwhm, factor=f_ap, name="r_ap", repeat=True)
@@ -460,7 +467,7 @@ def eofn_ccw(wcs, full=False, tol=5.0):
     wcs : `~astropy.wcs.WCS`
         The WCS object.
     full : bool, optional
-        If True, return the PA of x- and y-axes.
+        If `True`, return the PA of x- and y-axes.
     tol : float, optional
         The tolerance in degrees for the difference of the two PA.
     """
@@ -615,19 +622,19 @@ class PillBoxMaskMixin:
 
         Parameters
         ----------
-        bbox : `~photutils.BoundingBox`
+        bbox : `~photutils.aperture.BoundingBox`
             The bounding box of the original aperture.
 
-        ap_r : `~photutils.RectangularAperture`
+        ap_r : `~photutils.aperture.RectangularAperture`
             The rectangular aperture of a pill box.
 
-        ap_1, ap_2 : `~photutils.EllipticalAperture`
+        ap_1, ap_2 : `~photutils.aperture.EllipticalAperture`
             The elliptical apertures of a pill box. The order of left/right
             ellipses is not important for this method.
 
-        method : See `~photutils.PillBoxMaskMixin.to_mask`
+        method : See `~photutils.aperture.PillBoxMaskMixin.to_mask`
 
-        subpixels : See `~photutils.PillBoxMaskMixin.to_mask`
+        subpixels : See `~photutils.aperture.PillBoxMaskMixin.to_mask`
 
         min_mask : float, optional
             The mask values smaller than this value is ignored (set to 0). This
@@ -712,10 +719,10 @@ class PillBoxMaskMixin:
 
         Returns
         -------
-        mask : `~photutils.ApertureMask` or list of `~photutils.ApertureMask`
-            A mask for the aperture.  If the aperture is scalar then a single
-            `~photutils.ApertureMask` is returned, otherwise a list of
-            `~photutils.ApertureMask` is returned.
+        mask : `~photutils.aperture.ApertureMask` or list of `~photutils.aperture.ApertureMask`
+            The aperture mask. If the aperture is scalar, a single
+            `~photutils.aperture.ApertureMask` is returned, otherwise a list of
+            `~photutils.aperture.ApertureMask` is returned.
         """
         _, subpixels = self._translate_mask_mode(method, subpixels)
         min_mask = min(1.0e-6, 1 / (subpixels**2))
@@ -924,7 +931,7 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
 
     # def bounding_boxes(self):
     #     """
-    #     A list of minimal bounding boxes (`~photutils.BoundingBox`), one
+    #     A list of minimal bounding boxes (`~photutils.aperture.BoundingBox`), one
     #     for each position, enclosing the exact elliptical apertures.
     #     """
     #     bboxes_rect = self._ap_rect.bounding_boxes

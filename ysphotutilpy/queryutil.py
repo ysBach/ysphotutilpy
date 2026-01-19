@@ -14,7 +14,7 @@ from astropy.table import Table, vstack
 from astropy.wcs import WCS
 from astroquery.jplhorizons import Horizons, conf
 from scipy.interpolate import UnivariateSpline
-
+from .logging import logger
 from .util import bezel_mask
 
 __all__ = [
@@ -140,14 +140,14 @@ def horizons_query(
         [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If no epochs are provided, the
         current time is used.
 
-    sort_by : None, str or list of str, optional.
+    sort_by : None, str or list of str, optional
         The column keys to sort the table. It is recommended to sort by time,
         because it seems the default sorting by JPL HORIZONS is based on time,
         not the `epochs` (i.e., ``epochs = [1, 3, 2]`` would return an
         ephemerides table in the order of ``[1, 2, 3]``). Give `None` to skip
         sorting.
 
-    start, stop, step: str, optional.
+    start, stop, step: str, optional
         If ``epochs=None``, it will be set as ``epochs = {'start':start,
         'stop':stop, 'step':step}``. If **eithter** `start` or `stop` is `None`
         or `epochs` is set to `None`, the current time is used for query.
@@ -155,23 +155,27 @@ def horizons_query(
     location : str or dict, optional
         Observer's location for ephemerides queries or center body name for
         orbital element or vector queries. Uses the same codes as JPL Horizons.
-        If no location is provided, Earth's center is used for ephemerides
-        queries and the Sun's center for elements and vectors queries.
-        Arbitrary topocentic coordinates for ephemerides queries can be
-        provided in the format of a dictionary. The dictionary has to be of the
-        form {``'lon'``: longitude in deg (East positive, West negative),
-        ``'lat'``: latitude in deg (North positive, South negative),
-        ``'elevation'``: elevation in km above the reference ellipsoid,
-        [``'body'``: Horizons body ID of the central body; optional; if this
-        value is not provided it is assumed that this location is on Earth]}.
+
+          * If no location is provided, Earth's center is used for ephemerides
+            queries and the Sun's center for elements and vectors queries.
+          * Arbitrary topocentic coordinates in `dict` format:
+            {``'lon'``: longitude in deg (East positive, West negative),
+            ``'lat'``: latitude in deg (North positive, South negative),
+            ``'elevation'``: elevation in km above the reference ellipsoid,
+            [``'body'``: Horizons body ID of the central body; optional; if this
+            value is not provided it is assumed that this location is on Earth]}.
 
     id_type : str, optional
         Controls Horizons's object selection for ``id``
-        [HORIZONSDOC_SELECTION]_ .  Options: ``'designation'`` (small body
-        designation), ``'name'`` (asteroid or comet name), ``'asteroid_name'``,
-        ``'comet_name'``, ``'smallbody'`` (asteroid and comet search), or
-        ``None`` (first search search planets, natural satellites, spacecraft,
-        and special cases, and if no matches, then search small bodies).
+        [HORIZONSDOC_SELECTION]_ . Options:
+
+            * ``'designation'`` (small body designation),
+            * ``'name'`` (asteroid or comet name),
+            * ``'asteroid_name'``
+            * ``'comet_name'``
+            * ``'smallbody'`` (asteroid and comet search
+            * `None` (first search search planets, natural satellites, spacecraft,
+            and special cases, and if no matches, then search small bodies).
 
     interpolate, interpolate_x : None, list of str, optinal.
         The column names to interpolate and the column for the ``x`` values to
@@ -179,21 +183,21 @@ def horizons_query(
         default: ``interpolate=None, interpolate_x='datetime_jd'``.
 
     k : int, optional
-        Degree of the smoothing spline.  Must be <= 5.
-        Default is k=1, a linear spline.
+        Degree of the smoothing spline. Must be <= 5.
+        Default is ``k=1``, a linear spline.
 
     s : float or None, optional
         Positive smoothing factor used to choose the number of knots.
         Default is 0, i.e., the interpolation.
 
-    output : None, path-like, optional.
+    output : None, path-like, optional
         If you want to write the ephemerides, give this.
 
-    format : str, optional.
+    format : str, optional
         The output table format (see `~astropy.io.ascii.write`).
 
-    pandas: bool, optional.
-        If True, return a pandas DataFrame. Otherwise, return an astropy Table.
+    pandas: bool, optional
+        If `True`, return a pandas DataFrame. Otherwise, return an astropy Table.
         If it is pandas, default output format is csv.
         Default: `False`.
 
@@ -250,7 +254,7 @@ def horizons_query(
 
     Returns
     -------
-    obj : astroquery.jplhorizons.HorizonsClass
+    obj : `~astroquery.jplhorizons.HorizonsClass`
         The object used for query.
 
     eph : astropy Table
@@ -319,49 +323,55 @@ def horizons_query(
 
 def mask_str(n_new, n_old, msg):
     dn = n_old - n_new
-    print(
+    logger.info(
         f"{n_new:3d} objects remaining: {dn:3d} masked out of {n_old:3d} based on {msg:s}."
     )
 
 
 class HorizonsDiscreteEpochsQuery:
+    """Designed to query JPL Horizons for a **large** list of epochs.
+
+    Parameters
+    ----------
+    targetname : str
+        Name, number, or designation of the object to be queried.
+
+    location : str or dict
+        Observer's location for ephemerides queries or center body name for
+        orbital element or vector queries. Uses the same codes as JPL
+        Horizons. If no location is provided, Earth's center is used for
+        ephemerides queries and the Sun's center for elements and vectors
+        queries. Arbitrary topocentric coordinates for ephemerides queries
+        can be provided in the format of a dictionary. The dictionary has
+        to be of the form {``'lon'``: longitude in deg (East positive, West
+        negative), ``'lat'``: latitude in deg (North positive, South
+        negative), ``'elevation'``: elevation in km above the reference
+        ellipsoid, [``'body'``: Horizons body ID of the central body;
+        optional; if this value is not provided it is assumed that this
+        location is on Earth]}.
+
+    epochs : scalar, list-like, or dictionary
+        Either a list of epochs in JD or MJD format or a dictionary
+        defining a range of times and dates; the range dictionary has to be
+        of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
+        ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If no
+        epochs are provided, the current time is used.
+
+    id_type : str, optional
+        Identifier type, options:
+
+        * ``'smallbody'``
+        * ``'majorbody'`` (planets but also anything that is
+        not a small body)
+        * ``'designation'``
+        * ``'name'``
+        * ``'asteroid_name'``
+        * ``'comet_name'``
+        * ``'id'`` (Horizons id number)
+        * ``'smallbody'`` (find the closest match under any id_type).
+        Default: ``'smallbody'``
+    """
     def __init__(self, targetname, location, epochs, id_type="smallbody"):
-        """Designed to query JPL Horizons for a **large** list of epochs.
-        Parameters
-        ----------
-        id : str
-            Name, number, or designation of the object to be queried.
-
-        location : str or dict
-            Observer's location for ephemerides queries or center body name for
-            orbital element or vector queries. Uses the same codes as JPL
-            Horizons. If no location is provided, Earth's center is used for
-            ephemerides queries and the Sun's center for elements and vectors
-            queries. Arbitrary topocentic coordinates for ephemerides queries
-            can be provided in the format of a dictionary. The dictionary has
-            to be of the form {``'lon'``: longitude in deg (East positive, West
-            negative), ``'lat'``: latitude in deg (North positive, South
-            negative), ``'elevation'``: elevation in km above the reference
-            ellipsoid, [``'body'``: Horizons body ID of the central body;
-            optional; if this value is not provided it is assumed that this
-            location is on Earth]}.
-
-        epochs : scalar, list-like, or dictionary
-            Either a list of epochs in JD or MJD format or a dictionary
-            defining a range of times and dates; the range dictionary has to be
-            of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
-            ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}. If no
-            epochs are provided, the current time is used.
-
-        id_type : str, optional
-            Identifier type, options:
-            ``'smallbody'``, ``'majorbody'`` (planets but also anything that is
-            not a small body), ``'designation'``, ``'name'``,
-            ``'asteroid_name'``, ``'comet_name'``, ``'id'`` (Horizons id
-            number), or ``'smallbody'`` (find the closest match under any
-            id_type).
-            Default: ``'smallbody'``
-        """
         self.targetname = str(targetname)
         self.location = location
         self.epochs = np.asarray(epochs)
@@ -387,15 +397,18 @@ class HorizonsDiscreteEpochsQuery:
         Nquery = (Nepoch - 1) // depoch + 1
         tabs = []
 
-        print(
+        # print(
+        logger.info(
             f"Query: {self.targetname} " + f"at {self.location} for {Nepoch} epochs" ""
         )
 
         if Nquery > 1:
-            print(f"Query chopped into {Nquery} chunks: Doing ", end=" ")
+            # print(f"Query chopped into {Nquery} chunks: Doing ", end=" ")
+            logger.info(f"Query chopped into {Nquery} chunks: Doing ...")
 
         for i in range(Nquery):
-            print(f"{i+1}...", end=" ")
+            # print(f"{i+1}...", end=" ")
+            logger.info(f"Query chunk {i+1}...")
             obj = Horizons(
                 id=self.targetname,
                 location=self.location,
@@ -413,13 +426,17 @@ class HorizonsDiscreteEpochsQuery:
         elif len(tabs) > 1:
             self.query_table = vstack(tabs)
 
-        print("Query done.")
+        # print("Query done.")
+        logger.info("Query done.")
 
         return self.query_table
 
 
 # https://gea.esac.esa.int/archive/documentation/GDR3/Data_processing/chap_cu5pho/cu5pho_sec_photSystem/cu5pho_ssec_photRelations.html
 class GaiaDR3:
+    """
+    https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html
+    """
     def __init__(
         self,
         coordinate: SkyCoord,
@@ -429,9 +446,6 @@ class GaiaDR3:
         verbose: bool = False,
         columns: list | str = "phot",
     ):
-        """
-        https://gea.esac.esa.int/archive/documentation/GDR3/Gaia_archive/chap_datamodel/sec_dm_main_source_catalogue/ssec_dm_gaia_source.html
-        """
         from astroquery.gaia import Gaia
 
         Gaia.ROW_LIMIT = -1
@@ -468,7 +482,7 @@ def organize_ps1_and_isnear(
     bezel : int, float, optional
         The bezel used to select stars inside the field of view.
 
-    nearby_obj_minsep : float, `~astropy.Quantity`, optional.
+    nearby_obj_minsep : float, `~astropy.Quantity`, optional
         The minimum angular separation to allow. If there is any object closer
         than this value, a warning message will be printed.
 
@@ -571,6 +585,58 @@ def organize_ps1_and_isnear(
 
 
 class MASTQuery:
+    """MAST Catalog Query (`~astroquery.mast.Catalogs`)
+
+    Parameters
+    ----------
+    catalog : str
+        The name of the catalog. Examples: ``"Galex"``, ``"HSC"``,
+        ``"TIC"``, ``"Gaia"``, ``"Panstarrs"``.
+
+    table, data_release: str
+        The specification of table and data release. Example:
+        ``catalog="Panstarrs", table="mean", data_release="dr2"`` By
+        default, `data_release` is the most recent one, and `table` differs
+        for each catalog.
+
+    ra, dec, radius : float or `~astropy.Quantity`
+        The central RA, DEC and the cone search radius. If not
+        `~astropy.Quantity`, assuming it is in degrees unit.
+
+    skycoord: `~astropy.coordinates.SkyCoord`
+        The coordinate if the user wants higher freedom. `ra` and `dec`
+        will be ignored.
+
+    radius : float or `~astropy.Quantity`
+        The cone search radius. If not `~astropy.Quantity`, assuming it is
+        in degrees unit.
+
+    columns : list of str, '*', optional
+        The columns to be retrieved. ``"*"`` request all the columns.
+
+    sort_by : str, list of tuples, optional
+        The column(s) to sort by. If a list of tuples, each tuple is
+        direction and column name (e.g., ``[('desc', 'ra')]``, ``[('asc',
+        'ra')]``).
+
+    **filter_kw : dict, optional
+        The column filters for `~astroquery.vizier`.
+        Examples: ``nStackDetections=[("gte", 2)]``
+
+        .. note::
+            To filter the query, criteria per column name are accepted. The
+            AND operation is performed between all column name criteria,
+            and the OR operation is performed within column name criteria.
+            Per each column name parameter, criteria may consist of either
+            a value or a list. The list may consist of a mix of values and
+            tuples of criteria decorator (min, gte, gt, max, lte, lt, like,
+            contains) and value.
+
+        .. warning::
+            The criteria doesn't work sometimes -- better to query all and
+            filter afterwards.
+            https://github.com/astropy/astroquery/issues/2355
+    """
     def __init__(
         self,
         catalog,
@@ -585,58 +651,7 @@ class MASTQuery:
         sort_by=None,
         **filter_kw,
     ):
-        """MAST Catalog Query (astroquery.mast.Catalogs)
 
-        Parameters
-        ----------
-        catalog : str
-            The name of the catalog. Examples: ``"Galex"``, ``"HSC"``,
-            ``"TIC"``, ``"Gaia"``, ``"Panstarrs"``.
-
-        table, data_release: str
-            The specification of table and data release. Example:
-            ``catalog="Panstarrs", table="mean", data_release="dr2"`` By
-            default, `data_release` is the most recent one, and `table` differs
-            for each catalog.
-
-        ra, dec, radius : float or `~astropy.Quantity`
-            The central RA, DEC and the cone search radius. If not
-            `~astropy.Quantity`, assuming it is in degrees unit.
-
-        skycoord: `~astropy.coordinates.SkyCoord`
-            The coordinate if the user wants higher freedom. `ra` and `dec`
-            will be ignored.
-
-        radius : float or `~astropy.Quantity`
-            The cone search radius. If not `~astropy.Quantity`, assuming it is
-            in degrees unit.
-
-        columns : list of str, '*', optional
-            The columns to be retrieved. ``"*"`` request all the columns.
-
-        sort_by : str, list of tuples, optional.
-            The column(s) to sort by. If a list of tuples, each tuple is
-            direction and column name (e.g., ``[('desc', 'ra')]``, ``[('asc',
-            'ra')]``).
-
-        **filter_kw : dict, optional
-            The column filters for astroquery.vizier.
-            Examples: ``nStackDetections=[("gte", 2)]``
-
-            ..note::
-                To filter the query, criteria per column name are accepted. The
-                AND operation is performed between all column name criteria,
-                and the OR operation is performed within column name criteria.
-                Per each column name parameter, criteria may consist of either
-                a value or a list. The list may consist of a mix of values and
-                tuples of criteria decorator (min, gte, gt, max, lte, lt, like,
-                contains) and value.
-
-            ..warning::
-                The criteria doesn't work sometimes -- better to query all and
-                filter afterwards..
-                https://github.com/astropy/astroquery/issues/2355
-        """
         if skycoord is not None:
             skycoord = skycoord.transform_to("icrs")
             ra = skycoord.ra
@@ -704,7 +719,7 @@ class PanSTARRS1:
         columns=["**", "+_r"],
         column_filters=None,
     ):
-        """Query PanSTARRS @ VizieR using astroquery.vizier
+        """Query PanSTARRS @ VizieR using `~astroquery.vizier`
 
         Parameters
         ----------
@@ -739,7 +754,7 @@ class PanSTARRS1:
             https://astroquery.readthedocs.io/en/latest/vizier/vizier.html#specifying-keywords-output-columns-and-constraints-on-columns
 
         column_filters : dict, optional
-            The column filters for astroquery.vizier.
+            The column filters for `~astroquery.vizier`.
             Example can be ``{"gmag":"13.0..20.0", "e_gmag":"<0.10"}``.
 
         Return
@@ -818,12 +833,12 @@ class PanSTARRS1:
         header_or_wcs : `astropy.io.fits.Header`, `astropy.wcs.WCS`, optional
             The header to extract WCS information or WCS object.
 
-        bezel: int or float, optional
+        bezel : int or float, optional
             The bezel size to exclude stars at the image edges. If you want to
             keep some stars outside the edges, put negative values (e.g.,
             ``-5``).
 
-        mode: 'all' or 'wcs', optional
+        mode : 'all' or 'wcs', optional
             Whether to do the transformation including distortions (``'all'``)
             or only including only the core WCS transformation (``'wcs'``).
         """
@@ -1248,7 +1263,7 @@ def xyinFOV(
         nx, ny = wcs._naxis
     elif header_or_wcs is None:
         if verbose >= 1:
-            print("No way to reject stars at bezels: provide `header` or `shape`.")
+            logger.info("No way to reject stars at bezels: provide `header` or `shape`.")
         if return_mask:
             return _tab, None
         return _tab
@@ -1405,15 +1420,15 @@ def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
     ----------
     table : astropy.table.Table
         Table with the flag column (either ``"objInfoFlag"`` or
-        ``"f_objID"`` (from MAST or VizieR, respectively).
+        ``"f_objID"`` from MAST or VizieR, respectively).
 
     newcol : str
         Name of the new column with the human readable flag. The result
         will be `sep` separated string (e.g., "POOR & HAS_SOLSYS_DET").
 
     fullname : bool
-        If True, use the full name of the flag (e.g., "POOR" instead of
-        "2", "HERN_RRL_P05" instead of "64"). Default is True.
+        If `True`, use the full name of the flag (e.g., "POOR" instead of
+        "2", "HERN_RRL_P05" instead of "64"). Default is `True`.
 
     sep : str
         Separator for the flag.
@@ -1529,10 +1544,10 @@ def ps1filenames(
         in angular units.
 
     filters : str
-        String with filters to include. (g, r, i, z, y). Default is "grizy".
+        String with filters to include. (g, r, i, z, y). Default is ``"grizy"``.
 
     file_type : str
-        Data format (options are "fits", "jpg", or "png"). Default is "fits".
+        Data format (options are "fits", "jpg", or "png"). Default is ``"fits"``.
 
     image_type : str
         List of any of the acceptable image types. Default is "stack"; other
@@ -1541,7 +1556,7 @@ def ps1filenames(
         (number of exposures), "warp.wt", and "warp.mask". This parameter can
         be a list of strings or a comma-separated string.
 
-        ..note::
+        .. note::
             Weight map is the variance map
             (https://outerspace.stsci.edu/display/PANSTARRS/PS1+Weight+image)
 

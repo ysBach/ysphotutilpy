@@ -2,13 +2,16 @@
 Currently only the half-wave plate angle (HWP angle) of 0, 22.5, 45,
 67.5 combination is available.
 
-Primitive naming:
-<lin/circ/all>_<oe/sr>_<n>set
-- lin/circ/all: linear, circular, or all Stoke's parameter will be
-  determined.
-- oe/sr: o- and e-ray (e.g., Wollaston or Savart prism is used) or
-  single-ray version
-- n: the number of HWP angles used. 3 or 4.
+Primitive naming
+
+  .. code-block::
+
+   <lin/circ/all>_<oe/sr>_<n>set
+    - lin/circ/all: linear, circular, or all Stoke's parameter will be
+      determined.
+    - oe/sr: o- and e-ray (e.g., Wollaston or Savart prism is used) or
+      single-ray version
+    - n: the number of HWP angles used. 3 or 4.
 """
 
 import numpy as np
@@ -64,37 +67,44 @@ def calc_stokes(
     ----------
     o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675 : float, ndarray
         The o-ray or e-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
-    do_000, do_450, do_225, do_675, de_000, de_450, de_225, de_675 : float, ndarray, optional.
+    do_000, do_450, do_225, do_675, de_000, de_450, de_225, de_675 : float, ndarray, optional
         The o-ray or e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
-    p_eff, dp_eff : float, optional.
+        Default is ``0``.
+    p_eff, dp_eff : float, optional
         The polarimetric efficiency and its error.
-    rot_q, rot_u : float, ndarray, optional.
+        Default is ``1`` for ``p_eff`` and ``0`` for ``dp_eff``.
+    rot_q, rot_u : float, ndarray, optional
         The instrumental rotation angle of the polarimetric efficiency.
-    q_off, dq_off, u_off, du_off : float, optional.
+        Default is ``0``.
+    q_off, dq_off, u_off, du_off : float, optional
         The offset of the q, u values (due to the polarization of the
         instrument) and corresponding erorrs.
-     pa_off, dpa_off : float, optional.
+        Default is ``0``.
+    pa_off, dpa_off : float, optional
         The offset of the optic's position angle (due to the instrument) and
         corresponding error.
-    pa_obs : float, ndarray, optional.
+        Default is ``0``.
+    pa_obs : float, ndarray, optional
         The position angle of the optics from the observation (usually in the
         FITS header information).
-    pa_ccw : bool, optional.
+        Default is ``0``.
+    pa_ccw : bool, optional
         Whether the position angles (`pa_off` and `pa_obs`) are measured in
         counter-clockwise direction in the projected plane seen by the observer
         (i.e., the qraw-uraw (x: q_raw, y: u_raw) plane). If it is `True`,
         ``offset = pa_off - pa_obs`` will be used. Otherwise, ``offset =
         -(pa_off - pa_obs)`` will be used.
-        Default: `True`.
-    use_pct, use_deg : bool, optional.
+        Default is `True`.
+    use_pct, use_deg : bool, optional
         Whether to return percentage/degrees or natural unit. If `True`,
         `p_eff`, `dp_eff`, `q_off`, `u_off`, `dq_off`, `du_off` must be in
         percentage and `rot_q`, `rot_u`, `pa_off`, `dpa_off`, `pa_obs` must be
         in degrees.
-    eminuso : bool, optional.
+        Default is `False`.
+    eminuso : bool, optional
         Whether the q or u values are calculated in the way that "e-ray minus
         o-ray" convention. (See Notes)
-        Default: `True`.
+        Default is `True`.
 
     Returns
     -------
@@ -202,15 +212,16 @@ def calc_qu_4set(
     ----------
     o_000, o_450, o_225, o_675, e_000, e_450, e_225, e_675 : float, ndarray
         The o-ray or e-ray intensities of 0, 22.5, 45, 67.5 degree HWP angles.
-    do_000, do_450, do_225, do_675, de_000, de_450, de_225, de_675 : float, ndarray, optional.
+    do_000, do_450, do_225, do_675, de_000, de_450, de_225, de_675 : float, ndarray, optional
         The o-ray or e-ray intensity errors of 0, 22.5, 45, 67.5 degree HWP angles.
-    out_pct : bool, optional.
+        Default is ``0``.
+    out_pct : bool, optional
         If `True`, the output will be in percentage.
-        Default: `False`.
-    eminuso : bool, optional.
+        Default is `False`.
+    eminuso : bool, optional
         Whether the q or u values are calculated in the way that "e-ray minus
         o-ray" convention. (See Notes)
-        Default: `True`.
+        Default is `True`.
 
     Notes
     -----
@@ -259,16 +270,18 @@ def correct_eff(q, u, dq=0, du=0, p_eff=1, dp_eff=0, in_pct=False, out_pct=False
     ----------
     q, u : float, ndarray
         The q, u values from the polarimetry.
-    dq, du : float, ndarray, optional.
+    dq, du : float, ndarray, optional
         The q, u errors from the polarimetry.
-    p_eff, dp_eff : float, optional.
+        Default is ``0``.
+    p_eff, dp_eff : float, optional
         The polarimetric efficiency and its error.
-    in_pct : bool, optional.
-        If True, the input will be in percentage.
-        Default: `False`.
-    out_pct : bool, optional.
-        If True, the output will be in percentage.
-        Default: `False`.
+        Default is ``1`` for `p_eff` and ``0`` for `dp_eff`.
+    in_pct : bool, optional
+        If `True`, the input will be in percentage.
+        Default is `False`.
+    out_pct : bool, optional
+        If `True`, the output will be in percentage.
+        Default is `False`.
 
     Returns
     -------
@@ -314,22 +327,25 @@ def correct_off(
     ----------
     q, u : float, ndarray
         The q, u values from the polarimetry.
-    dq, du : float, ndarray, optional.
+    dq, du : float, ndarray, optional
         The q, u errors from the polarimetry.
-    rot_q, rot_u : float, ndarray, optional.
+        Default is ``0``.
+    rot_q, rot_u : float, ndarray, optional
         The instrumental rotation angle of the polarimetric efficiency.
-    q_off, dq_off, u_off, du_off : float, optional.
+        Default is ``0``.
+    q_off, dq_off, u_off, du_off : float, optional
         The offset of the q, u values (due to the polarization of the
         instrument) and corresponding erorrs.
-    in_pct : bool, optional.
-        If True, the input will be in percentage.
-        Default: `False`.
-    in_deg : bool, optional.
-        If True, the input will be in degree.
-        Default: `False`.
-    out_pct : bool, optional.
-        If True, the output will be in percentage.
-        Default: `False`.
+        Default is ``0``.
+    in_pct : bool, optional
+        If `True`, the input will be in percentage.
+        Default is `False`.
+    in_deg : bool, optional
+        If `True`, the input will be in degree.
+        Default is `False`.
+    out_pct : bool, optional
+        If `True`, the output will be in percentage.
+        Default is `False`.
 
     Returns
     -------
@@ -389,30 +405,33 @@ def correct_pa(
     ----------
     q, u : float, ndarray
         The q, u values from the polarimetry.
-    dq, du : float, ndarray, optional.
+    dq, du : float, ndarray, optional
         The q, u errors from the polarimetry.
-    pa_off, dpa_off : float, optional.
+        Default is ``0``.
+    pa_off, dpa_off : float, optional
         The offset of the optic's position angle (due to the instrument) and
         corresponding error.
-    pa_obs : float, ndarray, optional.
+        Default is ``0``.
+    pa_obs : float, ndarray, optional
         The position angle of the optics from the observation (usually in the
         FITS header information).
-    pa_ccw : bool, optional.
+        Default is ``0``.
+    pa_ccw : bool, optional
         Whether the position angles (`pa_off` and `pa_obs`) are measured in
         counter-clockwise direction in the projected plane seen by the observer
         (i.e., the qraw-uraw (x: q_raw, y: u_raw) plane). If it is `True`,
         ``offset = pa_off - pa_obs`` will be used. Otherwise, ``offset =
         -(pa_off - pa_obs)`` will be used.
-        Default: `True`.
-    in_pct : bool, optional.
-        If True, the input will be in percentage.
-        Default: `False`.
-    in_deg : bool, optional.
-        If True, the input will be in degree.
-        Default: `False`.
-    out_pct : bool, optional.
-        If True, the output will be in percentage.
-        Default: `False`.
+        Default is `True`.
+    in_pct : bool, optional
+        If `True`, the input will be in percentage.
+        Default is `False`.
+    in_deg : bool, optional
+        If `True`, the input will be in degree.
+        Default is `False`.
+    out_pct : bool, optional
+        If `True`, the output will be in percentage.
+        Default is `False`.
 
     Returns
     -------
@@ -453,17 +472,19 @@ def calc_pol(q, u, dq=0, du=0, in_pct=False, out_pct=False, out_deg=False):
     ----------
     q, u : float, ndarray
         The q, u values from the polarimetry.
-    dq, du : float, ndarray, optional.
+    dq, du : float, ndarray, optional
         The q, u errors from the polarimetry.
-    in_pct : bool, optional.
-        If True, the input will be in percentage.
-        Default: `False`.
-    out_pct : bool, optional.
-        If True, the output will be in percentage.
-        Default: `False`.
-    out_deg : bool, optional.
-        If True, the output will be in degree.
-        Default: `False`.
+
+        Default is ``0``.
+    in_pct : bool, optional
+        If `True`, the input will be in percentage.
+        Default is `False`.
+    out_pct : bool, optional
+        If `True`, the output will be in percentage.
+        Default is `False`.
+    out_deg : bool, optional
+        If `True`, the output will be in degree.
+        Default is `False`.
 
     Returns
     -------
@@ -504,20 +525,23 @@ def calc_pol_r(
     pol, thp : float, ndarray
         The polarization degree and polarization vector angle (angle from the
         North to East, CCW, of the strongest E-field vector).
-    dpol, dthp : float, ndarray, optional.
+    dpol, dthp : float, ndarray, optional
         The errors of the polarization degree and polarization vector angle.
-    suntargetpa : float, optional.
+        Default is ``0``.
+    suntargetpa : float, optional
         The position angle of the sun-target vector (projected to the sky
         plane) from the observer's position.
-    dsuntargetpa : float, optional.
+        Default is ``0``.
+    dsuntargetpa : float, optional
         The error of `suntargetpa` (see above). This is normally 0, unless the
         orbital element of the solar system body is very uncertain.
-    in_pct, in_deg : bool, optional.
-        If True, the input will be in percentage/degree.
-        Default: `False`.
-    out_pct, out_deg : bool, optional.
-        If True, the output will be in percentage/degree.
-        Default: `False`.
+        Default is ``0``.
+    in_pct, in_deg : bool, optional
+        If `True`, the input will be in percentage/degree.
+        Default is `False`.
+    out_pct, out_deg : bool, optional
+        If `True`, the output will be in percentage/degree.
+        Default is `False`.
 
     Returns
     -------
@@ -643,6 +667,19 @@ class PolObjMixin:
 
 
 class LinPolOE4(PolObjMixin):
+    """
+    Parameters
+    ----------
+    ixxx_[oe] : array-like
+        The intensity (in linear scale, e.g., sky-subtracted ADU) in
+        the half-wave plate angle of ``xxx/10`` degree in the ``o``
+        or ``e``-ray.
+    dixxx_[oe] : array-like, optinal
+        The 1-sigma error-bars of the corresponding ``ixxx_[oe]``.
+        It must have the identical length as ``ixxx_[oe]`` if not
+        None.
+        Default is `None`.
+    """
     def __init__(
         self,
         i000_o,
@@ -662,18 +699,6 @@ class LinPolOE4(PolObjMixin):
         di675_o=None,
         di675_e=None,
     ):
-        """
-        Parameters
-        ----------
-        ixxx_[oe] : array-like
-            The intensity (in linear scale, e.g., sky-subtracted ADU) in
-            the half-wave plate angle of ``xxx/10`` degree in the ``o``
-            or ``e``-ray.
-        dixxx_[oe] : array-like, optinal
-            The 1-sigma error-bars of the corresponding ``ixxx_[oe]``.
-            It must have the identical length as ``ixxx_[oe]`` if not
-            None.
-        """
         self.mode = "lin_oe_4set"
         self.i000_o = np.array(i000_o)
         self.i000_e = np.array(i000_e)
@@ -744,33 +769,33 @@ class LinPolOE4(PolObjMixin):
         """
         Parameters
         ----------
-        p_eff, dp_eff : float, optional.
+        p_eff, dp_eff : float, optional
             The polarization efficiency and its error. Defaults to ``1``
             and ``0``.
         q_inst, u_inst, dq_inst, du_inst : float, optional
             The instrumental q (Stokes Q/I) and u (Stokes U/I) values
             and their errors. All defaults to ``0``.
-        rot_instq, rot_instu: float, array-like, optional.
+        rot_instq, rot_instu: float, array-like, optional
             The instrumental rotation. In Nayoro Pirka MSI manual, the
             average of ``INS-ROT`` for the HWP angle 0 and 45 at the
             start and end of exposure (total 4 values) are to be used
             for ``rot_instq``, etc. If array, it must have the same
             length as ``ixxx_[oe]``.
-        pa_inst : float, array-like, optional.
+        pa_inst : float, array-like, optional
             The position angle (North to East) of the instrument.
             If array-like, it must have the same length as
             ``ixxx_[oe]``.
-        theta_inst, dtheta_inst : float, optional.
+        theta_inst, dtheta_inst : float, optional
             The instrumental polarization rotation angle theta and its
             error.
-        percent : bool, optional.
+        percent : bool, optional
             Whether ``p_eff``, ``dp_eff``, ``q_inst``, ``dq_inst``,
             ``u_inst``, ``du_inst`` are in percent unit. Defaults to
-            ``True``.
-        degree : bool, optional.
+            `True`.
+        degree : bool, optional
             Whether ``rot_instq``, ``rot_instu``, ``theta_inst``,
             ``dtheta_inst`` are in degree unit. Otherwise it must be in
-            radians. Defaults to ``True``.
+            radians. Defaults to `True`.
         """
 
         if percent:
@@ -871,11 +896,11 @@ def proper_pol(pol, theta, psang, degree=True):
         '''
         Parameters
         ----------
-        orays, erays: 1-d array-like or 2-d of shape ``(N, 4)``
-            The oray and eray intensities in ``(N, 4)`` shape. The four
+        orays, erays : array-like
+            The oray and eray intensities in ``(N, 4)`` shape (2-d) or 1-d. The four
             elements are assumed to be in the order of HWP angle as in
             ``order``.
-        order : array-like, optional.
+        order : array-like, optional
             The HWP angle order in ``orays`` and ``erays``.
         '''
         # orays, erays, dorays, derays to 2-d array
@@ -921,7 +946,7 @@ def proper_pol(pol, theta, psang, degree=True):
                               + f"dp_eff = {self.dp_eff}.")
 
 
-        gain_corrected : bool, optional.
-            Whether the values are in ADU (if ``False``) or electrons
-            (if ``True``). Defaults to ``False``.
+        gain_corrected : bool, optional
+            Whether the values are in ADU (if `False`) or electrons
+            (if `True`). Defaults to `False`.
 """

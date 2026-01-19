@@ -7,13 +7,14 @@ from astropy.table import QTable
 from photutils.aperture import Aperture, aperture_photometry
 
 from .background import sky_fit
+from .logging import logger
 
 __all__ = ["apphot_annulus"]
 
 
 # TODO: Put centroiding into this apphot_annulus ?
 # TODO: use variance instead of error (see photutils 0.7)
-# TODO: one_aperture_per_row : bool, optional.
+# TODO: one_aperture_per_row : bool, optional
 # `photutils.aperture.aperture_photometry` produces 1-row result if multiple
 # radii aperture is given with column names starting from ``aperture_sum_0``
 # and ``aperture_sum_err_0``.
@@ -42,11 +43,13 @@ def apphot_annulus(
     ccd : CCDData
         The data to be photometried. Preferably in ADU.
 
-    aperture, annulus : aperture and annulus object or list of such.
-        The aperture and annulus to be used for aperture photometry. For
-        multi-position aperture, just use, e.g., ``CircularAperture(positions,
-        r=10)``. For multiple radii, use, e.g., ``[CircularAperture(positions,
-        r=r) for r in radii]``.
+    aperture, annulus : `~photutils.aperture.Aperture` or list of such, optional
+        The aperture and annulus to be used for aperture photometry.
+
+        .. note::
+            For multi-position aperture, just use, e.g., ``CircularAperture(positions,
+            r=10)``. For multiple radii, use, e.g., ``[CircularAperture(positions,
+            r=r) for r in radii]``.
 
     gain : str, float, optional
         The gain of the CCD in electrons per ADU. If str, gain will be
@@ -55,27 +58,27 @@ def apphot_annulus(
         `None`.
         Default is ``'GAIN'``.
 
-    rdnosie : str, float, optional
+    rdnoise : str, float, optional
         The readout noise of the CCD in electrons. If str, readout noise will
-        be found from the header by tke key, and if not found, defaults to 0.
+        be found from the header by tke key, and if not found, defaults to ``0``.
         If float, it should be in electrons. Used only if `error` is `None`.
         Default is ``'RDNOISE'``.
 
-    exposure_key : str
+    exposure_key : str, optional
         The key for exposure time. Together with `t_exposure_unit`, the
         function will normalize the signal to exposure time. If `t_exposure`
         is not None, this will be ignored.
 
     error : array-like or Quantity, optional
-        See `~photutils.aperture_photometry` documentation. The pixel-wise
+        See `~photutils.aperture.aperture_photometry` documentation. The pixel-wise
         error map to be propagated to magnitued error.
 
-    sky_keys : dict
+    sky_keys : dict, optional
         args/kwargs of `sky_fit`. If `None`(default), 3-sigma 5-iters clipping
         with ``ddof=1`` is performed, and then the modal sky value is estimated
         by SExtractor estimator; see `~ysphotutilpy.background.sky_fit`.
 
-    sky_min : float
+    sky_min : float, optional
         The minimum value of the sky to be used for sky subtraction.
 
     aparea_exact : bool, optional
@@ -85,18 +88,18 @@ def apphot_annulus(
         are not counted in the ``aparea`` value. It is important to prevent
         *oversubtracting* sky values. Default is `False`.
 
-    npix_mask_ap : int, optional.
+    npix_mask_ap : int, optional
         If the number of masked pixels in the aperture is equal to or greater
         than `npix_mask_ap`, the column ``"bad"`` will be marked as ``1``.
 
-        ..note::
+        .. note::
             Currently it is not checked for annulus (works only for aperture)
 
-    pandas : bool, optional.
+    pandas : bool, optional
         Whether to convert to `~pandas.DataFrame`.
 
     **kwargs :
-        kwargs for `~photutils.aperture_photometry`.
+        kwargs for `~photutils.aperture.aperture_photometry`.
 
     Returns
     -------
@@ -111,11 +114,13 @@ def apphot_annulus(
     Notes
     -----
     If `error` is given, the error is propagated to magnitude error by
-    quadratically summing the error. The final source error is this error plus
-    ``aperture_area*sky_stddev**2``. In IRAF, it wrongly(?) adds another term,
-    (``aperture_area*sky_stddev/sky_num**2``).
+    quadratically summing the error. The final source variance is `error**2`
+    plus ``aperture_area*sky_stddev**2``. In IRAF, it wrongly(?) adds another
+    term, (``aperture_area*sky_stddev**2/sky_num``), which is not included
+    here. This is, I think, added to incorporate for the CLT error of the
+    mean estimator.
 
-    If `error` is not given, error=``sqrt(data/gain + (rdnoise/gain)**2)`` is
+    If `error` is not given, ``error=sqrt(data/gain + (rdnoise/gain)**2)`` is
     used, assuming dark=0 (also, digitization error is ignored. cf. Merline &
     Howell (1995) ExpA).
     """
@@ -175,7 +180,7 @@ def apphot_annulus(
             if verbose:
                 warn("The exposure time info not given. Setting it to 1 sec.")
 
-    # [multi-position, same radius] case results in ONE Aperture object with
+    # [multi-position, same radius] case results in ONE `~photutils.aperture.Aperture` object with
     # multiple positions.
     # If this Aperture is turned into list, photutils (1.0) gives ValueError:
     #   ValueError: Input apertures must all have identical positions.
@@ -207,7 +212,7 @@ def apphot_annulus(
 
     if error is not None:
         if verbose:
-            print(
+            logger.info(
                 "Ignore any uncertainty extension in the original CCD, "
                 + "and use provided uncertainty map."
             )
@@ -225,7 +230,7 @@ def apphot_annulus(
                 _ccd.header.get(rdnoise, 0) if isinstance(rdnoise, str) else rdnoise
             )
             if verbose:
-                print(f"Making errormap from {gn} [e/ADU], {rd} [e]")
+                logger.info(f"Making errormap from {gn} [e/ADU], {rd} [e]")
             err = np.sqrt(_arr / gn + (rd / gn) ** 2)
 
     if aparea_exact:
@@ -416,7 +421,7 @@ def apphot_ellip_sep(
 
     if error is not None:
         if verbose:
-            print(
+            logger.info(
                 "Ignore any uncertainty extension in the original CCD and use provided error."
             )
         err = error.copy()
