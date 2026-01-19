@@ -3,101 +3,30 @@ A collection of convenience functions used with the package sep.
 
 Why use sep, not photutils?
 ===========================
+
 Many times the purpose of SExtractor is to mearly **find** objects, not
 detailed photometry of them. Thus, the calculational speed is an important
 factor.
 
 sep is about 100 times faster in background estimation than photutils from many
-tests (see sep/bench.py of the sep repo):
+tests (see sep/bench.py of the sep repo).
 
-```
-# MBP 15" [2018, macOS 11.6, i7-8850H (2.6 GHz; 6-core), RAM 16 GB (2400MHz DDR4), Radeon Pro 560X (4GB)]
-$ python bench.py
-test image shape: (1024, 1024)
-test image dtype: float32
-measure background:  12.34 ms
-subtract background:   3.38 ms
-background array:   6.94 ms
-rms array:   5.21 ms
-extract:  88.87 ms  [1167 objects]
-
-sep version:       1.10.0
-photutils version: 0.7.1
-
-| test                    | sep             | photutils       | ratio  |
-|-------------------------|-----------------|-----------------|--------|
-| 1024^2 image background |        11.68 ms |       851.76 ms |  72.94 |
-| circles  r= 5  subpix=5 |    3.40 us/aper |   45.30 us/aper |  13.31 |
-| circles  r= 5  exact    |    3.89 us/aper |   45.76 us/aper |  11.76 |
-| ellipses r= 5  subpix=5 |    3.89 us/aper |   75.29 us/aper |  19.37 |
-| ellipses r= 5  exact    |   10.88 us/aper |   63.71 us/aper |   5.85 |
-```
-
-photutils 1.4 and sep 1.2.0:
-```
-# MBP 14" [2021, macOS 12.2.1, M1Pro(6P+2E/G16c/N16c/32G)]
-# -- ANACONDA INTEL
-test image shape: (1024, 1024)
-test image dtype: float32
-measure background:  10.18 ms
-subtract background:   2.10 ms
-background array:   3.80 ms
-rms array:   2.81 ms
-extract:  65.67 ms  [1167 objects]
-
-sep version:       1.2.0
-photutils version: 1.4.1.dev19+g3e7460c3
-
-| test                    | sep             | photutils       | ratio  |
-|-------------------------|-----------------|-----------------|--------|
-| 1024^2 image background |         8.60 ms |        38.81 ms |   4.51 |
-| circles  r= 5  subpix=5 |    1.94 us/aper |   40.75 us/aper |  21.01 |
-| circles  r= 5  exact    |    2.24 us/aper |   31.40 us/aper |  14.01 |
-| ellipses r= 5  subpix=5 |    2.41 us/aper |   34.44 us/aper |  14.31 |
-| ellipses r= 5  exact    |    5.42 us/aper |   45.10 us/aper |   8.33 |
-```
-
-```
-# MBP 14" [2021, macOS 12.2.1, M1Pro(6P+2E/G16c/N16c/32G)]
-# -- MINIFORGE ARM64 (default numpy installation)
-# Miniforge with ``conda install numpy "blas=*=*accelerate*"`` had almost identical timings
-# (+- 10%) whith this.
-test image shape: (1024, 1024)
-test image dtype: float32
-measure background:   7.28 ms
-subtract background:   3.48 ms
-background array:   4.22 ms
-rms array:   3.70 ms
-extract:  32.39 ms  [1167 objects]
-
-sep version:       1.2.0
-photutils version: 1.4.1.dev19+g3e7460c3
-
-| test                    | sep             | photutils       | ratio  |
-|-------------------------|-----------------|-----------------|--------|
-| 1024^2 image background |         7.20 ms |        36.58 ms |   5.08 |
-| circles  r= 5  subpix=5 |    1.19 us/aper |   21.41 us/aper |  18.05 |
-| circles  r= 5  exact    |    1.55 us/aper |   18.39 us/aper |  11.88 |
-| ellipses r= 5  subpix=5 |    1.60 us/aper |   21.48 us/aper |  13.45 |
-| ellipses r= 5  exact    |    3.90 us/aper |   29.29 us/aper |   7.51 |
-```
-
-Maybe more benchmark for extraction is needed (photutils's detect_sources,
-source_properties), but it's already tempting to use sep over photutils given
-the purpose is only to extract the objects, not photometry.
+Benchmark results on various systems are documented in the source code.
 
 Pixel convention
 ================
+
 Note that sep also uses same pixel notation as photutils: pixel 0 covers -0.5
-to +0.5. Simple test code:
->>> test = np.zeros((15, 15))
->>> test[7, 8] = 1
->>> test[8, 9] = 2
->>> obj = pd.DataFrame(sep.extract(test, 0))
->>> for c in obj.columns:
->>>     print(f"{c}: {obj[c].values}")
->>> # x: [8.66666667]
->>> # y: [7.66666667]
+to +0.5. Simple test code::
+
+    >>> test = np.zeros((15, 15))
+    >>> test[7, 8] = 1
+    >>> test[8, 9] = 2
+    >>> obj = pd.DataFrame(sep.extract(test, 0))
+    >>> for c in obj.columns:
+    ...     print(f"{c}: {obj[c].values}")
+    # x: [8.66666667]
+    # y: [7.66666667]
 """
 
 from warnings import warn

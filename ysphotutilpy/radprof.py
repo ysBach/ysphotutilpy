@@ -43,9 +43,25 @@ def moffat_r(r, amp=1, core=1, power=2.5, const=0):
 
 
 def bivt_r(r, amp=1, num2=1, sig=1, const=0):
-    """Bivariate t distribution (generalized Moffat)
-    num2 : float
+    """Bivariate t distribution (generalized Moffat).
+
+    Parameters
+    ----------
+    r : array-like
+        Radial distance.
+    amp : float, optional
+        Amplitude. Default is 1.
+    num2 : float, optional
         The degrees of freedom (nu) minus 2.
+    sig : float, optional
+        Scale parameter (sigma). Default is 1.
+    const : float, optional
+        Constant background. Default is 0.
+
+    Returns
+    -------
+    float or array-like
+        The bivariate t profile values.
     """
     return amp * (1 + (r**2 / (num2 * sig**2))) ** (-(num2 + 4) / 2) + const
 
@@ -66,6 +82,7 @@ def radial_profile(
     im, center, radii=1, thickness=1, mask=None, norm_by_center=False, add_center=False, **kwargs
 ):
     """Calculate radial profile of the image.
+
     Parameters
     ----------
     im : 2D array
@@ -76,7 +93,7 @@ def radial_profile(
         The radii of the annulus.
     mask : 2D array, optional
         A mask to apply to the image. Pixels with True values will be ignored.
-    thickness : int, array of int, optional
+    thickness : int or array of int, optional
         The thickness(es) of the annulus for the radial profile.
     norm_by_center : bool, optional
         If True, normalize the profile by the value at the center position.
@@ -87,6 +104,7 @@ def radial_profile(
         Default is `False`.
     **kwargs : dict, optional
         Additional keyword arguments to pass to the `sky_fit` function.
+
     Returns
     -------
     profs : pandas.DataFrame

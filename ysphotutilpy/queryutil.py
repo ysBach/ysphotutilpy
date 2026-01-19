@@ -127,6 +127,7 @@ def horizons_query(
     extra_precision=False,
 ):
     """Designed for query to JPL HORIZONS with dict-like or small epochs.
+
     Parameters
     ----------
     id : str, required

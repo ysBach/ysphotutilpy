@@ -78,7 +78,8 @@ def _scaling_shift(pos_old, pos_new_raw, max_shift_step=None, verbose=False):
 
 
 def _background(data, bkg="min"):
-    """Estimate the background level from the data
+    """Estimate the background level from the data.
+
     Parameters
     ----------
     data : array_like
@@ -184,7 +185,8 @@ def _center_sep(
     verbose=0,
     **kwargs,
 ):
-    """Centroiding by SEP
+    """Centroiding by SEP.
+
     Parameters
     ----------
     data : array_like
@@ -296,6 +298,7 @@ def center_sep(
     full=False,
 ):
     """Find the center of the object by SEP.
+
     Parameters
     ----------
     data : CCDData, array_like

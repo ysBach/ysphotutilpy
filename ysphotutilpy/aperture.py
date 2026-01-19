@@ -38,6 +38,7 @@ __all__ = [
 
 def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
     """Returns a Cutout2D object from bounding boxes of aperture/annulus.
+
     Parameters
     ----------
     ap : `photutils.Aperture`
@@ -93,7 +94,8 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
 
 
 def ap_to_cutout_position(ap, cutout2d):
-    """Returns a new aperture/annulus only by updating ``positions``
+    """Returns a new aperture/annulus only by updating ``positions``.
+
     Parameters
     ----------
     ap : `photutils.Aperture`
@@ -240,7 +242,8 @@ def circ_ap_an(
     f_in=4.0,
     f_out=6.0,
 ):
-    """A convenience function for pixel circular aperture/annulus
+    """A convenience function for pixel circular aperture/annulus.
+
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
@@ -288,7 +291,8 @@ def ellip_ap_an(
     f_in=(4.0, 4.0),
     f_out=(6.0, 6.0),
 ):
-    """A convenience function for pixel elliptical aperture/annulus
+    """A convenience function for pixel elliptical aperture/annulus.
+
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
@@ -355,7 +359,8 @@ def pill_ap_an(
     f_out=(6.0, 6.0),
     f_w=1.0,
 ):
-    """A convenience function for pixel elliptical aperture/annulus
+    """A convenience function for pixel pill box aperture/annulus.
+
     Parameters
     ----------
     positions : array_like or `~astropy.units.Quantity`
@@ -449,6 +454,7 @@ def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
 
 def eofn_ccw(wcs, full=False, tol=5.0):
     """Checks whether the East of North is counter-clockwise in the image.
+
     Parameters
     ----------
     wcs : `~astropy.wcs.WCS`
