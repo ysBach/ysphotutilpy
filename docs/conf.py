@@ -30,6 +30,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.autosummary",
     "sphinx_copybutton",
+    "numpydoc",
 ]
 
 # Napoleon settings for NumPy-style docstrings
@@ -56,12 +57,17 @@ autodoc_member_order = "bysource"
 autodoc_typehints = "description"
 
 # Mock imports for modules that might not be available
+# Only mock truly optional or hard-to-install C-extensions not in dependencies
 autodoc_mock_imports = [
     "sep",
-    "bottleneck",
-    "astroscrappy",
-    "ccdproc",
 ]
+
+# Diagnostic to check if the package is importable during the build
+try:
+    import ysphotutilpy
+    print(f"DEBUG: Successfully imported ysphotutilpy {ysphotutilpy.__version__ if hasattr(ysphotutilpy, '__version__') else 'unknown'}")
+except Exception as e:
+    print(f"DEBUG: Failed to import ysphotutilpy: {e}")
 
 # Autosummary
 autosummary_generate = True
