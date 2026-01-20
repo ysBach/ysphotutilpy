@@ -22,14 +22,6 @@ Aperture Photometry
    :show-inheritance:
 
 
-Astronomical Image Utilities
-----------------------------
-
-.. automodule:: ysphotutilpy.astroim
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 
 Background Estimation
 ---------------------

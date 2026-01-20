@@ -1,7 +1,6 @@
 from .logging import logger, set_log_level, enable_console_logging
 from .aperture import *
 from .apphot import *
-from .astroim import *
 from .background import *
 from .center import *
 
