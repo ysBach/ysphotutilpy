@@ -1,16 +1,26 @@
-from warnings import warn
-
 import numpy as np
-import bottleneck as bn
 from astropy.nddata import CCDData
 from astropy.table import Table
-from .util import sample_std, sigma_clipper
+from .util import sigma_clipper
 
-__all__ = ["quick_sky_circ", "sky_fit", "annul2values"]
+__all__ = ["quick_sky_circ", "sky_fit", "annul2values", "mmm_dao"]
 
 
 def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
-    """Estimate sky with crude presets"""
+    """Estimate sky with crude presets.
+
+    Parameters
+    ----------
+    ccd: `~astropy.nddata.CCDData`, astropy HDU-like, ndarray-like
+        The image data to extract sky at given annulus.
+
+    pos: tuple of float
+        The (x, y) position of the center of the annulus.
+
+    r_in, r_out: float, optional
+        The inner and outer radius of the annulus in pixel.
+        Default is ``10``, ``20``.
+    """
     from photutils.aperture import CircularAnnulus
 
     annulus = CircularAnnulus(pos, r_in=r_in, r_out=r_out)
@@ -250,6 +260,11 @@ def mmm_dao(
     readnoise=0,
 ):
     """Use the MMM-DAO algorithm to estimate the sky value.
+
+    Notes
+    -----
+    Please use sky_fit. This function is less optimized for calculation.
+    Maybe updated in the future.
 
     The MMM-DAO algorithm is a robust estimator of the sky value. This
     algorithm is based on the MMM algorithm, which is a modification of the

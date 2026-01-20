@@ -48,7 +48,40 @@ def sigma_clipper(
     cenfunc: Literal["median", "mean"] | Callable = "median",
     stdfunc: Literal["std", "mad_std"] | Callable = sample_std,
 ) -> ArrayLike | tuple[ArrayLike, float, float] | tuple[ArrayLike, ...]:
-    """A simple wrapper of `astropy.stats.sigma_clip` with sample_std"""
+    """A simple wrapper of `astropy.stats.sigma_clip` with sample_std
+
+    Parameters
+    ----------
+    data : array-like
+        The input data to be sigma-clipped.
+
+    sigma : float, optional
+        The number of standard deviations to use as the clipping limit.
+        Default is ``3.0``.
+
+    sigma_lower, sigma_upper : float, optional
+        The number of standard deviations to use as the lower and upper
+        clipping limits, respectively. If `None`, the value of `sigma` will be
+        used.
+        Default is `None`.
+
+    maxiters : int, optional
+        The maximum number of iterations to perform. If `None`, the clipping
+        will continue until convergence.
+
+    cenfunc : {'median', 'mean'} or callable, optional
+        The function to compute the central value of the data.
+        Default is ``'median'``.
+
+    stdfunc : {'std', 'mad_std'} or callable, optional
+        The function to compute the standard deviation of the data.
+        Default is ``sample_std``.
+
+    Returns
+    -------
+    clipped_data : array-like
+        The sigma-clipped data.
+    """
     return sigma_clip(
         data,
         masked=False,  # Hard coded
@@ -62,6 +95,7 @@ def sigma_clipper(
 
 def magsum(*args):
     """Calculates the "sum" of magnitudes.
+
     Note
     ----
     To calculate magnitude error, use ``err_prop(*merrs)``.
@@ -70,6 +104,8 @@ def magsum(*args):
 
 
 def sqsum(*args):
+    """Calculates the sum of squares. (variance propagation)
+    """
     _sum = 0
     for a in args:
         _sum += a**2
@@ -77,6 +113,8 @@ def sqsum(*args):
 
 
 def err_prop(*errs):
+    """Propagate errors by the square-root of the sum of squares.
+    """
     return np.sqrt(sqsum(*errs))
 
 
@@ -119,20 +157,22 @@ def enclosing_circle_radius(mask, center=None):
 
 def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
     """Converts units among non-physical units (%, deg-radian, etc).
+
     Parameters
     ----------
     factor : float, optional
         The factor to convert natural unit (dimensionless) to desired unit.
         ``factor=100`` will be **multiplied** to convert to %, and will be
-        **divided** to convert the value to natural unit.
+        **divided** to convert the value to natural unit. Default is ``1``.
 
     already : bool, optional
         Whether the input args are already in the desired unit specified by
         ``factor``.
+        Default is `False`.
 
     convert2unit : bool, optional
         Whether to convert the input args to the unit specified by ``factor``.
-
+        Default is `False`.
 
     Example
     -------
@@ -158,12 +198,24 @@ def _linear_unit_converter(*args, factor=1, already=False, convert2unit=False):
 
 
 def convert_pct(*args, already=False, convert2unit=False):
+    """Convert between per-cent (%) and natural unit (absolute value <= 1).
+
+    Parameters
+    ----------
+    already : bool, optional
+        Whether the input args are already in per-cent (%).
+
+    convert2unit : bool, optional
+        Whether to convert the input args to per-cent (%).
+    """
     return _linear_unit_converter(
         *args, factor=100, already=already, convert2unit=convert2unit
     )
 
 
 def convert_deg(*args, already=False, convert2unit=False):
+    """Convert between degrees and radians.
+    """
     return _linear_unit_converter(
         *args, factor=180 / np.pi, already=already, convert2unit=convert2unit
     )
@@ -222,7 +274,6 @@ def bezel_mask(xvals, yvals, nx, ny, bezel=(0, 0), bezel_x=None, bezel_y=None):
 
 def normalize(num, lower=0, upper=360, b=False):
     """Normalize number to range [lower, upper) or [lower, upper].
-    From phn: https://github.com/phn/angles
 
     Parameters
     ----------
@@ -252,6 +303,8 @@ def normalize(num, lower=0, upper=360, b=False):
 
     Notes
     -----
+    From phn: https://github.com/phn/angles
+
     If the keyword `b == False`, then the normalization is done in the
     following way. Consider the numbers to be arranged in a circle, with the
     lower and upper ends sitting on top of each other. Moving past one limit,
@@ -344,8 +397,10 @@ def normalize(num, lower=0, upper=360, b=False):
 
 def Gaussian2D_correct(model, theta_lower=-np.pi / 2, theta_upper=np.pi / 2):
     """Sets x = semimajor axis and theta to be in [-pi/2, pi/2] range.
+
     Example
     -------
+
     >>> from astropy.modeling.functional_models import Gaussian2D
     >>> import numpy as np
     >>> from matplotlib import pyplot as plt
@@ -389,7 +444,8 @@ def Gaussian2D_correct(model, theta_lower=-np.pi / 2, theta_upper=np.pi / 2):
 
 
 def fit_astropy_model(data, model_init, sigma=None, fitter=LevMarLSQFitter(), **kwargs):
-    """
+    """ Fit an astropy model to 2D data.
+
     Parameters
     ----------
     data : ndarray

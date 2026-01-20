@@ -51,6 +51,8 @@ napoleon_preprocess_types = True
 autodoc_default_options = {
     "members": True,
     "undoc-members": True,
+    "private-members": True,
+    "ignore-module-all": True,
     "show-inheritance": True,
 }
 autodoc_member_order = "bysource"

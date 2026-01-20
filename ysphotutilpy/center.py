@@ -59,6 +59,24 @@ def circular_bbox_cut(img, pos, radius, return_dists=False):
 
 
 def _scaling_shift(pos_old, pos_new_raw, max_shift_step=None, verbose=False):
+    """Calculate the shift vector and truncate it if needed.
+
+    Parameters
+    ----------
+    pos_old : array_like
+        The old position.
+
+    pos_new_raw : array_like
+        The new raw position.
+
+    max_shift_step : float or None, optional
+        The maximum acceptable shift per iteration. If the shift exceeds this,
+        it will be truncated to this value in the same direction. If `None`,
+        no truncation is done. Default is `None`.
+
+    verbose : bool, optional
+        Whether to print information about the truncation. Default is `False`.
+    """
     dxdy = np.array(pos_new_raw) - np.array(pos_old)
     shift = np.linalg.norm(dxdy)
 
@@ -88,7 +106,7 @@ def _background(data, bkg="min"):
         side length 2-4 times FWHM) containing the object.
 
     bkg: str or float or array_like or sep.Background
-        The background estimation method::
+        The background estimation method:
 
          * "min": use the minimum value of the data.
          * "mean": use the mean value of the data.
@@ -304,7 +322,7 @@ def center_sep(
 
     Parameters
     ----------
-    data : `~astropy.nddata.CCDData`, array_like
+    data : `~astropy.nddata.CCDData`, array-like
         The data array.
 
     position : array-like
@@ -637,25 +655,29 @@ def _centroiding_iteration(
 
 
 def _fit_2dgaussian(data, error=None, mask=None):
-    """
-    Fit a 2D Gaussian plus a constant to a 2D image.
-    Non-finite values (e.g., NaN or inf) in the ``data`` or ``error``
-    arrays are automatically masked. These masks are combined.
+    """ Fit a 2D Gaussian plus a constant to a 2D image.
 
     Parameters
     ----------
-    data : array_like
+    data : array-like
         The 2D array of the image.
-    error : array_like, optional
-        The 2D array of the 1-sigma errors of the input ``data``.
-    mask : array_like (bool), optional
-        A boolean mask, with the same shape as ``data``, where a `True`
-        value indicates the corresponding element of ``data`` is masked.
+
+    error : array-like, optional
+        The 2D array of the 1-sigma errors of the input `data`.
+
+    mask : array-like (bool), optional
+        A boolean mask, with the same shape as `data`, where a `True`
+        value indicates the corresponding element of `data` is masked.
 
     Returns
     -------
     result : A `GaussianConst2D` model instance.
         The best-fitting Gaussian 2D model.
+
+    Notes
+    -----
+    Non-finite values (e.g., NaN or inf) in the `data` or `error`
+    arrays are automatically masked. These masks are combined.
     """
     data = np.ma.asanyarray(data)
 
@@ -729,26 +751,32 @@ def _fit_2dgaussian(data, error=None, mask=None):
 
 
 class GaussianConst2D(Fittable2DModel):
-    """
-    A model for a 2D Gaussian plus a constant.
+    """A model for a 2D Gaussian plus a constant.
+
     Parameters
     ----------
     constant : float
         Value of the constant.
+
     amplitude : float
         Amplitude of the Gaussian.
+
     x_mean : float
         Mean of the Gaussian in x.
+
     y_mean : float
         Mean of the Gaussian in y.
+
     x_stddev : float
         Standard deviation of the Gaussian in x. ``x_stddev`` and
         ``y_stddev`` must be specified unless a covariance matrix
         (``cov_matrix``) is input.
+
     y_stddev : float
         Standard deviation of the Gaussian in y. ``x_stddev`` and
         ``y_stddev`` must be specified unless a covariance matrix
         (``cov_matrix``) is input.
+
     theta : float, optional
         Rotation angle in radians. The rotation angle increases
         counterclockwise.
@@ -792,7 +820,7 @@ def find_center_2dg(
 
     Parameters
     ----------
-    ccd : CCDData or ndarray
+    ccd : `~astropy.nddata.CCDData` or ndarray
         The whole image which the `position_xy` is calculated.
 
     position_xy : array-like
@@ -838,13 +866,13 @@ def find_center_2dg(
         The maximum acceptable shift. If shift is larger than this, raises
         warning.
 
-    max_shift_step : float, None, optional
+    max_shift_step : float, `None`, optional
         The maximum acceptable shift for each iteration. If the shift (call it
         ``shift_raw``) is larger than this, the actual shift will be
         `max_shift_step` towards the direction identical to `shift_raw`. If
         `None` (default), no such truncation is done.
 
-    error : CCDData or ndarray, optional
+    error : `~astropy.nddata.CCDData` or ndarray, optional
         The 1-sigma uncertainty map used for fitting. Default is `None`.
 
     verbose : bool, optional
@@ -872,7 +900,9 @@ def find_center_2dg(
 
     fulldict : dict
         The ``dict`` when returned if ``full=True``:
+
             * ``positions``: `Nx2` numpy.array
+
         The history of ``x`` and ``y`` positions. The 0-th element is the
         initial position and the last element is the final fitted position.
     """
@@ -907,7 +937,7 @@ def find_center_2dg(
 
         shift : float
             The total distance between the initial guess and the fitted
-            centroid, i.e., the distance between `(xc_img, yc_img)` and
+            centroid, i.e., the distance between ``(xc_img, yc_img)`` and
             `position_xy`.
         """
 

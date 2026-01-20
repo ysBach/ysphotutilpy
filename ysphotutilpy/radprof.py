@@ -118,6 +118,18 @@ def radial_profile(
     center_val : float
         The value of the pixel at the center position.
 
+    Example
+    -------
+    >>> profs, center_val = radial_profile(im, center=(50, 50), radii=np.arange(1, 11), thickness=2)
+    >>> print(profs)
+         r      mpix      spix  npix    spix_n
+    0   0.0  1500.0000   0.0000     1   0.000000
+    1   1.0   1450.1234  10.5678   12   3.045678
+    2   2.0   1400.5678  15.6789   28   2.962345
+    ...
+    >>> profs["spix_n"] = profs["spix"] / np.sqrt(profs["npix"])
+    >>> plt.errorbar(profs['r'], profs['mpix'], yerr=profs['spix_n'], fmt='o', color="k", capsize=3)
+    >>> plt.errorbar(profs['r'], profs['mpix'], yerr=profs['spix'], fmt='', color="k", capsize=0, elinewidth=0.5)
     """
     radii = np.asarray(radii).ravel()
     if np.isscalar(thickness):

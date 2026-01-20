@@ -40,7 +40,7 @@ def apphot_annulus(
 
     Parameters
     ----------
-    ccd : CCDData
+    ccd : `~astropy.nddata.CCDData`
         The data to be photometried. Preferably in ADU.
 
     aperture, annulus : `~photutils.aperture.Aperture` or list of such, optional
@@ -69,7 +69,7 @@ def apphot_annulus(
         function will normalize the signal to exposure time. If `t_exposure`
         is not None, this will be ignored.
 
-    error : array-like or Quantity, optional
+    error : array-like or `~astropy.units.Quantity`, optional
         See `~photutils.aperture.aperture_photometry` documentation. The pixel-wise
         error map to be propagated to magnitued error.
 
@@ -103,7 +103,7 @@ def apphot_annulus(
 
     Returns
     -------
-    phot_f: astropy.table.Table
+    phot_f: `~astropy.table.Table`
         The photometry result.
 
     bad code
@@ -130,7 +130,7 @@ def apphot_annulus(
 
         Parameters
         ----------
-        ccd : CCDData, ndarray
+        ccd : `~astropy.nddata.CCDData`, ndarray
             The ccd to extract mask. If ndarray, it will only return a copy of
             `additional_mask`.
 

@@ -85,7 +85,7 @@ def sep_back(
 
     maskthresh : float, optional
         Only in `sep`. The effective mask will be ``m = (mask.astype(float) >
-        maskthresh)``::
+        maskthresh)``:
 
           * **sep**: Mask threshold. This is the inclusive upper limit on the
             mask value in order for the corresponding pixel to be unmasked. For
@@ -95,7 +95,7 @@ def sep_back(
           * **photutils**: In photutils, sigma clipping is used (need check).
 
     filter_threshold : int, optional
-        Name in photutils; `fthresh` in the oritinal sep. Default is ``0``.0 ::
+        Name in photutils; `fthresh` in the oritinal sep. Default is ``0``. :
 
         * **sep**: Filter threshold. Default is ``0.0``.
         * **photutils**: The threshold value for used for selective median
@@ -105,8 +105,6 @@ def sep_back(
 
     box_size : int or array_like (int)
         Name in photutils; `bh`, `bw` order in sep. Default is ``(64, 64)``
-
-        .. code-block:: text
 
           * **sep**: Size of background boxes in pixels. Default is ``64``.
           * **photutils**: The box size along each axis. If `box_size` is a
@@ -119,8 +117,6 @@ def sep_back(
 
     filter_size : int or array_like (int), optional
         Name in photutils; `fh`, `fw` order in sep. Default is ``(3, 3)``.
-
-        .. code-block:: text
 
           * **sep**: Filter width and height in boxes. Default is ``3``.
           * **photutils**: The window size of the 2D median filter to apply to
@@ -421,6 +417,7 @@ def sep_extract(
     Example
     -------
     To test:
+
     >>> def bkg(data, mask, th):
     >>>     return sep.Background(data, mask=mask, maskthresh=th).back()
     >>> np.random.seed(1234)
