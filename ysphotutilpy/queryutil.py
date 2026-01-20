@@ -828,6 +828,7 @@ class PanSTARRS1:
 
     def select_xyinFOV(self, header_or_wcs=None, bezel=0, mode="all", verbose=1):
         """Convert RA/DEC to xy (add columns) with rejection at bezels.
+
         Parameters
         ----------
         header_or_wcs : `astropy.io.fits.Header`, `astropy.wcs.WCS`, optional
@@ -857,6 +858,7 @@ class PanSTARRS1:
         self, del_flags=PS1_DR1_DEL_FLAG, drop_by_Kron=True, verbose=1
     ):
         """Drop objects which are not good for differential photometry.
+
         Parameters
         ----------
         del_flags : list of int, None, optional
@@ -874,6 +876,7 @@ class PanSTARRS1:
         Notes
         -----
         H15 means Hernitschek+ 2015ApJ...801...45H.
+
           * FEW (1) : Used within relphot; skip star.
           * POOR (2) : Used within relphot; skip star.
           * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF
@@ -1416,6 +1419,7 @@ def drop_for_diff_phot_ps(
 
 def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
     """Parse the flat and make human readable flag.
+
     Parameters
     ----------
     table : astropy.table.Table
@@ -1435,6 +1439,8 @@ def add_reabable_flag(table, fullname=True, newcol="flag", sep=" & "):
 
     Notes
     -----
+    Flags are:
+
       * FEW (1) : Used within relphot; skip star.
       * POOR (2) : Used within relphot; skip star.
       * ICRF_QSO (4) : object IDed with known ICRF quasar (may have ICRF

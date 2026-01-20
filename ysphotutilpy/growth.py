@@ -3,6 +3,7 @@ import numpy as np
 
 def _profile_moffat(r, flux=1, width=1, power=1):
     """The circular Moffat profile (Students' t-distribution variant)
+
     Paramters
     ---------
     r : float
@@ -23,6 +24,7 @@ def _profile_moffat(r, flux=1, width=1, power=1):
 
 def _profile_gauss(r, flux=1, sigma=1):
     """The circular Gaussian profile.
+
     Paramters
     ---------
     r : float
@@ -40,6 +42,7 @@ def _profile_gauss(r, flux=1, sigma=1):
 
 def _profile_exp(r, flux=1, r0=1):
     """The exponential profile for DAOGROW.
+
     Paramters
     ---------
     r : float
@@ -72,6 +75,7 @@ def _profile_exp_i(r, flux, r0=1):
 
 def profile(r, airmass, a, b, c, width=1, power=1, sigma=1, r0=1):
     """The azimuthally averaged DAOGROW stellar profile.
+
     Parameters
     ----------
     r : float
@@ -101,7 +105,8 @@ def profile(r, airmass, a, b, c, width=1, power=1, sigma=1, r0=1):
 
 
 def dmag(r1, r2, airmass, a, b, c, width=1, power=1, sigma=1, r0=1):
-    """
+    """delta magnitude between two radii for the DAOGROW stellar profile.
+
     Parameters
     ----------
     r1, r2 : float

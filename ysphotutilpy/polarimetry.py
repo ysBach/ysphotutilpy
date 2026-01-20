@@ -2,11 +2,8 @@
 Currently only the half-wave plate angle (HWP angle) of 0, 22.5, 45,
 67.5 combination is available.
 
-Primitive naming
+Primitive naming: ``<lin/circ/all>_<oe/sr>_<n>set``
 
-  .. code-block::
-
-   <lin/circ/all>_<oe/sr>_<n>set
     - lin/circ/all: linear, circular, or all Stoke's parameter will be
       determined.
     - oe/sr: o- and e-ray (e.g., Wollaston or Savart prism is used) or
@@ -468,20 +465,24 @@ def correct_pa(
 
 def calc_pol(q, u, dq=0, du=0, in_pct=False, out_pct=False, out_deg=False):
     """Calculate the polarization degree and error.
+
     Parameters
     ----------
     q, u : float, ndarray
         The q, u values from the polarimetry.
+
     dq, du : float, ndarray, optional
         The q, u errors from the polarimetry.
-
         Default is ``0``.
+
     in_pct : bool, optional
         If `True`, the input will be in percentage.
         Default is `False`.
+
     out_pct : bool, optional
         If `True`, the output will be in percentage.
         Default is `False`.
+
     out_deg : bool, optional
         If `True`, the output will be in degree.
         Default is `False`.
