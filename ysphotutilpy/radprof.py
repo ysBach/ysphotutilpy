@@ -6,9 +6,10 @@ from itertools import repeat
 import numpy as np
 import pandas as pd
 from astropy.nddata import CCDData, Cutout2D
-from photutils.aperture import CircularAnnulus, CircularAperture
+from photutils.aperture import CircularAnnulus
 from scipy.ndimage import center_of_mass
 
+from .aputil import fast_circ_apmask
 from .background import sky_fit
 from .center import circular_bbox_cut
 
@@ -18,6 +19,7 @@ __all__ = [
     "bivt_r",
     "radial_profile",
     "radcum_profile",
+    "ee_radius",
     "radprof_pix",
 ]
 
@@ -225,43 +227,49 @@ def radcum_profile(
         - ``var``  : aperture sum of variance (only if ``return_var=True`` and variance/error given)
         - ``err``  : sqrt of variance sum (only if ``return_var=False`` and variance/error given)
     """
-    from photutils.aperture import CircularAperture, aperture_photometry
+    from photutils.aperture import aperture_photometry
 
     if var is not None and err is not None:
         raise ValueError("Provide either `var` or `err`, not both.")
 
-    var = None
+    var_map = None
     if err is not None:
-        var = np.asarray(err) ** 2
+        var_map = np.asarray(err) ** 2
     elif var is not None:
-        var = np.asarray(var)
+        var_map = np.asarray(var)
 
     radii = np.asarray(radii).ravel()
-    aps = [CircularAperture(center, r=r) for r in radii]
+    x, y = center
+    _mask_arr = np.asarray(mask, dtype=bool) if mask is not None else None
 
-    # single aperture_photometry call for all radii
-    phot = aperture_photometry(im, aps, mask=mask)
-    apsums = np.array([float(phot[f"aperture_sum_{i}"][0]) for i in range(len(radii))])
+    ap_masks = [fast_circ_apmask(x, y, r, use_exact=1) for r in radii]  # (mask, sl) pairs
+
+    # aperture sums
+    if _mask_arr is not None:
+        apsums = np.array([
+            np.sum(m * im[sl] * ~_mask_arr[sl]) for m, sl in ap_masks
+        ])
+    else:
+        apsums = np.array([np.sum(m * im[sl]) for m, sl in ap_masks])
 
     prof = {"r": radii, "apsum": apsums}
 
     if add_npix:
-        _mask_arr = np.asarray(mask, dtype=bool) if mask is not None else None
-        npixs = []
-        for ap in aps:
-            ap_im = ap.to_mask(method="center").to_image(im.shape)
-            if _mask_arr is not None:
-                npixs.append(int(np.sum(ap_im * ~_mask_arr)))
-            else:
-                npixs.append(int(np.sum(ap_im)))
-
+        if _mask_arr is not None:
+            npixs = [int(np.sum((m > 0) * ~_mask_arr[sl])) for m, sl in ap_masks]
+        else:
+            npixs = [int(np.sum(m > 0)) for m, sl in ap_masks]
         prof["npix"] = npixs
 
     unc_vals = None
     unc_col = None
-    if var is not None:
-        phot_var = aperture_photometry(var, aps, mask=mask)
-        var_vals = np.array([float(phot_var[f"aperture_sum_{i}"][0]) for i in range(len(radii))])
+    if var_map is not None:
+        if _mask_arr is not None:
+            var_vals = np.array([
+                np.sum(m * var_map[sl] * ~_mask_arr[sl]) for m, sl in ap_masks
+            ])
+        else:
+            var_vals = np.array([np.sum(m * var_map[sl]) for m, sl in ap_masks])
         if return_var:
             unc_vals, unc_col = var_vals, "var"
         else:
@@ -278,6 +286,46 @@ def radcum_profile(
 
     return pd.DataFrame(prof)
 
+
+def ee_radius(im, center, fraction=0.5, r_min=0.5, r_max=None):
+    """Find the radius encircling a given fraction of the total image flux.
+
+    Parameters
+    ----------
+    im : 2D array
+        The PSF or flux image. Assumes total flux is positive and no NaN
+        values.
+    center : tuple
+        The (x, y) center position.
+    fraction : float, optional
+        The enclosed flux fraction to find the radius for.
+        Default is ``0.5``.
+    r_min : float, optional
+        Lower bound for the search radius in pixels.
+        Default is ``0.5``.
+    r_max : float, optional
+        Upper bound for the search radius. If `None`, defaults to half
+        the minimum image dimension.
+        Default is `None`.
+
+    Returns
+    -------
+    r : float
+        The radius (in pixels) encircling the given flux fraction.
+    """
+    target = fraction * np.sum(im)
+
+    if r_max is None:
+        r_max = min(im.shape) / 2.0
+
+    x, y = center
+
+    def _residual(r):
+        m, sl = fast_circ_apmask(x, y, r)
+        return float(np.sum(m * im[sl])) - target
+
+    from scipy.optimize import brentq
+    return brentq(_residual, r_min, r_max)
 
 def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None, refit=1):
     """Get radial profile (pixel values) of an object from n-D image.
