@@ -17,6 +17,7 @@ __all__ = [
     "gauss_r",
     "bivt_r",
     "radial_profile",
+    "radcum_profile",
     "radprof_pix",
 ]
 
@@ -164,6 +165,118 @@ def radial_profile(
         profs["spix"] /= _cval
         profs["spix_n"] /= _cval
     return profs, center_val
+
+
+def radcum_profile(
+    im,
+    center,
+    radii=1,
+    mask=None,
+    var=None,
+    err=None,
+    return_var=False,
+    add_npix=True,
+    norm_by_last=False,
+):
+    """Calculate cumulative radial profile of the image using circular apertures.
+
+    Parameters
+    ----------
+    im : 2D array
+        The image data.
+    center : tuple
+        The (x, y) coordinates of the center.
+    radii : 1D array
+        The radii of the circular apertures.
+    mask : 2D array, optional
+        A mask to apply to the image. Pixels with True values will be ignored.
+        Default is `None`.
+    var : 2D array, optional
+        The variance map of the image. If given, aperture sum of variance is
+        also computed. Mutually exclusive with `err`.
+        Default is `None`.
+    err : 2D array, optional
+        The error (uncertainty) map of the image. Converted to variance
+        internally (``variance = error**2``). Mutually exclusive with `var`.
+        Default is `None`.
+    return_var : bool, optional
+        If `True`, return the aperture sum of the variance map as ``var``
+        (skipping the sqrt). If `False` (default), return the square root of
+        the variance sum as ``err`` instead.
+        Requires either `var` or `err` to be provided.
+        Default is `False`.
+    add_npix : bool, optional
+        If `True` (default), include the ``npix`` column (number of unmasked
+        pixels within each aperture). Set to `False` to skip the
+        ``to_mask`` computation when pixel counts are not needed.
+        Default is `True`.
+    norm_by_last : bool, optional
+        If `True`, normalize all flux columns by the value at the largest radius.
+        Default is `False`.
+
+    Returns
+    -------
+    profs : pandas.DataFrame
+        A DataFrame with columns:
+
+        - ``r``    : aperture radius
+        - ``apsum``: aperture sum within radius r
+        - ``npix`` : number of unmasked pixels (only if ``add_npix=True``)
+        - ``var``  : aperture sum of variance (only if ``return_var=True`` and variance/error given)
+        - ``err``  : sqrt of variance sum (only if ``return_var=False`` and variance/error given)
+    """
+    from photutils.aperture import CircularAperture, aperture_photometry
+
+    if var is not None and err is not None:
+        raise ValueError("Provide either `var` or `err`, not both.")
+
+    var = None
+    if err is not None:
+        var = np.asarray(err) ** 2
+    elif var is not None:
+        var = np.asarray(var)
+
+    radii = np.asarray(radii).ravel()
+    aps = [CircularAperture(center, r=r) for r in radii]
+
+    # single aperture_photometry call for all radii
+    phot = aperture_photometry(im, aps, mask=mask)
+    apsums = np.array([float(phot[f"aperture_sum_{i}"][0]) for i in range(len(radii))])
+
+    prof = {"r": radii, "apsum": apsums}
+
+    if add_npix:
+        _mask_arr = np.asarray(mask, dtype=bool) if mask is not None else None
+        npixs = []
+        for ap in aps:
+            ap_im = ap.to_mask(method="center").to_image(im.shape)
+            if _mask_arr is not None:
+                npixs.append(int(np.sum(ap_im * ~_mask_arr)))
+            else:
+                npixs.append(int(np.sum(ap_im)))
+
+        prof["npix"] = npixs
+
+    unc_vals = None
+    unc_col = None
+    if var is not None:
+        phot_var = aperture_photometry(var, aps, mask=mask)
+        var_vals = np.array([float(phot_var[f"aperture_sum_{i}"][0]) for i in range(len(radii))])
+        if return_var:
+            unc_vals, unc_col = var_vals, "var"
+        else:
+            unc_vals, unc_col = np.sqrt(var_vals), "err"
+
+    if norm_by_last:
+        _norm = np.abs(apsums[-1])
+        apsums /= _norm
+        if unc_vals is not None:
+            unc_vals /= (_norm**2 if return_var else _norm)
+
+    if unc_vals is not None:
+        prof[unc_col] = unc_vals
+
+    return pd.DataFrame(prof)
 
 
 def radprof_pix(img, pos, mask=None, rmax=10, sort_dist=False, fitfunc=None, refit=1):
