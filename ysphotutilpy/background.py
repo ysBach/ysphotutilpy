@@ -6,7 +6,7 @@ from .util import sigma_clipper
 __all__ = ["quick_sky_circ", "sky_fit", "annul2values", "mmm_dao"]
 
 
-def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
+def quick_sky_circ(ccd, pos, r_in=10, r_out=20, mask=None, **kwargs):
     """Estimate sky with crude presets.
 
     Parameters
@@ -20,11 +20,18 @@ def quick_sky_circ(ccd, pos, r_in=10, r_out=20):
     r_in, r_out: float, optional
         The inner and outer radius of the annulus in pixel.
         Default is ``10``, ``20``.
+
+    mask: None or array_like, optional
+        A boolean mask with the same shape as `ccd`. The pixels with True
+        values will be masked.
+
+    kwargs : dict, optional
+        The keyword arguments for `sky_fit`.
     """
     from photutils.aperture import CircularAnnulus
 
     annulus = CircularAnnulus(pos, r_in=r_in, r_out=r_out)
-    return sky_fit(ccd, annulus)
+    return sky_fit(ccd, annulus, mask=mask, **kwargs)
 
 
 def sky_fit(
