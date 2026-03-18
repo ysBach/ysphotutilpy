@@ -32,6 +32,12 @@ __all__ = [
 
 def sample_std(arr, ddof=0, axis=None):
     """Sample standard deviation, ignoring NaN values.
+
+    Uses ``bottleneck.nanstd`` so that NaN-filled masked values passed by
+    ``astropy.stats.sigma_clip`` during iterative clipping are handled
+    correctly. The correction factor ``sqrt(n / (n - ddof))`` converts the
+    population std (what ``nanstd`` computes with its own ``ddof=0``) to the
+    desired delta-dof variant.
     """
     try:
         return np.sqrt(arr.size / (arr.size - ddof)) * bn.nanstd(arr, axis=axis)
@@ -80,7 +86,10 @@ def sigma_clipper(
     Returns
     -------
     clipped_data : array-like
-        The sigma-clipped data.
+        The sigma-clipped data. Because ``masked=False`` is hard-coded,
+        clipped elements are physically removed from the output rather than
+        replaced with NaN. The result is always a plain ndarray with no
+        masked or NaN values.
     """
     return sigma_clip(
         data,
