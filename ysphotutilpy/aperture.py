@@ -81,10 +81,7 @@ def cutout_from_ap(ap, ccd, method="bbox", subpixels=5, fill_value=np.nan):
     #     else:
     #         cuts.append(msk.multiply(ccd, fill_value=fill_value))
 
-    try:
-        bboxes = np.atleast_1d(ap.bbox)
-    except AttributeError:
-        bboxes = np.atleast_1d(ap.bounding_boxes)
+    bboxes = np.atleast_1d(ap.bbox)
     sizes = [bbox.shape for bbox in bboxes]
     for pos, size in zip(positions, sizes):
         cut = Cutout2D(ccd.data, position=pos, size=size)
@@ -122,102 +119,6 @@ def ap_to_cutout_position(ap, cutout2d):
     return newap
 
 
-"""
-def cut_for_ap(to_move, based_on=None, ccd=None):
-    ''' Cut ccd to ndarray from bounding box of ``based_on``.
-    Useful for plotting aperture and annulus after cutting out centering
-    on the object of interest.
-
-    Parameters
-    ----------
-    to_move, based_on : `~photutils.aperture.Aperture`
-        The aperture to be moved, and the reference.
-    '''
-    import copy
-
-    moved = copy.deepcopy(to_move)
-
-    if based_on is None:
-        base = copy.deepcopy(to_move)
-    else:
-        base = copy.deepcopy(based_on)
-
-    if np.atleast_2d(to_move.positions).shape[0] != 1:
-        raise ValueError("multi-positions 'to_move' is not supported yet.")
-    if np.atleast_2d(base.positions).shape[0] != 1:
-        raise ValueError("multi-positions 'based_on' is not supported yet.")
-
-    # for photutils before/after 0.7 compatibility...
-    bbox = np.atleast_1d(base.bounding_boxes)[0]
-    moved.positions = moved.positions - np.array([bbox.ixmin, bbox.iymin])
-
-    if ccd is not None:
-        from astropy.nddata import CCDData, Cutout2D
-        if not isinstance(ccd, CCDData):
-            ccd = CCDData(ccd, unit='adu')  # dummy unit
-        # for photutils before/after 0.7 compatibility...
-        pos = np.atleast_2d(moved.positions)[0]
-        cut = Cutout2D(data=ccd.data, position=pos, size=bbox.shape)
-        return moved, cut
-
-    return moved
-
-def cut_for_ap(to_move, based_on=None, ccd=None):
-    ''' Cut ccd to ndarray from bounding box of ``based_on``.
-    Useful for plotting aperture and annulus after cutting out centering
-    on the object of interest.
-
-    Parameters
-    ----------
-    to_move, based_on : `~photutils.aperture.Aperture`
-        The aperture to be moved, and the reference.
-    '''
-    import copy
-
-    moved = copy.deepcopy(to_move)
-
-    if based_on is None:
-        base = copy.deepcopy(to_move)
-    else:
-        base = copy.deepcopy(based_on)
-
-    if ccd is not None:
-        from astropy.nddata import CCDData
-        if not isinstance(ccd, CCDData):
-            ccd = CCDData(ccd, unit='adu')  # dummy unit
-
-    pos_orig = np.atleast_2d(moved.positions)  # not yet moved
-    pos_base = np.atleast_2d(base.positions)
-    N_moved = pos_orig.shape[0]
-    N_base = pos_base.shape[0]
-
-    if N_base != 1 and N_moved != N_base:
-        raise ValueError("based_on should have one 'positions' or "
-                         + "have same number as 'move_to.positions'.")
-
-    bboxes = np.atleast_1d(base.bounding_boxes)
-    if base == 1:
-        bboxes = np.repeat(bboxes, N_moved, 0)
-
-    cuts = []
-    for i, (position, bbox) in enumerate(zip(pos_orig, bboxes)):
-        pos_cut = (position - np.array([bbox.ixmin, bbox.iymin]))
-
-        moved.positions[i] = pos_cut
-        if ccd is not None:
-            from astropy.nddata import Cutout2D
-            size = bbox.shape
-            cut = Cutout2D(data=ccd.data, position=position, size=size)
-            cuts.append(cut)
-
-    if ccd is not None:
-        if N_base == 1:
-            return moved, cuts[0]
-        else:
-            return moved, cuts
-    else:
-        return moved
-"""
 
 
 def _sanitize_apsize(size=None, fwhm=None, factor=None, name="size", repeat=False):
@@ -435,28 +336,6 @@ def pill_ap_an(
     return ap, an
 
 
-"""
-def set_pillbox_ap(positions, sigmas, ksigma=3, trail=0, theta=0):
-    ''' Setup PillBoxAperture
-    Parameters
-    ----------
-    positions : Nx2 array
-        The positions in xy.
-
-    sigmas : int, float, or length 2 of such
-        The sigma or scale lengths along the major and minor axes of the
-        trailed PSF. Order must be longer and then shorter.
-    '''
-    ksigma = np.atleast_1d(ksigma)
-    if ksigma.shape[0] == 1:
-        ksigma = ksigma.repeat(2)
-    elif ksigma.shape[0] != 2 or ksigma.ndim != 1:
-        raise TypeError("sigmas must be int or float of one or two elements. "
-                        + f"Now it has shape = {ksigma.shape}")
-    a = (ksigma[0]*sigmas[0] - trail) / 2 * (pix2arcsec)
-    b = 3*sig_y_fit*pix2arcsec
-    return PillBoxAperture(positions, trail, )
-"""
 
 
 def eofn_ccw(wcs, full=False, tol=5.0):
@@ -525,10 +404,10 @@ def pa2xytheta(pa, wcs, location="crpix"):
             )
     elif location == "center":
         location = np.array(wcs._naxis) / 2
-        coo = SkyCoord(*wcs.wcs_pix2world(location, 0), unit="deg")
+        coo = SkyCoord(*wcs.wcs_pix2world(*location, 0), unit="deg")
     else:
         location = np.array(location)
-        coo = SkyCoord(*wcs.wcs_pix2world(location, 0), unit="deg")
+        coo = SkyCoord(*wcs.wcs_pix2world(*location, 0), unit="deg")
 
     in_ccw, pa_x, pa_y = eofn_ccw(wcs, full=True)
     # moved = coo.directional_offset_by(pa, 1/206265)  # 1 arcsec sepration
@@ -727,10 +606,7 @@ class PillBoxMaskMixin:
         _, subpixels = self._translate_mask_mode(method, subpixels)
         min_mask = min(1.0e-6, 1 / (subpixels**2))
         masks = []
-        try:
-            bboxes = np.atleast_1d(self.bbox)
-        except AttributeError:
-            bboxes = np.atleast_1d(self.bounding_boxes)
+        bboxes = np.atleast_1d(self.bbox)
         is_annulus = True if hasattr(self, "a_in") else False
 
         for i, (bbox, ap_r, ap_1, ap_2) in enumerate(
@@ -822,26 +698,6 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
     def _xy_extents(self):
         return np.abs(self.offset) + self._ap_el_1._xy_extents
 
-    # def bounding_boxes(self):
-    #     try:
-    #         bboxes_rect = self._ap_rect.bbox
-    #         bboxes_el_1 = self._ap_el_1.bbox
-    #         bboxes_el_2 = self._ap_el_2.bbox
-    #     except AttributeError:
-    #         bboxes_rect = self._ap_rect.bounding_boxes
-    #         bboxes_el_1 = self._ap_el_1.bounding_boxes
-    #         bboxes_el_2 = self._ap_el_2.bounding_boxes
-
-    #     bboxes = []
-    #     for bb_r, bb_1, bb_2 in zip(bboxes_rect, bboxes_el_1, bboxes_el_2):
-    #         bbox = (bb_r) | (bb_1) | (bb_2)
-    #         bboxes.append(  )
-
-    #     if self.isscalar:
-    #         return bboxes[0]
-    #     else:
-    #         return bboxes
-
     @property
     def area(self):
         return self.w * self.h + np.pi * self.a * self.b
@@ -858,16 +714,16 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         # -2022-04-25 23:26:12 (KST: GMT+09:00) ysBach
 
         patches = []
-        theta_deg = self.theta * 180.0 / np.pi
+        theta_deg = self.theta.to_value(u.deg)
 
         for xy_position in xy_positions:
-            # The ellipse on the "right" whan theta = 0
+            # The ellipse on the "right" when theta = 0
             ellipse_1 = mpatches.Ellipse(
-                xy_position + self.offset, 2.0 * self.a, 2.0 * self.b, theta_deg
+                xy_position + self.offset, 2.0 * self.a, 2.0 * self.b, angle=theta_deg
             )
-            # The ellipse on the "left" whan theta = 0
+            # The ellipse on the "left" when theta = 0
             ellipse_2 = mpatches.Ellipse(
-                xy_position - self.offset, 2.0 * self.a, 2.0 * self.b, theta_deg
+                xy_position - self.offset, 2.0 * self.a, 2.0 * self.b, angle=theta_deg
             )
             p = self._pill_patches(ellipse_1, ellipse_2, **patch_kwargs)
 
@@ -878,7 +734,7 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         else:
             return patches
 
-    def to_sky(self, wcs, mode="all"):
+    def to_sky(self, wcs):
         """
         Convert the aperture to a `SkyPillBoxAperture` object
         defined in celestial coordinates.
@@ -888,17 +744,12 @@ class PillBoxAperture(PillBoxMaskMixin, PixelAperture):
         wcs : `~astropy.wcs.WCS`
             The world coordinate system (WCS) transformation to use.
 
-        mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions (``'all'``;
-            default) or only including only the core WCS transformation
-            (``'wcs'``).
-
         Returns
         -------
         aperture : `SkyPillBoxAperture` object
             A `SkyPillBoxAperture` object.
         """
-        sky_params = self._to_sky_params(wcs, mode=mode)
+        sky_params = self._to_sky_params(wcs)
         return SkyPillBoxAperture(**sky_params)
 
 
@@ -929,23 +780,6 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
     def _xy_extents(self):
         return np.abs(self.offset) + self._ap_el_1._xy_extents
 
-    # def bounding_boxes(self):
-    #     """
-    #     A list of minimal bounding boxes (`~photutils.aperture.BoundingBox`), one
-    #     for each position, enclosing the exact elliptical apertures.
-    #     """
-    #     bboxes_rect = self._ap_rect.bounding_boxes
-    #     bboxes_el_1 = self._ap_el_1.bounding_boxes
-    #     bboxes_el_2 = self._ap_el_2.bounding_boxes
-    #     bboxes = []
-    #     for bb_r, bb_1, bb_2 in zip(bboxes_rect, bboxes_el_1, bboxes_el_2):
-    #         bboxes.append( (bb_r) | (bb_1) | (bb_2) )
-
-    #     if self.isscalar:
-    #         return bboxes[0]
-    #     else:
-    #         return bboxes
-
     @property
     def area(self):
         return self.w * (self.h_out - self.h_in) + np.pi * (
@@ -963,26 +797,26 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         # -2022-04-25 23:26:12 (KST: GMT+09:00) ysBach
 
         patches = []
-        theta_deg = self.theta * 180.0 / np.pi
+        theta_deg = self.theta.to_value(u.deg)
 
         for xy_position in xy_positions:
-            # The ellipse on the "right" whan theta = 0
+            # The ellipse on the "right" when theta = 0
             ellipse_1_in = mpatches.Ellipse(
-                xy_position + self.offset, 2.0 * self.a_in, 2.0 * self.b_in, theta_deg
+                xy_position + self.offset, 2.0 * self.a_in, 2.0 * self.b_in, angle=theta_deg
             )
-            # The ellipse on the "left" whan theta = 0
+            # The ellipse on the "left" when theta = 0
             ellipse_2_in = mpatches.Ellipse(
-                xy_position - self.offset, 2.0 * self.a_in, 2.0 * self.b_in, theta_deg
+                xy_position - self.offset, 2.0 * self.a_in, 2.0 * self.b_in, angle=theta_deg
             )
             p_inner = self._pill_patches(ellipse_1_in, ellipse_2_in)
 
-            # The ellipse on the "right" whan theta = 0
+            # The ellipse on the "right" when theta = 0
             ellipse_1_out = mpatches.Ellipse(
-                xy_position + self.offset, 2.0 * self.a_out, 2.0 * self.b_out, theta_deg
+                xy_position + self.offset, 2.0 * self.a_out, 2.0 * self.b_out, angle=theta_deg
             )
-            # The ellipse on the "left" whan theta = 0
+            # The ellipse on the "left" when theta = 0
             ellipse_2_out = mpatches.Ellipse(
-                xy_position - self.offset, 2.0 * self.a_out, 2.0 * self.b_out, theta_deg
+                xy_position - self.offset, 2.0 * self.a_out, 2.0 * self.b_out, angle=theta_deg
             )
             p_outer = self._pill_patches(ellipse_1_out, ellipse_2_out)
 
@@ -994,7 +828,7 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         else:
             return patches
 
-    def to_sky(self, wcs, mode="all"):
+    def to_sky(self, wcs):
         """
         Convert the aperture to a `SkyPillBoxAnnulus` object defined
         in celestial coordinates.
@@ -1004,17 +838,12 @@ class PillBoxAnnulus(PillBoxMaskMixin, PixelAperture):
         wcs : `~astropy.wcs.WCS`
             The world coordinate system (WCS) transformation to use.
 
-        mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions (``'all'``;
-            default) or only including only the core WCS transformation
-            (``'wcs'``).
-
         Returns
         -------
         aperture : `SkyPillBoxAnnulus` object
             A `SkyPillBoxAnnulus` object.
         """
-        sky_params = self._to_sky_params(wcs, mode=mode)
+        sky_params = self._to_sky_params(wcs)
         return SkyPillBoxAnnulus(**sky_params)
 
 
@@ -1038,7 +867,7 @@ class SkyPillBoxAperture(SkyAperture):
         self.b = b
         self.theta = theta
 
-    def to_pixel(self, wcs, mode="all"):
+    def to_pixel(self, wcs):
         """
         Convert the aperture to an `PillBoxAperture` object defined in pixel
         coordinates.
@@ -1048,22 +877,17 @@ class SkyPillBoxAperture(SkyAperture):
         wcs : `~astropy.wcs.WCS`
             The world coordinate system (WCS) transformation to use.
 
-        mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions (``'all'``;
-            default) or only including only the core WCS transformation
-            (``'wcs'``).
-
         Returns
         -------
         aperture : `PillBoxAperture` object
             An `PillBoxAperture` object.
         """
-        pixel_params = self._to_pixel_params(wcs, mode=mode)
+        pixel_params = self._to_pixel_params(wcs)
         return PillBoxAperture(**pixel_params)
 
 
 class SkyPillBoxAnnulus(SkyAperture):
-    _shape_params = ("w", "a_in", "a_out", "b_out", "theta")
+    _params = ("positions", "w", "a_in", "a_out", "b_out", "theta")
     positions = SkyCoordPositions("positions")
     w = PositiveScalarAngle(f"The {_PBSTRS['w']} in angular units.")
     a_in = PositiveScalarAngle(f"The inner {_PBSTRS['a']} in angular units.")
@@ -1092,7 +916,7 @@ class SkyPillBoxAnnulus(SkyAperture):
         self.h_in = self.b_in * 2
         self.theta = theta
 
-    def to_pixel(self, wcs, mode="all"):
+    def to_pixel(self, wcs):
         """
         Convert the aperture to an `PillBoxAnnulus` object defined in
         pixel coordinates.
@@ -1102,15 +926,10 @@ class SkyPillBoxAnnulus(SkyAperture):
         wcs : `~astropy.wcs.WCS`
             The world coordinate system (WCS) transformation to use.
 
-        mode : {'all', 'wcs'}, optional
-            Whether to do the transformation including distortions
-            (``'all'``; default) or only including only the core WCS
-            transformation (``'wcs'``).
-
         Returns
         -------
         aperture : `PillBoxAnnulus` object
             An `PillBoxAnnulus` object.
         """
-        pixel_params = self._to_pixel_params(wcs, mode=mode)
+        pixel_params = self._to_pixel_params(wcs)
         return PillBoxAnnulus(**pixel_params)
