@@ -287,7 +287,7 @@ def radcum_profile(
     return pd.DataFrame(prof)
 
 
-def ee_radius(im, center, fraction=0.5, r_min=0.5, r_max=None):
+def ee_radius(im, center, fraction=0.5, r_min=0.5, r_max=None, sum_is_unity=False):
     """Find the radius encircling a given fraction of the total image flux.
 
     Parameters
@@ -307,13 +307,22 @@ def ee_radius(im, center, fraction=0.5, r_min=0.5, r_max=None):
         Upper bound for the search radius. If `None`, defaults to half
         the minimum image dimension.
         Default is `None`.
+    sum_is_unity : bool, optional
+        If `True`, the input image is assumed to be normalized such that its
+        total sum is 1. In this case, `fraction` is treated as the target flux
+        directly. If `False` (default), `fraction` is treated as a fraction of
+        the total image flux, and the target flux is calculated as `fraction *
+        np.sum(im)`.
 
     Returns
     -------
     r : float
         The radius (in pixels) encircling the given flux fraction.
     """
-    target = fraction * np.sum(im)
+    if sum_is_unity:
+        target = fraction
+    else:
+        target = fraction * np.sum(im)
 
     if r_max is None:
         r_max = min(im.shape) / 2.0
