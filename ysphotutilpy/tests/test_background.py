@@ -6,6 +6,7 @@ All expected values are analytically derived.
 
 import numpy as np
 import pytest
+from astropy.nddata import CCDData
 from numpy.testing import assert_allclose
 from photutils.aperture import CircularAnnulus, EllipticalAnnulus
 
@@ -76,6 +77,78 @@ class TestAnnul2Values:
 
         # All values should be 10.0
         assert_allclose(vals[0], 10.0, rtol=1e-10)
+
+    def test_annul2values_ccddata_input(self, uniform_100x100):
+        """Test annul2values accepts CCDData input."""
+        ccd = CCDData(uniform_100x100, unit='adu')
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=15)
+        vals_ccd = annul2values(ccd, an, mask=None)
+        vals_arr = annul2values(uniform_100x100, an, mask=None)
+
+        assert_allclose(vals_ccd[0], vals_arr[0], rtol=1e-10)
+
+    def test_annul2values_ccddata_with_internal_mask(self, uniform_100x100):
+        """
+        Test annul2values uses CCDData.mask when present.
+
+        Pixels masked in CCDData.mask should be excluded.
+        """
+        internal_mask = np.zeros_like(uniform_100x100, dtype=bool)
+        internal_mask[50, 60] = True
+        ccd = CCDData(uniform_100x100, unit='adu', mask=internal_mask)
+
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=15)
+        vals_masked = annul2values(ccd, an, mask=None)
+        vals_nomask = annul2values(uniform_100x100, an, mask=None)
+
+        assert len(vals_masked[0]) < len(vals_nomask[0])
+
+    def test_annul2values_ccddata_mask_combined(self, uniform_100x100):
+        """
+        Test annul2values combines CCDData.mask and external mask.
+
+        Both masks should be applied (union).
+        """
+        internal_mask = np.zeros_like(uniform_100x100, dtype=bool)
+        internal_mask[50, 60] = True
+        ccd = CCDData(uniform_100x100, unit='adu', mask=internal_mask)
+
+        ext_mask = np.zeros_like(uniform_100x100, dtype=bool)
+        ext_mask[50, 61] = True
+
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=15)
+        vals_both = annul2values(ccd, an, mask=ext_mask)
+        vals_internal_only = annul2values(ccd, an, mask=None)
+        vals_nomask = annul2values(uniform_100x100, an, mask=None)
+
+        # Both masks applied → fewer pixels than internal-only → fewer than no mask
+        assert len(vals_both[0]) <= len(vals_internal_only[0])
+        assert len(vals_internal_only[0]) <= len(vals_nomask[0])
+
+    def test_annul2values_multiple_positions(self, uniform_100x100):
+        """
+        Test annul2values with multiple-position CircularAnnulus.
+
+        Returns one array per position; all values should be 10.0.
+        """
+        positions = [(30, 30), (50, 50), (70, 70)]
+        an = CircularAnnulus(positions=positions, r_in=5, r_out=8)
+        vals = annul2values(uniform_100x100, an, mask=None)
+
+        assert len(vals) == 3
+        for v in vals:
+            assert_allclose(v, 10.0, rtol=1e-10)
+
+    def test_annul2values_elliptical_with_mask(self, uniform_100x100):
+        """Test annul2values with EllipticalAnnulus and a mask."""
+        mask = np.zeros_like(uniform_100x100, dtype=bool)
+        mask[50, 55] = True
+
+        an = EllipticalAnnulus(positions=(50, 50), a_in=4, a_out=8, b_out=5, theta=0)
+        vals_masked = annul2values(uniform_100x100, an, mask=mask)
+        vals_nomask = annul2values(uniform_100x100, an, mask=None)
+
+        assert len(vals_masked[0]) <= len(vals_nomask[0])
 
 
 # =============================================================================
@@ -211,6 +284,111 @@ class TestSkyFit:
         assert len(skys) == 1
         assert_allclose(skys[0], 10.0, rtol=1e-10)
 
+    def test_sky_fit_return_dict_and_skyarr(self, uniform_100x100):
+        """Test sky_fit with to_table=False and return_skyarr=True."""
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=20)
+        result, skys = sky_fit(
+            uniform_100x100, an, method='mean', to_table=False, return_skyarr=True
+        )
+
+        assert isinstance(result, list)
+        assert isinstance(result[0], dict)
+        assert isinstance(skys, list)
+        assert_allclose(skys[0], 10.0, rtol=1e-10)
+
+    def test_sky_fit_sky_clipper_none(self, uniform_100x100):
+        """
+        Test sky_fit with sky_clipper=None (no clipping applied).
+
+        All pixels should be used; nrej should be 0.
+        """
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=20)
+        result = sky_fit(uniform_100x100, an, method='mean', sky_clipper=None)
+
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+        assert result['nrej'][0] == 0
+
+    def test_sky_fit_std_ddof(self, uniform_with_noise):
+        """
+        Test std_ddof parameter affects ssky.
+
+        ddof=0 gives population std, ddof=1 gives sample std.
+        They should differ for finite samples.
+        """
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=30)
+        result_ddof0 = sky_fit(uniform_with_noise, an, method='mean', std_ddof=0)
+        result_ddof1 = sky_fit(uniform_with_noise, an, method='mean', std_ddof=1)
+
+        # ddof=1 gives slightly larger std than ddof=0
+        assert result_ddof1['ssky'][0] > result_ddof0['ssky'][0]
+
+    def test_sky_fit_sex_skewed_uses_formula(self):
+        """
+        Test sky_fit 'sex' method branch logic.
+
+        'sex' uses: median if (mean-med)/std > 0.3, else 2.5*med - 1.5*mean.
+        This mirrors SExtractor: for symmetric data (small ratio) use the
+        formula; for skewed data (large ratio) fall back to median.
+        """
+        rng = np.random.default_rng(0)
+        sky = np.concatenate([
+            rng.normal(0.0, 1.0, 900),
+            rng.normal(20.0, 1.0, 100),
+        ])
+        sky_clipped = sigma_clipper(sky)
+        std = np.std(sky_clipped, ddof=1)
+        mean = np.mean(sky_clipped)
+        med = np.median(sky_clipped)
+
+        result = sky_fit(sky, annulus=None, method='sex')
+
+        # Replicate _sky_fit branch logic exactly (note: condition selects median)
+        if std > 0 and (mean - med) / std > 0.3:
+            expected = med
+        else:
+            expected = 2.5 * med - 1.5 * mean
+        assert_allclose(result['msky'][0], expected, rtol=1e-10)
+
+    def test_sky_fit_invalid_method(self, uniform_100x100):
+        """Test sky_fit raises ValueError for unknown method string."""
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=20)
+        with pytest.raises(ValueError):
+            sky_fit(uniform_100x100, an, method='unknown_method')
+
+    def test_sky_fit_method_case_insensitive(self, uniform_100x100):
+        """Test sky_fit method strings are case-insensitive."""
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=20)
+        result_lower = sky_fit(uniform_100x100, an, method='iraf')
+        result_upper = sky_fit(uniform_100x100, an, method='IRAF')
+
+        assert_allclose(result_lower['msky'][0], result_upper['msky'][0], rtol=1e-10)
+
+    def test_sky_fit_ccddata_input(self, uniform_100x100):
+        """Test sky_fit accepts CCDData input."""
+        ccd = CCDData(uniform_100x100, unit='adu')
+        an = CircularAnnulus(positions=(50, 50), r_in=10, r_out=20)
+        result = sky_fit(ccd, an, method='mean')
+
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+
+    def test_sky_fit_no_annulus_dict(self, uniform_100x100):
+        """Test sky_fit with annulus=None and to_table=False."""
+        result = sky_fit(uniform_100x100, annulus=None, method='mean', to_table=False)
+
+        assert isinstance(result, list)
+        assert_allclose(result[0]['msky'], 10.0, rtol=1e-10)
+
+    def test_sky_fit_multiple_positions(self, uniform_100x100):
+        """
+        Test sky_fit with multi-position annulus returns one row per position.
+        """
+        positions = [(30, 30), (50, 50), (70, 70)]
+        an = CircularAnnulus(positions=positions, r_in=5, r_out=10)
+        result = sky_fit(uniform_100x100, an, method='mean')
+
+        assert len(result) == 3
+        assert_allclose(result['msky'], 10.0, rtol=1e-10)
+
 
 # =============================================================================
 # Tests for quick_sky_circ
@@ -221,6 +399,39 @@ class TestQuickSkyCirc:
     def test_quick_sky_circ_uniform(self, uniform_100x100):
         """Test quick_sky_circ on uniform array."""
         result = quick_sky_circ(uniform_100x100, pos=(50, 50), r_in=10, r_out=20)
+
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+
+    def test_quick_sky_circ_with_mask(self, uniform_100x100):
+        """Test quick_sky_circ passes mask through to sky_fit."""
+        mask = np.zeros_like(uniform_100x100, dtype=bool)
+        mask[50, 60] = True
+
+        result_nomask = quick_sky_circ(uniform_100x100, pos=(50, 50), r_in=10, r_out=20)
+        result_masked = quick_sky_circ(
+            uniform_100x100, pos=(50, 50), r_in=10, r_out=20, mask=mask
+        )
+
+        # Both should give same msky (uniform array), but nsky may differ
+        assert_allclose(result_masked['msky'][0], 10.0, rtol=1e-10)
+        assert result_masked['nsky'][0] <= result_nomask['nsky'][0]
+
+    def test_quick_sky_circ_kwargs_passthrough(self, uniform_100x100):
+        """Test quick_sky_circ passes kwargs (method) to sky_fit."""
+        result_mean = quick_sky_circ(
+            uniform_100x100, pos=(50, 50), r_in=10, r_out=20, method='mean'
+        )
+        result_median = quick_sky_circ(
+            uniform_100x100, pos=(50, 50), r_in=10, r_out=20, method='median'
+        )
+
+        # Both should give 10.0 for uniform array
+        assert_allclose(result_mean['msky'][0], 10.0, rtol=1e-10)
+        assert_allclose(result_median['msky'][0], 10.0, rtol=1e-10)
+
+    def test_quick_sky_circ_custom_radii(self, uniform_100x100):
+        """Test quick_sky_circ with non-default r_in and r_out."""
+        result = quick_sky_circ(uniform_100x100, pos=(50, 50), r_in=5, r_out=8)
 
         assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
 
@@ -292,6 +503,53 @@ class TestMmmDao:
         # Should be close to 100
         assert_allclose(result, 100.0, atol=3.0)
 
+    def test_mmm_dao_integer_sky(self):
+        """
+        Test mmm_dao with integer sky array.
+
+        Integer arrays trigger the cut >= 1.5 floor in the rejection loop.
+        """
+        rng = np.random.default_rng(42)
+        sky = rng.normal(loc=100.0, scale=10.0, size=5000).astype(int)
+        result = mmm_dao(sky)
+
+        assert_allclose(result, 100.0, atol=3.0)
+
+    def test_mmm_dao_readnoise(self):
+        """
+        Test mmm_dao with readnoise > 0.
+
+        Should still converge and return a reasonable sky estimate.
+        """
+        rng = np.random.default_rng(42)
+        sky = rng.normal(loc=100.0, scale=10.0, size=5000)
+        result = mmm_dao(sky, readnoise=5.0)
+
+        assert_allclose(result, 100.0, atol=3.0)
+
+    def test_mmm_dao_min_nsky_boundary(self):
+        """
+        Test mmm_dao with exactly min_nsky elements passes.
+
+        Exactly min_nsky elements should not raise.
+        """
+        sky = np.full(20, 100.0)
+        # Should not raise with exactly min_nsky=20
+        result = mmm_dao(sky, min_nsky=20)
+        assert_allclose(result, 100.0, atol=1e-5)
+
+    def test_mmm_dao_maxiter_exceeded(self):
+        """
+        Test mmm_dao raises ValueError when maxiter is exceeded.
+
+        Use maxiter=1 with data that requires multiple iterations.
+        """
+        rng = np.random.default_rng(42)
+        sky = rng.normal(loc=100.0, scale=10.0, size=5000)
+        # maxiter=1 should be too few for convergence on noisy data
+        with pytest.raises(ValueError, match="Too many"):
+            mmm_dao(sky, maxiter=1)
+
 
 # =============================================================================
 # Analytical sky estimation tests
@@ -320,44 +578,29 @@ class TestSkyFitAnalytical:
 
         if mean < median: msky = mean
         else: msky = 3*median - 2*mean
-
-        Note: sky_fit applies sigma clipping first, so we need to account for that.
         """
-        # Create symmetric data where sigma clipping doesn't change much
         np.random.seed(42)
         sky = np.random.normal(loc=100.0, scale=5.0, size=1000)
 
         result = sky_fit(sky, annulus=None, method='iraf')
 
-        # Apply same sigma clipping as sky_fit does internally
         sky_clipped = sigma_clipper(sky)
-        sky_clipped = sky_clipped[~np.isnan(sky_clipped)]  # Remove NaN
-
         mean = np.mean(sky_clipped)
         median = np.median(sky_clipped)
-        if mean < median:
-            expected = mean
-        else:
-            expected = 3 * median - 2 * mean
+        expected = mean if mean < median else 3 * median - 2 * mean
 
         assert_allclose(result['msky'][0], expected, rtol=1e-5)
 
     def test_mmm_estimator_formula(self):
         """
-        Test MMM sky estimator formula: 3*median - 2*mean (after sigma clipping)
-
-        Note: sky_fit applies sigma clipping first, so we compute expected
-        from clipped data.
+        Test MMM sky estimator formula: 3*median - 2*mean (after sigma clipping).
         """
         np.random.seed(42)
         sky = np.random.normal(loc=100.0, scale=10.0, size=1000)
 
         result = sky_fit(sky, annulus=None, method='mmm')
 
-        # Apply same sigma clipping as sky_fit does internally
         sky_clipped = sigma_clipper(sky)
-        sky_clipped = sky_clipped[~np.isnan(sky_clipped)]  # Remove NaN
-
         mean = np.mean(sky_clipped)
         median = np.median(sky_clipped)
         expected = 3 * median - 2 * mean
