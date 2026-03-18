@@ -2,7 +2,7 @@ import numpy as np
 from astropy.nddata import CCDData
 from astropy.table import Table
 
-from .aputil import fast_circ_anmask
+from .aputil import fast_circ_anmask, fast_ellip_anmask
 from .util import sigma_clipper
 
 __all__ = ["quick_sky_circ", "sky_fit", "annul2values", "mmm_dao"]
@@ -243,7 +243,7 @@ def annul2values(ccd, annulus, mask=None):
     typical annulus), so the overall `sky_fit` speedup is modest unless
     called in tight loops without sky fitting.
     """
-    from photutils.aperture import CircularAnnulus
+    from photutils.aperture import CircularAnnulus, EllipticalAnnulus
 
     if isinstance(ccd, CCDData):
         arr = np.asarray(ccd.data)
@@ -271,6 +271,38 @@ def annul2values(ccd, annulus, mask=None):
         for pos in positions:
             x, y = pos
             an_mask, sl = fast_circ_anmask(x, y, annulus.r_in, annulus.r_out)
+            in_an = an_mask > 0
+            vals = arr[sl][in_an]
+            if base_mask is not None:
+                bm_sl = base_mask[sl][in_an]
+                vals = vals[~bm_sl]
+            results.append(vals)
+        return results
+
+    # --- fast path for EllipticalAnnulus ---
+    elif isinstance(annulus, EllipticalAnnulus):
+        import astropy.units as u
+
+        try:
+            positions = annulus.positions
+            if annulus.isscalar:
+                positions = positions[np.newaxis, :]
+        except AttributeError:
+            positions = np.atleast_2d(annulus.positions)
+
+        theta = annulus.theta.to_value(u.rad)
+        # b_in may not exist in older photutils; derive from b_out * a_in / a_out
+        try:
+            b_in = annulus.b_in
+        except AttributeError:
+            b_in = annulus.b_out * annulus.a_in / annulus.a_out
+
+        results = []
+        for pos in positions:
+            x, y = pos
+            an_mask, sl = fast_ellip_anmask(
+                x, y, annulus.a_in, b_in, annulus.a_out, annulus.b_out, theta
+            )
             in_an = an_mask > 0
             vals = arr[sl][in_an]
             if base_mask is not None:

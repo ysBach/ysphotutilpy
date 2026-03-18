@@ -606,3 +606,95 @@ class TestSkyFitAnalytical:
         expected = 3 * median - 2 * mean
 
         assert_allclose(result['msky'][0], expected, rtol=1e-5)
+
+
+# =============================================================================
+# Tests for EllipticalAnnulus fast path in annul2values
+# =============================================================================
+class TestAnnul2ValuesElliptical:
+    """Tests for the EllipticalAnnulus fast path in annul2values."""
+
+    @pytest.mark.parametrize("theta", [0.0, 0.5, 1.0, 1.5])
+    def test_uniform_all_values_equal(self, uniform_100x100, theta):
+        """All extracted values equal the uniform fill value for any theta."""
+        import astropy.units as u
+        an = EllipticalAnnulus(
+            positions=(50, 50), a_in=6, a_out=10, b_out=7, theta=theta * u.rad
+        )
+        vals = annul2values(uniform_100x100, an, mask=None)
+        assert_allclose(vals[0], 10.0, rtol=1e-10)
+
+    def test_fast_path_matches_fallback(self, uniform_100x100):
+        """Fast path (EllipticalAnnulus) extracts only pixels with mask>0 (center method).
+        All values should equal the uniform fill value."""
+        import astropy.units as u
+        an = EllipticalAnnulus(
+            positions=(50, 50), a_in=6, a_out=10, b_out=7, theta=0.0 * u.rad
+        )
+        vals_fast = annul2values(uniform_100x100, an, mask=None)
+        # All extracted values must equal the uniform fill value
+        assert_allclose(vals_fast[0], 10.0, rtol=1e-10)
+        # Must extract a positive number of pixels
+        assert len(vals_fast[0]) > 0
+
+    def test_with_mask(self, uniform_100x100):
+        """Masked pixels are excluded from EllipticalAnnulus extraction."""
+        import astropy.units as u
+        mask = np.zeros_like(uniform_100x100, dtype=bool)
+        mask[50, 55] = True
+        mask[50, 56] = True
+
+        an = EllipticalAnnulus(
+            positions=(50, 50), a_in=4, a_out=8, b_out=5, theta=0.0 * u.rad
+        )
+        vals_nomask = annul2values(uniform_100x100, an, mask=None)
+        vals_masked = annul2values(uniform_100x100, an, mask=mask)
+
+        assert len(vals_masked[0]) <= len(vals_nomask[0])
+
+    def test_ccddata_input(self, uniform_100x100):
+        """EllipticalAnnulus fast path works with CCDData input."""
+        import astropy.units as u
+        ccd = CCDData(uniform_100x100, unit='adu')
+        an = EllipticalAnnulus(
+            positions=(50, 50), a_in=5, a_out=9, b_out=6, theta=0.0 * u.rad
+        )
+        vals_ccd = annul2values(ccd, an, mask=None)
+        vals_arr = annul2values(uniform_100x100, an, mask=None)
+        assert_allclose(vals_ccd[0], vals_arr[0], rtol=1e-10)
+
+    def test_multiple_positions(self, uniform_100x100):
+        """Multi-position EllipticalAnnulus returns one array per position."""
+        import astropy.units as u
+        positions = [(30, 30), (50, 50), (70, 70)]
+        an = EllipticalAnnulus(
+            positions=positions, a_in=4, a_out=8, b_out=5, theta=0.0 * u.rad
+        )
+        vals = annul2values(uniform_100x100, an, mask=None)
+        assert len(vals) == 3
+        for v in vals:
+            assert_allclose(v, 10.0, rtol=1e-10)
+
+    def test_ccddata_with_internal_mask(self, uniform_100x100):
+        """CCDData.mask is respected for EllipticalAnnulus."""
+        import astropy.units as u
+        internal_mask = np.zeros_like(uniform_100x100, dtype=bool)
+        internal_mask[50, 57] = True
+        ccd = CCDData(uniform_100x100, unit='adu', mask=internal_mask)
+
+        an = EllipticalAnnulus(
+            positions=(50, 50), a_in=5, a_out=9, b_out=6, theta=0.0 * u.rad
+        )
+        vals_masked = annul2values(ccd, an, mask=None)
+        vals_nomask = annul2values(uniform_100x100, an, mask=None)
+        assert len(vals_masked[0]) <= len(vals_nomask[0])
+
+    def test_sky_fit_with_elliptical_annulus(self, uniform_100x100):
+        """sky_fit works end-to-end with EllipticalAnnulus fast path."""
+        import astropy.units as u
+        an = EllipticalAnnulus(
+            positions=(50, 50), a_in=6, a_out=12, b_out=8, theta=0.0 * u.rad
+        )
+        result = sky_fit(uniform_100x100, an, method='mean')
+        assert_allclose(result['msky'][0], 10.0, rtol=1e-10)
+        assert_allclose(result['ssky'][0], 0.0, atol=1e-10)
