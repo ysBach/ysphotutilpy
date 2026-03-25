@@ -271,8 +271,12 @@ def annul2values(ccd, annulus, mask=None):
         for pos in positions:
             x, y = pos
             an_mask, sl = fast_circ_anmask(x, y, annulus.r_in, annulus.r_out)
+            sub = arr[sl]
+            if sub.size == 0:  # annulus fully outside the image
+                results.append(np.array([], dtype=arr.dtype))
+                continue
             in_an = an_mask > 0
-            vals = arr[sl][in_an]
+            vals = sub[in_an]
             if base_mask is not None:
                 bm_sl = base_mask[sl][in_an]
                 vals = vals[~bm_sl]
@@ -303,8 +307,12 @@ def annul2values(ccd, annulus, mask=None):
             an_mask, sl = fast_ellip_anmask(
                 x, y, annulus.a_in, b_in, annulus.a_out, annulus.b_out, theta
             )
+            sub = arr[sl]
+            if sub.size == 0:  # annulus fully outside the image
+                results.append(np.array([], dtype=arr.dtype))
+                continue
             in_an = an_mask > 0
-            vals = arr[sl][in_an]
+            vals = sub[in_an]
             if base_mask is not None:
                 bm_sl = base_mask[sl][in_an]
                 vals = vals[~bm_sl]
