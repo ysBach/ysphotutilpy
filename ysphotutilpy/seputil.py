@@ -338,7 +338,9 @@ def _sep_extract(
     )
     if seg_remove_mask and mask is not None:
         # FIXME: https://github.com/kbarbary/sep/issues/149
-        seg = seg & ~mask
+        # Use boolean indexing, not bitwise AND — seg is an int label array
+        # and `seg & ~mask` corrupts label values via bitwise ops on integers.
+        seg[mask.astype(bool)] = 0
     return obj, seg
 
 
