@@ -43,7 +43,7 @@ except ImportError:
     warn("Package sep is not installed. Some functions will not work.")
 
 
-__all__ = ["sep_back", "sep_extract", "sep_flux_auto"]
+__all__ = ["sep_back", "sep_extract", "sep_extract_iterative", "sep_flux_auto"]
 
 sep_default_kernel = np.array(
     [[1.0, 2.0, 1.0], [2.0, 4.0, 2.0], [1.0, 2.0, 1.0]], dtype=np.float32
@@ -493,6 +493,172 @@ def sep_extract(
         segm[~segm_survived] = 0
 
     return obj, segm
+
+
+def sep_extract_iterative(
+    data,
+    thresh,
+    mask=None,
+    maskthresh=0.0,
+    err=None,
+    var=None,
+    gain=None,
+    n_iter=2,
+    seg_dilate=0,
+    box_size=(64, 64),
+    filter_size=(3, 3),
+    filter_threshold=0.0,
+    pos_ref=None,
+    sort_by=None,
+    sort_ascending=True,
+    bezel_x=[0, 0],
+    bezel_y=[0, 0],
+    minarea=5,
+    maxarea=None,
+    filter_kernel=sep_default_kernel,
+    filter_type="matched",
+    deblend_nthresh=32,
+    deblend_cont=0.005,
+    clean=True,
+    clean_param=1.0,
+    seg_remove_mask=True,
+    return_bkg=False,
+):
+    """Iterative background estimation and source extraction.
+
+    Runs ``n_iter`` rounds of:
+
+    1. Estimate background with `sep_back`, masking user-supplied pixels and
+       any sources found in the previous iteration.
+    2. Extract sources with `sep_extract` using the new background.
+
+    The segmentation map from each pass is (optionally dilated and) added to
+    the running source mask before the next background estimation, so bright
+    halos and wings are excluded from the sky fit.
+
+    Parameters
+    ----------
+    data : array-like
+        The 2D image array.
+    thresh : float
+        Detection threshold passed to `sep_extract` (absolute if no ``err``/
+        ``var`` is given, otherwise relative to the noise).
+    mask : array-like of bool, optional
+        External bad-pixel mask (``True`` = masked). Combined with the
+        iteratively-built source mask for background estimation.
+        Default is `None`.
+    maskthresh : float, optional
+        Mask threshold forwarded to `sep_back` and `sep_extract`.
+        Default is ``0.0``.
+    err, var : float or array-like, optional
+        Error or variance map. At most one may be given.
+    gain : float, optional
+        Gain (e/ADU) forwarded to `sep_extract`.
+    n_iter : int, optional
+        Number of background + extraction iterations. ``1`` is equivalent to
+        a single `sep_back` → `sep_extract` call. Default is ``2``.
+    seg_dilate : int, optional
+        Radius (pixels) by which to dilate the segmentation map before using
+        it as a source mask in the next background estimation. Useful for
+        masking stellar wings. ``0`` means no dilation. Default is ``0``.
+    box_size : int or array-like of int, optional
+        Background mesh box size forwarded to `sep_back`. Default is ``(64, 64)``.
+    filter_size : int or array-like of int, optional
+        Background mesh filter size forwarded to `sep_back`. Default is ``(3, 3)``.
+    filter_threshold : float, optional
+        Background filter threshold forwarded to `sep_back`. Default is ``0.0``.
+    pos_ref, sort_by, sort_ascending, bezel_x, bezel_y, minarea, maxarea,
+    filter_kernel, filter_type, deblend_nthresh, deblend_cont, clean,
+    clean_param, seg_remove_mask :
+        Forwarded unchanged to `sep_extract` on every iteration.
+    return_bkg : bool, optional
+        If `True`, also return the final `sep.Background` object.
+        Default is `False`.
+
+    Returns
+    -------
+    obj : `~pandas.DataFrame`
+        Extracted source catalog from the final iteration.
+    segm : 2D ndarray of int
+        Segmentation map from the final iteration.
+    bkg : sep.Background
+        Only returned when ``return_bkg=True``. The background object from
+        the final iteration.
+
+    Examples
+    --------
+    >>> obj, segm = sep_extract_iterative(data, thresh=3, n_iter=2, seg_dilate=5)
+    >>> obj, segm, bkg = sep_extract_iterative(data, thresh=3, return_bkg=True)
+    """
+    if n_iter < 1:
+        raise ValueError(f"n_iter must be >= 1 (got {n_iter})")
+
+    # running source mask (starts empty, grows each iteration)
+    src_mask = np.zeros(np.asarray(data).shape, dtype=bool)
+    if mask is not None:
+        base_mask = np.asarray(mask, dtype=bool)
+    else:
+        base_mask = None
+
+    bkg = None
+    obj = None
+    segm = None
+
+    for i in range(n_iter):
+        # combine user mask with sources found so far
+        combined_mask = src_mask if base_mask is None else (base_mask | src_mask)
+
+        bkg = sep_back(
+            data,
+            mask=combined_mask if combined_mask.any() else None,
+            maskthresh=maskthresh,
+            filter_threshold=filter_threshold,
+            box_size=box_size,
+            filter_size=filter_size,
+        )
+
+        obj, segm = sep_extract(
+            data,
+            thresh=thresh,
+            bkg=bkg,
+            mask=base_mask,
+            maskthresh=maskthresh,
+            err=err,
+            var=var,
+            gain=gain,
+            pos_ref=pos_ref,
+            sort_by=sort_by,
+            sort_ascending=sort_ascending,
+            bezel_x=bezel_x,
+            bezel_y=bezel_y,
+            minarea=minarea,
+            maxarea=maxarea,
+            filter_kernel=filter_kernel,
+            filter_type=filter_type,
+            deblend_nthresh=deblend_nthresh,
+            deblend_cont=deblend_cont,
+            clean=clean,
+            clean_param=clean_param,
+            seg_remove_mask=seg_remove_mask,
+        )
+
+        # build new source mask from segmentation map
+        src_mask = segm > 0
+        if seg_dilate > 0:
+            from scipy.ndimage import binary_dilation
+            struct = _disk_struct(seg_dilate)
+            src_mask = binary_dilation(src_mask, structure=struct)
+
+    if return_bkg:
+        return obj, segm, bkg
+    return obj, segm
+
+
+def _disk_struct(radius):
+    """Boolean disk structuring element of given radius for dilation."""
+    r = int(radius)
+    y, x = np.ogrid[-r: r + 1, -r: r + 1]
+    return x ** 2 + y ** 2 <= r ** 2
 
 
 def sep_flux_auto(data, sepext, err=None, phot_autoparams=(2.5, 3.5)):
