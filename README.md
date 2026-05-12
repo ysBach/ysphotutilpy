@@ -1,3 +1,12 @@
+# ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+
+**⚠️ IMPORTANT NOTE**: This repository was maintained by @ysBach since their graduate-student years. Its main development began around 2017 while they were serving as a TA for the [Astronomical Observation class at SNU](https://github.com/ysBach/SNU_AOclass). This package has also been one of the primary tools used in multiple publications.
+
+In 2026, this package was completely superseded by [`astroimred` (short name: `air`)](https://github.com/ysBach/astroimred), which introduced many breaking changes and substantial reorganization. Therefore, this repository has been permanently archived.
+
+# ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
+
+
 # ysphotutilpy
 [![DOI](https://zenodo.org/badge/159082834.svg)](https://zenodo.org/badge/latestdoi/159082834)
 
